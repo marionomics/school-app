@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import os
 
 from models.database import Base, engine
-from routes import health, students, participation, auth
+from routes import health, students, participation, auth, admin
 
 
 @asynccontextmanager
@@ -28,6 +28,7 @@ app.include_router(health.router)
 app.include_router(students.router)
 app.include_router(participation.router)
 app.include_router(auth.router)
+app.include_router(admin.router)
 
 # Mount static files
 if os.path.exists("static"):
@@ -38,6 +39,12 @@ if os.path.exists("static"):
 async def root():
     """Serve the main dashboard."""
     return FileResponse("static/index.html")
+
+
+@app.get("/admin")
+async def admin_page():
+    """Serve the admin dashboard."""
+    return FileResponse("static/admin.html")
 
 
 @app.get("/api/config")

@@ -11,6 +11,7 @@ class Student(Base):
     name = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, nullable=False, index=True)
     oauth_id = Column(String(255), unique=True, nullable=True)
+    role = Column(String(20), nullable=False, default="student")  # student, teacher
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -40,6 +41,7 @@ class Participation(Base):
     date = Column(Date, nullable=False, default=date.today)
     description = Column(Text, nullable=False)
     points = Column(Integer, nullable=False, default=1)
+    approved = Column(String(20), nullable=False, default="pending")  # pending, approved, rejected
 
     # Relationships
     student = relationship("Student", back_populates="participations")

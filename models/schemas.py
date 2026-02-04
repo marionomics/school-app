@@ -15,6 +15,7 @@ class StudentResponse(BaseModel):
     name: str
     email: str
     oauth_id: Optional[str] = None
+    role: str = "student"
     created_at: datetime
 
     class Config:
@@ -52,6 +53,7 @@ class ParticipationResponse(BaseModel):
     date: date
     description: str
     points: int
+    approved: str = "pending"
 
     class Config:
         from_attributes = True
@@ -76,3 +78,25 @@ class GradeResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# Admin schemas
+class BulkAttendanceItem(BaseModel):
+    student_id: int
+    status: str  # present, absent, late, excused
+    notes: Optional[str] = None
+
+
+class BulkAttendanceCreate(BaseModel):
+    date: Optional[date] = None
+    records: list[BulkAttendanceItem]
+
+
+class ParticipationUpdate(BaseModel):
+    approved: str  # pending, approved, rejected
+    points: Optional[int] = None
+
+
+class ParticipationWithStudent(ParticipationResponse):
+    student_name: str
+    student_email: str

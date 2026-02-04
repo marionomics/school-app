@@ -44,6 +44,9 @@ def verify_google_token(token: str) -> dict:
         )
 
 
+TEACHER_EMAIL = os.getenv("TEACHER_EMAIL")
+
+
 def find_or_create_student(db: Session, google_info: dict) -> Student:
     """
     Find existing student by oauth_id or email, or create a new one.
@@ -70,11 +73,13 @@ def find_or_create_student(db: Session, google_info: dict) -> Student:
         db.refresh(student)
         return student
 
-    # Create new student
+    # Create new student (or teacher if email matches)
+    role = "teacher" if email == TEACHER_EMAIL else "student"
     student = Student(
         name=name,
         email=email,
         oauth_id=oauth_id,
+        role=role,
     )
     db.add(student)
     db.commit()
@@ -128,4 +133,18 @@ async def get_current_student(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    return student
+
+
+async def get_current_teacher(
+    student: Student = Depends(get_current_student),
+) -> Student:
+    """
+    Verify the current user is a teacher.
+    """
+    if student.role != "teacher":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Teacher access required",
+        )
     return student

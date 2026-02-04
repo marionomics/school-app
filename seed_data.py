@@ -2,9 +2,13 @@
 Seed script to populate the database with sample data for testing.
 Run with: python seed_data.py
 """
+import os
 from datetime import date, timedelta
+from dotenv import load_dotenv
 from models.database import SessionLocal, engine, Base
 from models.models import Student, Attendance, Participation, Grade
+
+load_dotenv()
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -19,11 +23,18 @@ try:
     db.query(Student).delete()
     db.commit()
 
+    # Create teacher account if TEACHER_EMAIL is set
+    teacher_email = os.getenv("TEACHER_EMAIL")
+    teacher = None
+    if teacher_email:
+        teacher = Student(name="Teacher", email=teacher_email, role="teacher")
+        db.add(teacher)
+
     # Create sample students
     students = [
-        Student(id=1, name="Alice Johnson", email="alice@school.edu"),
-        Student(id=2, name="Bob Smith", email="bob@school.edu"),
-        Student(id=3, name="Carol Davis", email="carol@school.edu"),
+        Student(id=1, name="Alice Johnson", email="alice@school.edu", role="student"),
+        Student(id=2, name="Bob Smith", email="bob@school.edu", role="student"),
+        Student(id=3, name="Carol Davis", email="carol@school.edu", role="student"),
     ]
     db.add_all(students)
     db.commit()
@@ -54,18 +65,22 @@ try:
 
     # Create participation records for student 1
     participations = [
-        Participation(student_id=1, date=today - timedelta(days=5), description="Answered question about loops", points=1),
-        Participation(student_id=1, date=today - timedelta(days=3), description="Led group discussion on algorithms", points=3),
-        Participation(student_id=1, date=today - timedelta(days=1), description="Helped classmate debug code", points=2),
+        Participation(student_id=1, date=today - timedelta(days=5), description="Answered question about loops", points=1, approved="approved"),
+        Participation(student_id=1, date=today - timedelta(days=3), description="Led group discussion on algorithms", points=3, approved="approved"),
+        Participation(student_id=1, date=today - timedelta(days=1), description="Helped classmate debug code", points=2, approved="pending"),
     ]
     db.add_all(participations)
 
     db.commit()
     print("Database seeded successfully!")
+    if teacher:
+        print(f"\nTeacher account: {teacher.email}")
+    else:
+        print("\nNo teacher account created (set TEACHER_EMAIL in .env)")
     print("\nCreated students:")
     for s in students:
-        print(f"  - ID {s.id}: {s.name} ({s.email})")
-    print("\nYou can now log in with student ID: 1")
+        print(f"  - {s.name} ({s.email})")
+    print("\nLogin with Google OAuth using your configured account.")
 
 except Exception as e:
     print(f"Error seeding database: {e}")
