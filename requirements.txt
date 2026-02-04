@@ -4,3 +4,4 @@ sqlalchemy
 pydantic[email]
 python-dotenv
 pydantic-settings
+google-auth>=2.23.0

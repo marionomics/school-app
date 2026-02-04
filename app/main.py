@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import os
 
 from models.database import Base, engine
-from routes import health, students, participation
+from routes import health, students, participation, auth
 
 
 @asynccontextmanager
@@ -27,6 +27,7 @@ app = FastAPI(
 app.include_router(health.router)
 app.include_router(students.router)
 app.include_router(participation.router)
+app.include_router(auth.router)
 
 # Mount static files
 if os.path.exists("static"):
@@ -37,3 +38,11 @@ if os.path.exists("static"):
 async def root():
     """Serve the main dashboard."""
     return FileResponse("static/index.html")
+
+
+@app.get("/api/config")
+async def get_config():
+    """Return frontend configuration including Google Client ID."""
+    return {
+        "google_client_id": os.getenv("GOOGLE_CLIENT_ID", ""),
+    }

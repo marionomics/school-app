@@ -11,7 +11,7 @@ A FastAPI teaching application for managing student attendance, participation, a
 - **Backend:** FastAPI, SQLAlchemy ORM, Pydantic
 - **Database:** SQLite (file: `school.db`)
 - **Frontend:** Vanilla JS with Tailwind CSS (CDN)
-- **Auth:** Placeholder token-based (to be replaced with OAuth)
+- **Auth:** Google OAuth (Google Identity Services)
 
 ## Key Commands
 
@@ -26,7 +26,8 @@ python seed_data.py
 ## Project Structure
 
 - `app/main.py` - FastAPI app entry point, routes registration
-- `app/auth.py` - Placeholder authentication (Bearer token: `student_<id>`)
+- `app/auth.py` - Google OAuth token verification and session management
+- `routes/auth.py` - Authentication endpoints (`/api/auth/google`, `/api/auth/logout`)
 - `models/models.py` - SQLAlchemy ORM models (Student, Attendance, Participation, Grade)
 - `models/schemas.py` - Pydantic request/response schemas
 - `models/database.py` - Database connection and session management
@@ -37,6 +38,9 @@ python seed_data.py
 ## API Endpoints
 
 - `GET /api/health` - Health check
+- `GET /api/config` - Frontend configuration (Google Client ID)
+- `POST /api/auth/google` - Authenticate with Google ID token
+- `POST /api/auth/logout` - Invalidate session
 - `GET /api/students/me` - Current student info (requires auth)
 - `GET /api/students/me/grades` - Student's grades
 - `GET /api/students/me/attendance` - Student's attendance
@@ -44,11 +48,22 @@ python seed_data.py
 
 ## Authentication
 
-Currently uses placeholder auth. Token format: `Bearer student_<id>`
+Uses Google OAuth with Google Identity Services (client-side Sign-In button).
 
-Example: `Authorization: Bearer student_1` returns student with ID 1.
+**Setup:**
+1. Create a project in Google Cloud Console
+2. Enable Google+ API and configure OAuth consent screen
+3. Create OAuth 2.0 Client ID (Web application type)
+4. Add `http://localhost:8000` to authorized JavaScript origins
+5. Copy the Client ID to `.env` as `GOOGLE_CLIENT_ID`
 
-**TODO:** Replace with proper OAuth implementation.
+**Flow:**
+1. User clicks "Sign in with Google" button
+2. Google popup authenticates user
+3. Frontend receives ID token, POSTs to `/api/auth/google`
+4. Backend verifies token with Google, finds/creates student
+5. Backend returns session token
+6. Frontend stores token in localStorage for API calls
 
 ## Database
 

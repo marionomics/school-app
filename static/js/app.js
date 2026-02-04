@@ -1,6 +1,7 @@
 // State
 let authToken = localStorage.getItem('authToken');
 let currentStudent = null;
+let googleClientId = null;
 
 // API helpers
 const API_BASE = '/api';
@@ -27,36 +28,69 @@ async function apiCall(endpoint, options = {}) {
     return response.json();
 }
 
-// Auth functions
-async function login() {
-    const studentId = document.getElementById('student-id').value;
+// Google OAuth functions
+async function handleGoogleCredentialResponse(response) {
     const errorEl = document.getElementById('login-error');
-
-    if (!studentId) {
-        errorEl.textContent = 'Please enter your student ID';
-        errorEl.classList.remove('hidden');
-        return;
-    }
-
-    authToken = `student_${studentId}`;
+    errorEl.classList.add('hidden');
 
     try {
-        currentStudent = await apiCall('/students/me');
+        const result = await apiCall('/auth/google', {
+            method: 'POST',
+            body: JSON.stringify({ credential: response.credential })
+        });
+
+        authToken = result.token;
+        currentStudent = result.student;
         localStorage.setItem('authToken', authToken);
         showDashboard();
         loadDashboardData();
     } catch (error) {
-        errorEl.textContent = 'Invalid student ID. Please try again.';
+        console.error('Google auth failed:', error);
+        errorEl.textContent = 'Authentication failed. Please try again.';
         errorEl.classList.remove('hidden');
-        authToken = null;
     }
 }
 
-function logout() {
+function initGoogleSignIn() {
+    if (!googleClientId) {
+        const errorEl = document.getElementById('login-error');
+        errorEl.textContent = 'Google Sign-In not configured. Please set GOOGLE_CLIENT_ID.';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: handleGoogleCredentialResponse,
+    });
+
+    google.accounts.id.renderButton(
+        document.getElementById('google-signin-container'),
+        {
+            theme: 'outline',
+            size: 'large',
+            width: 280,
+        }
+    );
+}
+
+async function logout() {
+    // Call backend logout to invalidate session
+    try {
+        await apiCall('/auth/logout', { method: 'POST' });
+    } catch (error) {
+        console.error('Logout error:', error);
+    }
+
     authToken = null;
     currentStudent = null;
     localStorage.removeItem('authToken');
     showLogin();
+
+    // Re-render Google Sign-In button
+    if (googleClientId) {
+        initGoogleSignIn();
+    }
 }
 
 // UI functions
@@ -247,6 +281,14 @@ function formatDate(dateString) {
 
 // Initialize
 async function init() {
+    // Fetch config first
+    try {
+        const config = await fetch('/api/config').then(r => r.json());
+        googleClientId = config.google_client_id;
+    } catch (error) {
+        console.error('Failed to fetch config:', error);
+    }
+
     if (authToken) {
         try {
             currentStudent = await apiCall('/students/me');
@@ -257,17 +299,18 @@ async function init() {
         }
     } else {
         showLogin();
+        // Wait for Google script to load, then initialize
+        if (typeof google !== 'undefined') {
+            initGoogleSignIn();
+        } else {
+            window.addEventListener('load', () => {
+                setTimeout(initGoogleSignIn, 100);
+            });
+        }
     }
 
     // Initialize participation points display
     document.getElementById('total-participation').textContent = '0';
 }
-
-// Allow Enter key to submit login
-document.getElementById('student-id').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        login();
-    }
-});
 
 init();
