@@ -20,8 +20,11 @@ school-app/
 │   ├── health.py        # Health check endpoint
 │   ├── students.py      # Student-related endpoints
 │   └── participation.py # Participation endpoints
-├── static/              # Static files (CSS, JS, images)
-├── templates/           # Jinja2 templates
+├── static/
+│   ├── index.html       # Student dashboard (Tailwind CSS)
+│   └── js/app.js        # Frontend JavaScript
+├── templates/           # Jinja2 templates (for future use)
+├── seed_data.py         # Script to populate test data
 ├── requirements.txt
 ├── .env.example
 └── README.md
@@ -84,8 +87,23 @@ curl -H "Authorization: Bearer student_1" http://localhost:8000/api/students/me
 - **Participation**: id, student_id, date, description, points
 - **Grade**: id, student_id, category, score, max_score, date
 
+## Frontend
+
+The student dashboard is available at the root URL (`/`). Features:
+- Login with student ID
+- View grades and attendance records
+- Submit class participation
+- Stats overview (average grade, attendance rate, participation points)
+
+Built with Tailwind CSS (via CDN) - no build step required.
+
 ## Development
 
 The SQLite database (`school.db`) is created automatically on first run.
 
-To add test data, you can use the FastAPI interactive docs at `/docs` or create a seed script.
+To populate test data:
+```bash
+python seed_data.py
+```
+
+This creates 3 sample students and records for student ID 1. Login with ID `1` to see the demo data.
