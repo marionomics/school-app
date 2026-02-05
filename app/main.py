@@ -1,8 +1,12 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from models.database import Base, engine
 from routes import health, students, participation, auth, admin
@@ -21,6 +25,16 @@ app = FastAPI(
     description="A FastAPI application for managing student attendance, participation, and grades",
     version="0.1.0",
     lifespan=lifespan
+)
+
+# CORS configuration
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:8000").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Include routers (before static files to ensure API routes take precedence)

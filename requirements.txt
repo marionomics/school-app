@@ -5,3 +5,6 @@ pydantic[email]
 python-dotenv
 pydantic-settings
 google-auth>=2.23.0
+requests
+gunicorn
+psycopg2-binary

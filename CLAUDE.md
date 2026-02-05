@@ -9,9 +9,10 @@ A FastAPI teaching application for managing student attendance, participation, a
 ## Tech Stack
 
 - **Backend:** FastAPI, SQLAlchemy ORM, Pydantic
-- **Database:** SQLite (file: `school.db`)
+- **Database:** SQLite (dev) / PostgreSQL (production)
 - **Frontend:** Vanilla JS with Tailwind CSS (CDN)
 - **Auth:** Google OAuth (Google Identity Services)
+- **Deployment:** Railway
 
 ## Key Commands
 
@@ -84,7 +85,10 @@ Uses Google OAuth with Google Identity Services (client-side Sign-In button).
 
 ## Database
 
-SQLite database auto-creates on first run. Tables:
+- **Development:** SQLite (auto-creates `school.db`)
+- **Production:** PostgreSQL (Railway provides this)
+
+Tables:
 - `students` - Student records (includes `role`: student/teacher)
 - `attendances` - Daily attendance (status: present/absent/late/excused)
 - `participations` - Class participation entries with points and approval status
@@ -95,3 +99,17 @@ SQLite database auto-creates on first run. Tables:
 - Frontend uses Tailwind CSS via CDN (no build step)
 - Database file (`school.db`) is gitignored
 - Run `seed_data.py` to populate test data (creates 3 students, sample records for student ID 1)
+
+## Railway Deployment
+
+1. Push code to GitHub
+2. Create new project in Railway, connect to GitHub repo
+3. Add PostgreSQL database service
+4. Set environment variables in Railway:
+   - `GOOGLE_CLIENT_ID` - From Google Cloud Console
+   - `GOOGLE_CLIENT_SECRET` - From Google Cloud Console
+   - `TEACHER_EMAIL` - Your teacher email
+   - `ALLOWED_ORIGINS` - Your Railway domain (e.g., `https://your-app.up.railway.app`)
+   - `SECRET_KEY` - Random secret string
+5. Add your Railway domain to Google OAuth authorized origins
+6. Deploy!

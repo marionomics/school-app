@@ -1,109 +1,134 @@
 # School Teaching App
 
-A FastAPI application for managing student attendance, participation, and grades.
+A FastAPI application for managing student attendance, participation, and grades. Built for UJED classroom management.
+
+## Features
+
+- **Student Dashboard**: View grades, attendance, submit participation
+- **Teacher Admin Panel**: Record attendance, manage grades, approve participation
+- **Google OAuth**: Secure authentication via Google accounts
+- **Railway Ready**: Configured for easy cloud deployment
+
+## Tech Stack
+
+- **Backend**: FastAPI, SQLAlchemy, Pydantic
+- **Database**: SQLite (dev) / PostgreSQL (production)
+- **Frontend**: Vanilla JS, Tailwind CSS (CDN)
+- **Auth**: Google OAuth 2.0
+- **Deployment**: Railway
+
+## Quick Start
+
+1. **Clone and setup**:
+   ```bash
+   git clone https://github.com/marionomics/school-app.git
+   cd school-app
+   python -m venv venv
+   source venv/bin/activate  # Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+2. **Configure environment**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your Google OAuth credentials and teacher email
+   ```
+
+3. **Setup Google OAuth**:
+   - Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+   - Create OAuth 2.0 Client ID (Web application)
+   - Add `http://localhost:8000` to authorized JavaScript origins
+   - Copy Client ID to `.env`
+
+4. **Run**:
+   ```bash
+   python seed_data.py  # Optional: populate test data
+   uvicorn app.main:app --reload
+   ```
+
+5. **Open**:
+   - Student Dashboard: http://localhost:8000
+   - Admin Panel: http://localhost:8000/admin
+   - API Docs: http://localhost:8000/docs
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | Database connection string |
+| `GOOGLE_CLIENT_ID` | Google OAuth Client ID |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret |
+| `TEACHER_EMAIL` | Email that gets admin access |
+| `ALLOWED_ORIGINS` | CORS allowed origins (comma-separated) |
+| `SECRET_KEY` | Application secret key |
+
+## API Endpoints
+
+### Public
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/health` | Health check |
+| GET | `/api/config` | Frontend config |
+| POST | `/api/auth/google` | Google OAuth login |
+| POST | `/api/auth/logout` | Logout |
+
+### Student (requires auth)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/students/me` | Current student info |
+| GET | `/api/students/me/grades` | Student's grades |
+| GET | `/api/students/me/attendance` | Student's attendance |
+| POST | `/api/participation` | Submit participation |
+
+### Admin (teacher only)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/students` | List all students |
+| POST | `/api/admin/attendance` | Record bulk attendance |
+| GET | `/api/admin/attendance` | Get attendance by date |
+| POST | `/api/admin/grades` | Add grade |
+| GET | `/api/admin/participation` | View all participation |
+| PATCH | `/api/admin/participation/:id` | Approve/reject |
+
+## Railway Deployment
+
+1. Push code to GitHub
+2. Create new Railway project, connect repo
+3. Add PostgreSQL database service
+4. Set environment variables in Railway dashboard
+5. Add Railway domain to Google OAuth authorized origins
+6. Deploy!
 
 ## Project Structure
 
 ```
 school-app/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py          # FastAPI application entry point
-│   └── auth.py          # Authentication (placeholder)
+│   ├── main.py           # FastAPI app, CORS, routes
+│   └── auth.py           # Google OAuth, session management
 ├── models/
-│   ├── __init__.py
-│   ├── database.py      # SQLAlchemy database setup
-│   ├── models.py        # SQLAlchemy ORM models
-│   └── schemas.py       # Pydantic validation schemas
+│   ├── database.py       # SQLAlchemy setup (SQLite/PostgreSQL)
+│   ├── models.py         # ORM models
+│   └── schemas.py        # Pydantic schemas
 ├── routes/
-│   ├── __init__.py
-│   ├── health.py        # Health check endpoint
-│   ├── students.py      # Student-related endpoints
-│   └── participation.py # Participation endpoints
+│   ├── auth.py           # Auth endpoints
+│   ├── admin.py          # Admin endpoints
+│   ├── students.py       # Student endpoints
+│   ├── participation.py  # Participation endpoints
+│   └── health.py         # Health check
 ├── static/
-│   ├── index.html       # Student dashboard (Tailwind CSS)
-│   └── js/app.js        # Frontend JavaScript
-├── templates/           # Jinja2 templates (for future use)
-├── seed_data.py         # Script to populate test data
+│   ├── index.html        # Student dashboard
+│   ├── admin.html        # Admin panel
+│   └── js/
+│       ├── app.js        # Student JS
+│       └── admin.js      # Admin JS
+├── seed_data.py          # Test data script
 ├── requirements.txt
-├── .env.example
-└── README.md
+├── Procfile              # Railway start command
+├── railway.json          # Railway config
+└── .env.example
 ```
 
-## Setup
+## License
 
-1. Create and activate a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Create your `.env` file:
-   ```bash
-   cp .env.example .env
-   ```
-
-4. Run the application:
-   ```bash
-   uvicorn app.main:app --reload
-   ```
-
-5. Open your browser to:
-   - API: http://localhost:8000
-   - Docs: http://localhost:8000/docs
-   - ReDoc: http://localhost:8000/redoc
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/health` | Health check |
-| GET | `/api/students/me` | Get current student info |
-| GET | `/api/students/me/grades` | Get student's grades |
-| GET | `/api/students/me/attendance` | Get student's attendance |
-| POST | `/api/participation` | Submit participation |
-
-## Authentication (Placeholder)
-
-Currently using placeholder authentication. To test endpoints:
-
-1. Create a student in the database
-2. Use the header: `Authorization: Bearer student_<id>`
-
-Example:
-```bash
-curl -H "Authorization: Bearer student_1" http://localhost:8000/api/students/me
-```
-
-## Database Models
-
-- **Student**: id, name, email, oauth_id, created_at
-- **Attendance**: id, student_id, date, status, notes
-- **Participation**: id, student_id, date, description, points
-- **Grade**: id, student_id, category, score, max_score, date
-
-## Frontend
-
-The student dashboard is available at the root URL (`/`). Features:
-- Login with student ID
-- View grades and attendance records
-- Submit class participation
-- Stats overview (average grade, attendance rate, participation points)
-
-Built with Tailwind CSS (via CDN) - no build step required.
-
-## Development
-
-The SQLite database (`school.db`) is created automatically on first run.
-
-To populate test data:
-```bash
-python seed_data.py
-```
-
-This creates 3 sample students and records for student ID 1. Login with ID `1` to see the demo data.
+MIT
