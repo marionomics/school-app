@@ -1,10 +1,10 @@
-// State
+// Estado
 let authToken = localStorage.getItem('authToken');
 let currentTeacher = null;
 let googleClientId = null;
 let students = [];
 
-// API helpers
+// Helpers de API
 const API_BASE = '/api';
 
 async function apiCall(endpoint, options = {}) {
@@ -23,8 +23,8 @@ async function apiCall(endpoint, options = {}) {
     });
 
     if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-        throw new Error(error.detail || `API error: ${response.status}`);
+        const error = await response.json().catch(() => ({ detail: 'Error desconocido' }));
+        throw new Error(error.detail || `Error de API: ${response.status}`);
     }
 
     return response.json();
@@ -41,9 +41,8 @@ async function handleGoogleCredentialResponse(response) {
             body: JSON.stringify({ credential: response.credential })
         });
 
-        // Check if user is a teacher
         if (result.student.role !== 'teacher') {
-            errorEl.textContent = 'Access denied. Teacher account required.';
+            errorEl.textContent = 'Acceso denegado. Se requiere cuenta de profesor.';
             errorEl.classList.remove('hidden');
             return;
         }
@@ -54,8 +53,8 @@ async function handleGoogleCredentialResponse(response) {
         showAdmin();
         loadInitialData();
     } catch (error) {
-        console.error('Auth failed:', error);
-        errorEl.textContent = error.message || 'Authentication failed. Please try again.';
+        console.error('Error de autenticación:', error);
+        errorEl.textContent = error.message || 'Error de autenticación. Por favor intenta de nuevo.';
         errorEl.classList.remove('hidden');
     }
 }
@@ -63,7 +62,7 @@ async function handleGoogleCredentialResponse(response) {
 function initGoogleSignIn() {
     if (!googleClientId) {
         const errorEl = document.getElementById('login-error');
-        errorEl.textContent = 'Google Sign-In not configured. Please set GOOGLE_CLIENT_ID.';
+        errorEl.textContent = 'Google Sign-In no configurado. Por favor configura GOOGLE_CLIENT_ID.';
         errorEl.classList.remove('hidden');
         return;
     }
@@ -83,7 +82,7 @@ async function logout() {
     try {
         await apiCall('/auth/logout', { method: 'POST' });
     } catch (error) {
-        console.error('Logout error:', error);
+        console.error('Error al cerrar sesión:', error);
     }
 
     authToken = null;
@@ -93,7 +92,7 @@ async function logout() {
     if (googleClientId) initGoogleSignIn();
 }
 
-// UI functions
+// Funciones de UI
 function showLogin() {
     document.getElementById('login-section').classList.remove('hidden');
     document.getElementById('admin-section').classList.add('hidden');
@@ -108,7 +107,6 @@ function showAdmin() {
 }
 
 function showTab(tabName) {
-    // Update tab buttons
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('border-primary', 'text-primary');
         btn.classList.add('border-transparent', 'text-gray-500');
@@ -116,15 +114,13 @@ function showTab(tabName) {
     document.getElementById(`tab-${tabName}`).classList.add('border-primary', 'text-primary');
     document.getElementById(`tab-${tabName}`).classList.remove('border-transparent', 'text-gray-500');
 
-    // Show/hide panels
     document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
     document.getElementById(`panel-${tabName}`).classList.remove('hidden');
 
-    // Load data for the tab
     if (tabName === 'participation') loadParticipation();
 }
 
-// Data loading
+// Carga de datos
 async function loadInitialData() {
     await loadStudents();
     loadAttendanceSheet();
@@ -135,19 +131,19 @@ async function loadStudents() {
         students = await apiCall('/admin/students');
         populateStudentDropdown();
     } catch (error) {
-        console.error('Failed to load students:', error);
+        console.error('Error al cargar estudiantes:', error);
     }
 }
 
 function populateStudentDropdown() {
     const select = document.getElementById('grade-student');
-    select.innerHTML = '<option value="">Select a student...</option>';
+    select.innerHTML = '<option value="">Selecciona un estudiante...</option>';
     students.forEach(s => {
         select.innerHTML += `<option value="${s.id}">${s.name} (${s.email})</option>`;
     });
 }
 
-// Attendance
+// Asistencia
 async function loadAttendanceSheet() {
     const dateInput = document.getElementById('attendance-date');
     if (!dateInput.value) {
@@ -157,11 +153,10 @@ async function loadAttendanceSheet() {
     const tbody = document.getElementById('attendance-table');
 
     if (students.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-gray-500">No students found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-gray-500">No se encontraron estudiantes</td></tr>';
         return;
     }
 
-    // Load existing attendance for the date
     let existingAttendance = {};
     try {
         const records = await apiCall(`/admin/attendance?date=${dateInput.value}`);
@@ -169,7 +164,7 @@ async function loadAttendanceSheet() {
             existingAttendance[r.student_id] = r;
         });
     } catch (error) {
-        console.error('Failed to load attendance:', error);
+        console.error('Error al cargar asistencia:', error);
     }
 
     tbody.innerHTML = students.map(student => {
@@ -196,7 +191,7 @@ async function loadAttendanceSheet() {
                            class="w-4 h-4 text-yellow-600 focus:ring-yellow-500">
                 </td>
                 <td class="px-4 py-3">
-                    <input type="text" value="${notes}" placeholder="Optional notes"
+                    <input type="text" value="${notes}" placeholder="Notas opcionales"
                            class="notes-input w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-primary focus:border-transparent outline-none">
                 </td>
             </tr>
@@ -227,7 +222,7 @@ async function submitAttendance() {
     });
 
     if (records.length === 0) {
-        alert('Please select attendance status for at least one student.');
+        alert('Por favor selecciona el estado de asistencia para al menos un estudiante.');
         return;
     }
 
@@ -241,11 +236,11 @@ async function submitAttendance() {
         successEl.classList.remove('hidden');
         setTimeout(() => successEl.classList.add('hidden'), 3000);
     } catch (error) {
-        alert('Failed to save attendance: ' + error.message);
+        alert('Error al guardar asistencia: ' + error.message);
     }
 }
 
-// Participation
+// Participación
 async function loadParticipation() {
     const filter = document.getElementById('participation-filter').value;
     const container = document.getElementById('participation-list');
@@ -255,17 +250,25 @@ async function loadParticipation() {
         const participations = await apiCall(url);
 
         if (participations.length === 0) {
-            container.innerHTML = '<p class="text-center text-gray-500 py-4">No submissions found</p>';
+            container.innerHTML = '<p class="text-center text-gray-500 py-4">No se encontraron registros</p>';
             return;
         }
 
+        const statusNames = {
+            pending: 'Pendiente',
+            approved: 'Aprobado',
+            rejected: 'Rechazado'
+        };
+
+        const statusColors = {
+            pending: 'bg-yellow-100 text-yellow-800',
+            approved: 'bg-green-100 text-green-800',
+            rejected: 'bg-red-100 text-red-800'
+        };
+
         container.innerHTML = participations.map(p => {
-            const statusColors = {
-                pending: 'bg-yellow-100 text-yellow-800',
-                approved: 'bg-green-100 text-green-800',
-                rejected: 'bg-red-100 text-red-800'
-            };
             const statusColor = statusColors[p.approved] || 'bg-gray-100 text-gray-800';
+            const statusName = statusNames[p.approved] || p.approved;
 
             return `
                 <div class="border border-gray-200 rounded-lg p-4" data-participation-id="${p.id}">
@@ -274,7 +277,7 @@ async function loadParticipation() {
                             <div class="flex items-center gap-2 mb-1">
                                 <span class="font-medium text-gray-800">${p.student_name}</span>
                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColor}">
-                                    ${p.approved}
+                                    ${statusName}
                                 </span>
                             </div>
                             <p class="text-gray-600 text-sm">${p.description}</p>
@@ -287,11 +290,11 @@ async function loadParticipation() {
                             ${p.approved === 'pending' ? `
                                 <button onclick="updateParticipation(${p.id}, 'approved')"
                                         class="px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200">
-                                    Approve
+                                    Aprobar
                                 </button>
                                 <button onclick="updateParticipation(${p.id}, 'rejected')"
                                         class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200">
-                                    Reject
+                                    Rechazar
                                 </button>
                             ` : ''}
                         </div>
@@ -300,7 +303,7 @@ async function loadParticipation() {
             `;
         }).join('');
     } catch (error) {
-        container.innerHTML = `<p class="text-center text-red-500 py-4">Failed to load: ${error.message}</p>`;
+        container.innerHTML = `<p class="text-center text-red-500 py-4">Error al cargar: ${error.message}</p>`;
     }
 }
 
@@ -316,11 +319,11 @@ async function updateParticipation(id, status) {
         });
         loadParticipation();
     } catch (error) {
-        alert('Failed to update: ' + error.message);
+        alert('Error al actualizar: ' + error.message);
     }
 }
 
-// Grades
+// Calificaciones
 document.getElementById('grade-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -346,27 +349,26 @@ document.getElementById('grade-form').addEventListener('submit', async (e) => {
         successEl.classList.remove('hidden');
         setTimeout(() => successEl.classList.add('hidden'), 3000);
 
-        // Reset form
         document.getElementById('grade-score').value = '';
         document.getElementById('grade-date').value = '';
     } catch (error) {
-        alert('Failed to add grade: ' + error.message);
+        alert('Error al agregar calificación: ' + error.message);
     }
 });
 
 // Helpers
 function formatDate(dateString) {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-// Initialize
+// Inicialización
 async function init() {
     try {
         const config = await fetch('/api/config').then(r => r.json());
         googleClientId = config.google_client_id;
     } catch (error) {
-        console.error('Failed to fetch config:', error);
+        console.error('Error al obtener configuración:', error);
     }
 
     if (authToken) {

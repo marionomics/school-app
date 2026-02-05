@@ -7,6 +7,7 @@ A FastAPI application for managing student attendance, participation, and grades
 - **Student Dashboard**: View grades, attendance, submit participation
 - **Teacher Admin Panel**: Record attendance, manage grades, approve participation
 - **Google OAuth**: Secure authentication via Google accounts
+- **Spanish UI**: Full Spanish language interface
 - **Railway Ready**: Configured for easy cloud deployment
 
 ## Tech Stack
@@ -117,8 +118,8 @@ school-app/
 │   ├── participation.py  # Participation endpoints
 │   └── health.py         # Health check
 ├── static/
-│   ├── index.html        # Student dashboard
-│   ├── admin.html        # Admin panel
+│   ├── index.html        # Student dashboard (Spanish)
+│   ├── admin.html        # Admin panel (Spanish)
 │   └── js/
 │       ├── app.js        # Student JS
 │       └── admin.js      # Admin JS

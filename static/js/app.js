@@ -1,9 +1,9 @@
-// State
+// Estado
 let authToken = localStorage.getItem('authToken');
 let currentStudent = null;
 let googleClientId = null;
 
-// API helpers
+// Helpers de API
 const API_BASE = '/api';
 
 async function apiCall(endpoint, options = {}) {
@@ -22,13 +22,13 @@ async function apiCall(endpoint, options = {}) {
     });
 
     if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        throw new Error(`Error de API: ${response.status}`);
     }
 
     return response.json();
 }
 
-// Google OAuth functions
+// Funciones de Google OAuth
 async function handleGoogleCredentialResponse(response) {
     const errorEl = document.getElementById('login-error');
     errorEl.classList.add('hidden');
@@ -45,8 +45,8 @@ async function handleGoogleCredentialResponse(response) {
         showDashboard();
         loadDashboardData();
     } catch (error) {
-        console.error('Google auth failed:', error);
-        errorEl.textContent = 'Authentication failed. Please try again.';
+        console.error('Error de autenticación:', error);
+        errorEl.textContent = 'Error de autenticación. Por favor intenta de nuevo.';
         errorEl.classList.remove('hidden');
     }
 }
@@ -54,7 +54,7 @@ async function handleGoogleCredentialResponse(response) {
 function initGoogleSignIn() {
     if (!googleClientId) {
         const errorEl = document.getElementById('login-error');
-        errorEl.textContent = 'Google Sign-In not configured. Please set GOOGLE_CLIENT_ID.';
+        errorEl.textContent = 'Google Sign-In no configurado. Por favor configura GOOGLE_CLIENT_ID.';
         errorEl.classList.remove('hidden');
         return;
     }
@@ -75,11 +75,10 @@ function initGoogleSignIn() {
 }
 
 async function logout() {
-    // Call backend logout to invalidate session
     try {
         await apiCall('/auth/logout', { method: 'POST' });
     } catch (error) {
-        console.error('Logout error:', error);
+        console.error('Error al cerrar sesión:', error);
     }
 
     authToken = null;
@@ -87,13 +86,12 @@ async function logout() {
     localStorage.removeItem('authToken');
     showLogin();
 
-    // Re-render Google Sign-In button
     if (googleClientId) {
         initGoogleSignIn();
     }
 }
 
-// UI functions
+// Funciones de UI
 function showLogin() {
     document.getElementById('login-section').classList.remove('hidden');
     document.getElementById('dashboard-section').classList.add('hidden');
@@ -108,7 +106,7 @@ function showDashboard() {
     }
 }
 
-// Data loading
+// Carga de datos
 async function loadDashboardData() {
     await Promise.all([
         loadGrades(),
@@ -122,9 +120,9 @@ async function loadGrades() {
         renderGrades(grades);
         calculateAverageGrade(grades);
     } catch (error) {
-        console.error('Failed to load grades:', error);
+        console.error('Error al cargar calificaciones:', error);
         document.getElementById('grades-table').innerHTML = `
-            <tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">Failed to load grades</td></tr>
+            <tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">Error al cargar calificaciones</td></tr>
         `;
     }
 }
@@ -135,33 +133,41 @@ async function loadAttendance() {
         renderAttendance(attendance);
         calculateAttendanceRate(attendance);
     } catch (error) {
-        console.error('Failed to load attendance:', error);
+        console.error('Error al cargar asistencia:', error);
         document.getElementById('attendance-table').innerHTML = `
-            <tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">Failed to load attendance</td></tr>
+            <tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">Error al cargar asistencia</td></tr>
         `;
     }
 }
 
-// Rendering functions
+// Funciones de renderizado
 function renderGrades(grades) {
     const tbody = document.getElementById('grades-table');
 
     if (grades.length === 0) {
         tbody.innerHTML = `
-            <tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">No grades yet</td></tr>
+            <tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">Sin calificaciones aún</td></tr>
         `;
         return;
     }
 
+    const categoryNames = {
+        homework: 'Tarea',
+        quiz: 'Quiz',
+        exam: 'Examen',
+        project: 'Proyecto'
+    };
+
     tbody.innerHTML = grades.map(grade => {
         const percentage = ((grade.score / grade.max_score) * 100).toFixed(1);
         const colorClass = percentage >= 70 ? 'text-green-600' : percentage >= 50 ? 'text-yellow-600' : 'text-red-600';
+        const categoryName = categoryNames[grade.category] || grade.category;
 
         return `
             <tr class="hover:bg-gray-50">
                 <td class="px-6 py-4">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
-                        ${grade.category}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        ${categoryName}
                     </span>
                 </td>
                 <td class="px-6 py-4">
@@ -179,26 +185,35 @@ function renderAttendance(attendance) {
 
     if (attendance.length === 0) {
         tbody.innerHTML = `
-            <tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">No attendance records</td></tr>
+            <tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">Sin registros de asistencia</td></tr>
         `;
         return;
     }
 
+    const statusNames = {
+        present: 'Presente',
+        absent: 'Ausente',
+        late: 'Tarde',
+        excused: 'Justificado'
+    };
+
+    const statusColors = {
+        present: 'bg-green-100 text-green-800',
+        absent: 'bg-red-100 text-red-800',
+        late: 'bg-yellow-100 text-yellow-800',
+        excused: 'bg-blue-100 text-blue-800'
+    };
+
     tbody.innerHTML = attendance.map(record => {
-        const statusColors = {
-            present: 'bg-green-100 text-green-800',
-            absent: 'bg-red-100 text-red-800',
-            late: 'bg-yellow-100 text-yellow-800',
-            excused: 'bg-blue-100 text-blue-800'
-        };
         const colorClass = statusColors[record.status] || 'bg-gray-100 text-gray-800';
+        const statusName = statusNames[record.status] || record.status;
 
         return `
             <tr class="hover:bg-gray-50">
                 <td class="px-6 py-4 text-gray-700">${formatDate(record.date)}</td>
                 <td class="px-6 py-4">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass} capitalize">
-                        ${record.status}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}">
+                        ${statusName}
                     </span>
                 </td>
                 <td class="px-6 py-4 text-gray-500 text-sm">${record.notes || '-'}</td>
@@ -207,7 +222,7 @@ function renderAttendance(attendance) {
     }).join('');
 }
 
-// Calculations
+// Cálculos
 function calculateAverageGrade(grades) {
     const avgEl = document.getElementById('avg-grade');
 
@@ -237,7 +252,7 @@ function calculateAttendanceRate(attendance) {
     rateEl.textContent = `${rate}%`;
 }
 
-// Participation form
+// Formulario de participación
 document.getElementById('participation-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -251,42 +266,38 @@ document.getElementById('participation-form').addEventListener('submit', async (
             body: JSON.stringify({ description, points })
         });
 
-        // Show success message
         successEl.classList.remove('hidden');
         setTimeout(() => successEl.classList.add('hidden'), 3000);
 
-        // Reset form
         document.getElementById('description').value = '';
         document.getElementById('points').value = '1';
 
-        // Update participation points (simple increment for now)
         const totalEl = document.getElementById('total-participation');
         const current = parseInt(totalEl.textContent) || 0;
         totalEl.textContent = current + points;
 
     } catch (error) {
-        alert('Failed to submit participation. Please try again.');
+        alert('Error al enviar participación. Por favor intenta de nuevo.');
     }
 });
 
 // Helpers
 function formatDate(dateString) {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-        month: 'short',
+    return date.toLocaleDateString('es-MX', {
         day: 'numeric',
+        month: 'short',
         year: 'numeric'
     });
 }
 
-// Initialize
+// Inicialización
 async function init() {
-    // Fetch config first
     try {
         const config = await fetch('/api/config').then(r => r.json());
         googleClientId = config.google_client_id;
     } catch (error) {
-        console.error('Failed to fetch config:', error);
+        console.error('Error al obtener configuración:', error);
     }
 
     if (authToken) {
@@ -299,7 +310,6 @@ async function init() {
         }
     } else {
         showLogin();
-        // Wait for Google script to load, then initialize
         if (typeof google !== 'undefined') {
             initGoogleSignIn();
         } else {
@@ -309,7 +319,6 @@ async function init() {
         }
     }
 
-    // Initialize participation points display
     document.getElementById('total-participation').textContent = '0';
 }
 

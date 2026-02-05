@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teacher Admin Panel</title>
+    <title>Panel de Administración</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script>
@@ -20,11 +20,11 @@
     </script>
 </head>
 <body class="bg-gray-50 min-h-screen">
-    <!-- Login Section -->
+    <!-- Sección de Login -->
     <div id="login-section" class="min-h-screen flex items-center justify-center">
         <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full mx-4">
-            <h1 class="text-2xl font-bold text-gray-800 mb-2 text-center">Teacher Admin Panel</h1>
-            <p class="text-gray-500 text-center mb-6">Sign in with your teacher account</p>
+            <h1 class="text-2xl font-bold text-gray-800 mb-2 text-center">Panel del Profesor</h1>
+            <p class="text-gray-500 text-center mb-6">Inicia sesión con tu cuenta de profesor</p>
             <div class="space-y-4">
                 <div id="google-signin-container" class="flex justify-center"></div>
                 <p id="login-error" class="text-red-500 text-sm text-center hidden"></p>
@@ -32,55 +32,55 @@
         </div>
     </div>
 
-    <!-- Admin Dashboard -->
+    <!-- Dashboard de Administración -->
     <div id="admin-section" class="hidden">
-        <!-- Navigation -->
+        <!-- Navegación -->
         <nav class="bg-white shadow-sm border-b border-gray-200">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between h-16 items-center">
-                    <h1 class="text-xl font-bold text-gray-800">Teacher Admin</h1>
+                    <h1 class="text-xl font-bold text-gray-800">Panel del Profesor</h1>
                     <div class="flex items-center gap-4">
                         <span id="teacher-name" class="text-gray-600"></span>
                         <button onclick="logout()" class="text-gray-500 hover:text-gray-700 text-sm font-medium">
-                            Sign Out
+                            Cerrar Sesión
                         </button>
                     </div>
                 </div>
             </div>
         </nav>
 
-        <!-- Tabs -->
+        <!-- Pestañas -->
         <div class="bg-white border-b border-gray-200">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <nav class="flex space-x-8">
                     <button onclick="showTab('attendance')" id="tab-attendance"
                             class="tab-btn border-b-2 border-primary py-4 px-1 text-sm font-medium text-primary">
-                        Attendance
+                        Asistencia
                     </button>
                     <button onclick="showTab('participation')" id="tab-participation"
                             class="tab-btn border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                        Participation
+                        Participación
                     </button>
                     <button onclick="showTab('grades')" id="tab-grades"
                             class="tab-btn border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                        Grades
+                        Calificaciones
                     </button>
                 </nav>
             </div>
         </div>
 
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <!-- Attendance Tab -->
+            <!-- Pestaña de Asistencia -->
             <div id="panel-attendance" class="tab-panel">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                        <h2 class="text-lg font-semibold text-gray-800">Today's Attendance</h2>
+                        <h2 class="text-lg font-semibold text-gray-800">Asistencia del Día</h2>
                         <div class="flex items-center gap-3">
                             <input type="date" id="attendance-date"
                                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
                             <button onclick="loadAttendanceForDate()"
                                     class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50">
-                                Load
+                                Cargar
                             </button>
                         </div>
                     </div>
@@ -89,15 +89,15 @@
                         <table class="w-full">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Present</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Absent</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Late</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estudiante</th>
+                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Presente</th>
+                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ausente</th>
+                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Tarde</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notas</th>
                                 </tr>
                             </thead>
                             <tbody id="attendance-table" class="divide-y divide-gray-100">
-                                <tr><td colspan="5" class="px-4 py-4 text-center text-gray-500">Loading...</td></tr>
+                                <tr><td colspan="5" class="px-4 py-4 text-center text-gray-500">Cargando...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -105,62 +105,62 @@
                     <div class="mt-6 flex justify-end">
                         <button onclick="submitAttendance()"
                                 class="bg-primary hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg transition duration-200">
-                            Save Attendance
+                            Guardar Asistencia
                         </button>
                     </div>
                     <div id="attendance-success" class="hidden mt-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm">
-                        Attendance saved successfully!
+                        ¡Asistencia guardada exitosamente!
                     </div>
                 </div>
             </div>
 
-            <!-- Participation Tab -->
+            <!-- Pestaña de Participación -->
             <div id="panel-participation" class="tab-panel hidden">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                        <h2 class="text-lg font-semibold text-gray-800">Participation Submissions</h2>
+                        <h2 class="text-lg font-semibold text-gray-800">Registros de Participación</h2>
                         <select id="participation-filter" onchange="loadParticipation()"
                                 class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
-                            <option value="">All</option>
-                            <option value="pending" selected>Pending</option>
-                            <option value="approved">Approved</option>
-                            <option value="rejected">Rejected</option>
+                            <option value="">Todos</option>
+                            <option value="pending" selected>Pendientes</option>
+                            <option value="approved">Aprobados</option>
+                            <option value="rejected">Rechazados</option>
                         </select>
                     </div>
 
                     <div id="participation-list" class="space-y-4">
-                        <p class="text-center text-gray-500 py-4">Loading...</p>
+                        <p class="text-center text-gray-500 py-4">Cargando...</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Grades Tab -->
+            <!-- Pestaña de Calificaciones -->
             <div id="panel-grades" class="tab-panel hidden">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-6">Add Grade</h2>
+                    <h2 class="text-lg font-semibold text-gray-800 mb-6">Agregar Calificación</h2>
 
                     <form id="grade-form" class="space-y-4 max-w-lg">
                         <div>
-                            <label for="grade-student" class="block text-sm font-medium text-gray-700 mb-1">Student</label>
+                            <label for="grade-student" class="block text-sm font-medium text-gray-700 mb-1">Estudiante</label>
                             <select id="grade-student" required
                                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
-                                <option value="">Select a student...</option>
+                                <option value="">Selecciona un estudiante...</option>
                             </select>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label for="grade-category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                                <label for="grade-category" class="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
                                 <select id="grade-category" required
                                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
-                                    <option value="homework">Homework</option>
+                                    <option value="homework">Tarea</option>
                                     <option value="quiz">Quiz</option>
-                                    <option value="exam">Exam</option>
-                                    <option value="project">Project</option>
+                                    <option value="exam">Examen</option>
+                                    <option value="project">Proyecto</option>
                                 </select>
                             </div>
                             <div>
-                                <label for="grade-date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                                <label for="grade-date" class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
                                 <input type="date" id="grade-date"
                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
                             </div>
@@ -168,13 +168,13 @@
 
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label for="grade-score" class="block text-sm font-medium text-gray-700 mb-1">Score</label>
+                                <label for="grade-score" class="block text-sm font-medium text-gray-700 mb-1">Calificación</label>
                                 <input type="number" id="grade-score" required min="0" step="0.5"
                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                        placeholder="85">
                             </div>
                             <div>
-                                <label for="grade-max" class="block text-sm font-medium text-gray-700 mb-1">Max Score</label>
+                                <label for="grade-max" class="block text-sm font-medium text-gray-700 mb-1">Calificación Máxima</label>
                                 <input type="number" id="grade-max" required min="1" step="0.5" value="100"
                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
                             </div>
@@ -182,12 +182,12 @@
 
                         <button type="submit"
                                 class="bg-primary hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg transition duration-200">
-                            Add Grade
+                            Agregar Calificación
                         </button>
                     </form>
 
                     <div id="grade-success" class="hidden mt-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm max-w-lg">
-                        Grade added successfully!
+                        ¡Calificación agregada exitosamente!
                     </div>
                 </div>
             </div>

@@ -10,7 +10,7 @@ A FastAPI teaching application for managing student attendance, participation, a
 
 - **Backend:** FastAPI, SQLAlchemy ORM, Pydantic
 - **Database:** SQLite (dev) / PostgreSQL (production)
-- **Frontend:** Vanilla JS with Tailwind CSS (CDN)
+- **Frontend:** Vanilla JS with Tailwind CSS (CDN), Spanish UI
 - **Auth:** Google OAuth (Google Identity Services)
 - **Deployment:** Railway
 
@@ -34,9 +34,9 @@ python seed_data.py
 - `models/schemas.py` - Pydantic request/response schemas
 - `models/database.py` - Database connection and session management
 - `routes/` - API route handlers
-- `static/index.html` - Student dashboard frontend
+- `static/index.html` - Student dashboard frontend (Spanish: "Portal del Estudiante")
 - `static/js/app.js` - Student dashboard JavaScript
-- `static/admin.html` - Teacher admin panel frontend
+- `static/admin.html` - Teacher admin panel frontend (Spanish: "Panel del Profesor")
 - `static/js/admin.js` - Admin panel JavaScript
 
 ## API Endpoints
@@ -97,6 +97,7 @@ Tables:
 ## Development Notes
 
 - Frontend uses Tailwind CSS via CDN (no build step)
+- Frontend is fully translated to Spanish (UI labels, messages, date formatting uses es-MX locale)
 - Database file (`school.db`) is gitignored
 - Run `seed_data.py` to populate test data (creates 3 students, sample records for student ID 1)
 
