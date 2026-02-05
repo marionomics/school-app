@@ -119,6 +119,56 @@ A FastAPI application for managing student attendance, participation, and grades
 | GET | `/api/admin/participation?class_id=X` | View participation |
 | PATCH | `/api/admin/participation/:id` | Approve/reject |
 
+## Database Migrations
+
+This project uses **Alembic** for database migrations to safely manage schema changes without data loss.
+
+### Creating a New Migration
+
+After modifying models in `models/models.py`:
+
+```bash
+# Generate migration automatically from model changes
+alembic revision --autogenerate -m "Add new_field to students"
+
+# Review the generated migration in alembic/versions/
+# Then apply it
+alembic upgrade head
+```
+
+### Applying Migrations
+
+```bash
+# Apply all pending migrations
+alembic upgrade head
+
+# Or use the migration script
+python scripts/migrate.py
+
+# Check migration status
+python scripts/migrate.py --check
+```
+
+### Rolling Back
+
+```bash
+# Rollback last migration
+alembic downgrade -1
+
+# Or use the script
+python scripts/migrate.py --rollback
+
+# Rollback to specific revision
+alembic downgrade <revision_id>
+```
+
+### Important Notes
+
+- **Never use `drop_all()`** - it deletes all data
+- Always review auto-generated migrations before applying
+- Test migrations on a copy of production data first
+- Migrations run automatically on Railway deployment (via Procfile)
+
 ## Railway Deployment
 
 1. Push code to GitHub
@@ -126,7 +176,7 @@ A FastAPI application for managing student attendance, participation, and grades
 3. Add PostgreSQL database service
 4. Set environment variables in Railway dashboard
 5. Add Railway domain to Google OAuth authorized origins
-6. Deploy!
+6. Deploy! (migrations run automatically before app starts)
 
 ## Project Structure
 
@@ -146,15 +196,21 @@ school-app/
 │   ├── students.py       # Student endpoints
 │   ├── participation.py  # Participation endpoints
 │   └── health.py         # Health check
+├── alembic/
+│   ├── env.py            # Alembic environment config
+│   └── versions/         # Migration files
+├── scripts/
+│   └── migrate.py        # Production migration script
 ├── static/
 │   ├── index.html        # Student dashboard (Spanish)
 │   ├── admin.html        # Admin panel (Spanish)
 │   └── js/
 │       ├── app.js        # Student JS (class enrollment, switching)
 │       └── admin.js      # Admin JS (class management)
+├── alembic.ini           # Alembic configuration
 ├── seed_data.py          # Test data script
 ├── requirements.txt
-├── Procfile              # Railway start command
+├── Procfile              # Railway start command (runs migrations)
 ├── railway.json          # Railway config
 └── .env.example
 ```
