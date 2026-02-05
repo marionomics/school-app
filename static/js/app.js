@@ -230,11 +230,20 @@ async function loadDashboardData() {
 
     await Promise.all([
         loadGrades(),
-        loadAttendance()
+        loadAttendance(),
+        loadParticipationPoints()
     ]);
+}
 
-    // Reset participation counter
-    document.getElementById('total-participation').textContent = '0';
+async function loadParticipationPoints() {
+    try {
+        const result = await apiCall(`/students/me/participation/points?class_id=${selectedClassId}`);
+        console.log('Participation points loaded:', result);
+        document.getElementById('total-participation').textContent = result.total_points;
+    } catch (error) {
+        console.error('Error al cargar puntos de participacion:', error);
+        document.getElementById('total-participation').textContent = '0';
+    }
 }
 
 async function loadGrades() {
