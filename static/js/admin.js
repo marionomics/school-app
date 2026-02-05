@@ -2,6 +2,7 @@
 let authToken = localStorage.getItem('authToken');
 let currentTeacher = null;
 let googleClientId = null;
+let classes = [];
 let students = [];
 
 // Helpers de API
@@ -53,8 +54,8 @@ async function handleGoogleCredentialResponse(response) {
         showAdmin();
         loadInitialData();
     } catch (error) {
-        console.error('Error de autenticación:', error);
-        errorEl.textContent = error.message || 'Error de autenticación. Por favor intenta de nuevo.';
+        console.error('Error de autenticacion:', error);
+        errorEl.textContent = error.message || 'Error de autenticacion. Por favor intenta de nuevo.';
         errorEl.classList.remove('hidden');
     }
 }
@@ -82,7 +83,7 @@ async function logout() {
     try {
         await apiCall('/auth/logout', { method: 'POST' });
     } catch (error) {
-        console.error('Error al cerrar sesión:', error);
+        console.error('Error al cerrar sesion:', error);
     }
 
     authToken = null;
@@ -117,49 +118,196 @@ function showTab(tabName) {
     document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
     document.getElementById(`panel-${tabName}`).classList.remove('hidden');
 
-    if (tabName === 'participation') loadParticipation();
+    if (tabName === 'classes') loadClasses();
+    if (tabName === 'attendance') {
+        populateClassSelectors();
+        loadAttendanceSheet();
+    }
+    if (tabName === 'participation') {
+        populateClassSelectors();
+    }
+    if (tabName === 'grades') {
+        populateClassSelectors();
+    }
 }
 
 // Carga de datos
 async function loadInitialData() {
-    await loadStudents();
-    loadAttendanceSheet();
+    await loadClasses();
 }
 
-async function loadStudents() {
+// Classes
+async function loadClasses() {
     try {
-        students = await apiCall('/admin/students');
-        populateStudentDropdown();
+        classes = await apiCall('/classes/teaching');
+        renderClasses();
+        populateClassSelectors();
     } catch (error) {
-        console.error('Error al cargar estudiantes:', error);
+        console.error('Error al cargar clases:', error);
+        document.getElementById('classes-list').innerHTML =
+            '<p class="text-center text-red-500 py-4">Error al cargar clases</p>';
     }
 }
 
-function populateStudentDropdown() {
-    const select = document.getElementById('grade-student');
-    select.innerHTML = '<option value="">Selecciona un estudiante...</option>';
-    students.forEach(s => {
-        select.innerHTML += `<option value="${s.id}">${s.name} (${s.email})</option>`;
+function renderClasses() {
+    const container = document.getElementById('classes-list');
+
+    if (classes.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8">
+                <p class="text-gray-500 mb-4">No tienes clases creadas aun</p>
+                <button onclick="openCreateClassModal()"
+                        class="text-primary hover:text-indigo-700 font-medium">
+                    Crear tu primera clase
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = classes.map(c => `
+        <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+            <div class="flex flex-col sm:flex-row justify-between gap-3">
+                <div>
+                    <h3 class="font-semibold text-gray-800">${c.name}</h3>
+                    <div class="flex items-center gap-2 mt-1">
+                        <code class="bg-gray-100 px-2 py-0.5 rounded text-sm font-mono">${c.code}</code>
+                        <button onclick="copyCode('${c.code}')" class="text-gray-400 hover:text-gray-600" title="Copiar codigo">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">${c.student_count} estudiante(s) inscrito(s)</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="viewClassStudents(${c.id})"
+                            class="px-3 py-1.5 text-sm border border-gray-300 text-gray-600 rounded hover:bg-gray-50">
+                        Ver Estudiantes
+                    </button>
+                    <button onclick="deleteClass(${c.id})"
+                            class="px-3 py-1.5 text-sm border border-red-200 text-red-600 rounded hover:bg-red-50">
+                        Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function copyCode(code) {
+    navigator.clipboard.writeText(code).then(() => {
+        alert('Codigo copiado: ' + code);
+    });
+}
+
+async function viewClassStudents(classId) {
+    try {
+        const classData = await apiCall(`/classes/teaching/${classId}`);
+        const studentsHtml = classData.students.length === 0
+            ? '<p class="text-gray-500">No hay estudiantes inscritos</p>'
+            : classData.students.map(s => `<li class="py-1">${s.name} (${s.email})</li>`).join('');
+
+        alert(`Estudiantes en ${classData.name}:\n${classData.students.map(s => s.name).join('\n') || 'Ninguno'}`);
+    } catch (error) {
+        alert('Error al cargar estudiantes: ' + error.message);
+    }
+}
+
+async function deleteClass(classId) {
+    if (!confirm('¿Estas seguro de eliminar esta clase? Esta accion no se puede deshacer.')) {
+        return;
+    }
+
+    try {
+        await apiCall(`/classes/teaching/${classId}`, { method: 'DELETE' });
+        await loadClasses();
+    } catch (error) {
+        alert('Error al eliminar clase: ' + error.message);
+    }
+}
+
+function openCreateClassModal() {
+    document.getElementById('create-class-modal').classList.remove('hidden');
+}
+
+function closeCreateClassModal() {
+    document.getElementById('create-class-modal').classList.add('hidden');
+    document.getElementById('class-name').value = '';
+    document.getElementById('class-prefix').value = '';
+}
+
+document.getElementById('create-class-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const name = document.getElementById('class-name').value;
+    const codePrefix = document.getElementById('class-prefix').value || null;
+
+    try {
+        await apiCall('/classes/', {
+            method: 'POST',
+            body: JSON.stringify({ name, code_prefix: codePrefix })
+        });
+
+        closeCreateClassModal();
+        await loadClasses();
+    } catch (error) {
+        alert('Error al crear clase: ' + error.message);
+    }
+});
+
+function populateClassSelectors() {
+    const selectors = [
+        'attendance-class-select',
+        'participation-class-select',
+        'grade-class'
+    ];
+
+    selectors.forEach(id => {
+        const select = document.getElementById(id);
+        if (select) {
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">Selecciona una clase...</option>' +
+                classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            if (currentValue && classes.find(c => c.id == currentValue)) {
+                select.value = currentValue;
+            }
+        }
     });
 }
 
 // Asistencia
 async function loadAttendanceSheet() {
+    const classId = document.getElementById('attendance-class-select').value;
     const dateInput = document.getElementById('attendance-date');
+    const tbody = document.getElementById('attendance-table');
+
+    if (!classId) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-gray-500">Selecciona una clase</td></tr>';
+        return;
+    }
+
     if (!dateInput.value) {
         dateInput.value = new Date().toISOString().split('T')[0];
     }
 
-    const tbody = document.getElementById('attendance-table');
+    try {
+        // Load students for this class
+        students = await apiCall(`/admin/students?class_id=${classId}`);
+    } catch (error) {
+        console.error('Error al cargar estudiantes:', error);
+        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-red-500">Error al cargar estudiantes</td></tr>';
+        return;
+    }
 
     if (students.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-gray-500">No se encontraron estudiantes</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-gray-500">No hay estudiantes en esta clase</td></tr>';
         return;
     }
 
     let existingAttendance = {};
     try {
-        const records = await apiCall(`/admin/attendance?date=${dateInput.value}`);
+        const records = await apiCall(`/admin/attendance?class_id=${classId}&date=${dateInput.value}`);
         records.forEach(r => {
             existingAttendance[r.student_id] = r;
         });
@@ -204,6 +352,12 @@ function loadAttendanceForDate() {
 }
 
 async function submitAttendance() {
+    const classId = document.getElementById('attendance-class-select').value;
+    if (!classId) {
+        alert('Por favor selecciona una clase primero.');
+        return;
+    }
+
     const date = document.getElementById('attendance-date').value;
     const records = [];
 
@@ -229,7 +383,7 @@ async function submitAttendance() {
     try {
         await apiCall('/admin/attendance', {
             method: 'POST',
-            body: JSON.stringify({ date, records })
+            body: JSON.stringify({ date, class_id: parseInt(classId), records })
         });
 
         const successEl = document.getElementById('attendance-success');
@@ -240,13 +394,20 @@ async function submitAttendance() {
     }
 }
 
-// Participación
+// Participacion
 async function loadParticipation() {
+    const classId = document.getElementById('participation-class-select').value;
     const filter = document.getElementById('participation-filter').value;
     const container = document.getElementById('participation-list');
 
+    if (!classId) {
+        container.innerHTML = '<p class="text-center text-gray-500 py-4">Selecciona una clase</p>';
+        return;
+    }
+
     try {
-        const url = filter ? `/admin/participation?status_filter=${filter}` : '/admin/participation';
+        let url = `/admin/participation?class_id=${classId}`;
+        if (filter) url += `&status_filter=${filter}`;
         const participations = await apiCall(url);
 
         if (participations.length === 0) {
@@ -324,20 +485,45 @@ async function updateParticipation(id, status) {
 }
 
 // Calificaciones
+async function loadStudentsForClass() {
+    const classId = document.getElementById('grade-class').value;
+    const studentSelect = document.getElementById('grade-student');
+
+    if (!classId) {
+        studentSelect.innerHTML = '<option value="">Selecciona un estudiante...</option>';
+        return;
+    }
+
+    try {
+        const classStudents = await apiCall(`/admin/students?class_id=${classId}`);
+        studentSelect.innerHTML = '<option value="">Selecciona un estudiante...</option>' +
+            classStudents.map(s => `<option value="${s.id}">${s.name} (${s.email})</option>`).join('');
+    } catch (error) {
+        console.error('Error al cargar estudiantes:', error);
+    }
+}
+
 document.getElementById('grade-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    const classId = parseInt(document.getElementById('grade-class').value);
     const studentId = parseInt(document.getElementById('grade-student').value);
     const category = document.getElementById('grade-category').value;
     const score = parseFloat(document.getElementById('grade-score').value);
     const maxScore = parseFloat(document.getElementById('grade-max').value);
     const date = document.getElementById('grade-date').value || null;
 
+    if (!classId) {
+        alert('Por favor selecciona una clase.');
+        return;
+    }
+
     try {
         await apiCall('/admin/grades', {
             method: 'POST',
             body: JSON.stringify({
                 student_id: studentId,
+                class_id: classId,
                 category,
                 score,
                 max_score: maxScore,
@@ -352,7 +538,7 @@ document.getElementById('grade-form').addEventListener('submit', async (e) => {
         document.getElementById('grade-score').value = '';
         document.getElementById('grade-date').value = '';
     } catch (error) {
-        alert('Error al agregar calificación: ' + error.message);
+        alert('Error al agregar calificacion: ' + error.message);
     }
 });
 
@@ -362,13 +548,13 @@ function formatDate(dateString) {
     return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-// Inicialización
+// Inicializacion
 async function init() {
     try {
         const config = await fetch('/api/config').then(r => r.json());
         googleClientId = config.google_client_id;
     } catch (error) {
-        console.error('Error al obtener configuración:', error);
+        console.error('Error al obtener configuracion:', error);
     }
 
     if (authToken) {

@@ -4,7 +4,7 @@ This file provides context for Claude Code when working on this project.
 
 ## Project Overview
 
-A FastAPI teaching application for managing student attendance, participation, and grades. Built as an educational tool for classroom management.
+A FastAPI teaching application for managing student attendance, participation, and grades. Built as an educational tool for classroom management with multi-class support.
 
 ## Tech Stack
 
@@ -20,7 +20,7 @@ A FastAPI teaching application for managing student attendance, participation, a
 # Run the server
 uvicorn app.main:app --reload
 
-# Seed test data
+# Seed test data (creates sample class and enrolls students)
 python seed_data.py
 ```
 
@@ -29,33 +29,63 @@ python seed_data.py
 - `app/main.py` - FastAPI app entry point, routes registration
 - `app/auth.py` - Google OAuth token verification and session management
 - `routes/auth.py` - Authentication endpoints (`/api/auth/google`, `/api/auth/logout`)
-- `routes/admin.py` - Teacher admin endpoints (attendance, grades, participation management)
-- `models/models.py` - SQLAlchemy ORM models (Student, Attendance, Participation, Grade)
+- `routes/admin.py` - Teacher admin endpoints (attendance, grades, participation - all class-scoped)
+- `routes/classes.py` - Class management endpoints (create, join, leave, list)
+- `routes/students.py` - Student endpoints (grades, attendance with optional class filter)
+- `routes/participation.py` - Participation submission (requires class_id)
+- `models/models.py` - SQLAlchemy ORM models (Student, Class, StudentClass, Attendance, Participation, Grade)
 - `models/schemas.py` - Pydantic request/response schemas
 - `models/database.py` - Database connection and session management
-- `routes/` - API route handlers
 - `static/index.html` - Student dashboard frontend (Spanish: "Portal del Estudiante")
-- `static/js/app.js` - Student dashboard JavaScript
+- `static/js/app.js` - Student dashboard JavaScript (class enrollment, switching)
 - `static/admin.html` - Teacher admin panel frontend (Spanish: "Panel del Profesor")
-- `static/js/admin.js` - Admin panel JavaScript
+- `static/js/admin.js` - Admin panel JavaScript (class management, class-scoped operations)
+
+## Multi-Class System
+
+### How It Works
+- Teachers create classes with auto-generated codes (e.g., "MICRO2026AB3X")
+- Students join classes by entering the code
+- All data (attendance, participation, grades) is scoped to specific classes
+- Students can be enrolled in multiple classes and switch between them
+
+### Database Models
+- `Class` - id, name, code (unique), teacher_id, created_at
+- `StudentClass` - Junction table (student_id, class_id, joined_at)
+- `Attendance`, `Participation`, `Grade` - All have nullable `class_id` for backward compatibility
+
+### Code Generation
+Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X")
 
 ## API Endpoints
 
+### Public
 - `GET /api/health` - Health check
 - `GET /api/config` - Frontend configuration (Google Client ID)
 - `POST /api/auth/google` - Authenticate with Google ID token
 - `POST /api/auth/logout` - Invalidate session
-- `GET /api/students/me` - Current student info (requires auth)
-- `GET /api/students/me/grades` - Student's grades
-- `GET /api/students/me/attendance` - Student's attendance
-- `POST /api/participation` - Submit participation entry
+
+### Class Management
+- `POST /api/classes/` - Create class (teacher only)
+- `GET /api/classes/teaching` - List teacher's classes with student counts
+- `GET /api/classes/teaching/{id}` - Get class details with enrolled students
+- `DELETE /api/classes/teaching/{id}` - Delete class (teacher only)
+- `GET /api/classes/enrolled` - List student's enrolled classes
+- `POST /api/classes/join` - Join class by code (student only)
+- `DELETE /api/classes/leave/{id}` - Leave class (student only)
+
+### Student Endpoints (requires auth)
+- `GET /api/students/me` - Current student info
+- `GET /api/students/me/grades?class_id=X` - Student's grades (optional class filter)
+- `GET /api/students/me/attendance?class_id=X` - Student's attendance (optional class filter)
+- `POST /api/participation` - Submit participation entry (requires class_id)
 
 ### Admin Endpoints (Teacher only)
-- `GET /api/admin/students` - List all students
-- `POST /api/admin/attendance` - Record attendance for multiple students
-- `GET /api/admin/attendance?date=YYYY-MM-DD` - View attendance for a date
-- `POST /api/admin/grades` - Add grade for a student
-- `GET /api/admin/participation` - View all participation submissions
+- `GET /api/admin/students?class_id=X` - List students (optional: filter by class enrollment)
+- `POST /api/admin/attendance` - Record attendance (requires class_id)
+- `GET /api/admin/attendance?class_id=X&date=Y` - View attendance for class and date
+- `POST /api/admin/grades` - Add grade (requires class_id)
+- `GET /api/admin/participation?class_id=X` - View participation for class
 - `PATCH /api/admin/participation/:id` - Approve/reject participation
 
 ## Authentication
@@ -78,8 +108,8 @@ Uses Google OAuth with Google Identity Services (client-side Sign-In button).
 6. Frontend stores token in localStorage for API calls
 
 **Roles:**
-- `student` - Default role, can view own data and submit participation
-- `teacher` - Admin access, can manage attendance, grades, and approve participation
+- `student` - Default role, can view own data, submit participation, join classes
+- `teacher` - Admin access, can create/manage classes, attendance, grades, and approve participation
 
 **Teacher Account:** Set `TEACHER_EMAIL` in `.env` - this email gets teacher role on first login.
 
@@ -90,16 +120,19 @@ Uses Google OAuth with Google Identity Services (client-side Sign-In button).
 
 Tables:
 - `students` - Student records (includes `role`: student/teacher)
-- `attendances` - Daily attendance (status: present/absent/late/excused)
-- `participations` - Class participation entries with points and approval status
-- `grades` - Scored assignments (category: homework/quiz/exam/project)
+- `classes` - Class records (name, code, teacher_id)
+- `student_classes` - Student-class enrollments (many-to-many)
+- `attendances` - Daily attendance (status: present/absent/late/excused, class_id)
+- `participations` - Class participation entries with points and approval status (class_id)
+- `grades` - Scored assignments (category: homework/quiz/exam/project, class_id)
 
 ## Development Notes
 
 - Frontend uses Tailwind CSS via CDN (no build step)
 - Frontend is fully translated to Spanish (UI labels, messages, date formatting uses es-MX locale)
 - Database file (`school.db`) is gitignored
-- Run `seed_data.py` to populate test data (creates 3 students, sample records for student ID 1)
+- Run `seed_data.py` to populate test data (creates teacher, 3 students, sample class, enrollments, and sample records)
+- `class_id` is nullable in attendance/participation/grades for backward compatibility
 
 ## Railway Deployment
 

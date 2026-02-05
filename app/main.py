@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from models.database import Base, engine
-from routes import health, students, participation, auth, admin
+from routes import health, students, participation, auth, admin, classes
 
 
 @asynccontextmanager
@@ -43,6 +43,7 @@ app.include_router(students.router)
 app.include_router(participation.router)
 app.include_router(auth.router)
 app.include_router(admin.router)
+app.include_router(classes.router)
 
 # Mount static files
 if os.path.exists("static"):

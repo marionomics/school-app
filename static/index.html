@@ -33,18 +33,56 @@
         </div>
     </div>
 
+    <!-- Sección de Unirse a Clase -->
+    <div id="join-class-section" class="hidden min-h-screen flex items-center justify-center">
+        <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full mx-4">
+            <h1 class="text-2xl font-bold text-gray-800 mb-2 text-center">Unirse a una Clase</h1>
+            <p class="text-gray-500 text-center mb-6">Ingresa el codigo de clase proporcionado por tu profesor</p>
+
+            <form id="join-class-form" class="space-y-4">
+                <div>
+                    <label for="class-code" class="block text-sm font-medium text-gray-700 mb-1">Codigo de Clase</label>
+                    <input type="text" id="class-code" required placeholder="Ej: MICRO2026ABCD"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none uppercase">
+                </div>
+                <button type="submit"
+                        class="w-full bg-primary hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg transition duration-200">
+                    Unirse a Clase
+                </button>
+            </form>
+            <p id="join-error" class="text-red-500 text-sm text-center mt-4 hidden"></p>
+
+            <div id="enrolled-classes-list" class="mt-6 hidden">
+                <h3 class="text-sm font-medium text-gray-700 mb-2">Mis Clases:</h3>
+                <div id="my-classes" class="space-y-2"></div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-gray-200 flex justify-between items-center">
+                <span id="join-student-name" class="text-sm text-gray-500"></span>
+                <button onclick="logout()" class="text-gray-500 hover:text-gray-700 text-sm font-medium">
+                    Cerrar Sesion
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Sección del Dashboard -->
     <div id="dashboard-section" class="hidden">
         <!-- Navegación -->
         <nav class="bg-white shadow-sm border-b border-gray-200">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between h-16 items-center">
-                    <h1 class="text-xl font-bold text-gray-800">Mi Dashboard</h1>
+                    <div class="flex items-center gap-4">
+                        <h1 class="text-xl font-bold text-gray-800">Mi Dashboard</h1>
+                        <select id="class-selector" onchange="onClassChange()"
+                                class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
+                        </select>
+                    </div>
                     <div class="flex items-center gap-4">
                         <span id="student-name" class="text-gray-600"></span>
                         <button onclick="logout()"
                                 class="text-gray-500 hover:text-gray-700 text-sm font-medium">
-                            Cerrar Sesión
+                            Cerrar Sesion
                         </button>
                     </div>
                 </div>

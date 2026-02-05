@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from models.database import get_db
-from models.models import Student, Attendance, Participation, Grade
+from models.models import Student, Attendance, Participation, Grade, Class, StudentClass
 from models.schemas import (
     StudentResponse,
     AttendanceResponse,
@@ -24,11 +24,29 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 @router.get("/students", response_model=list[StudentResponse])
 async def list_students(
+    class_id: Optional[int] = None,
     teacher: Student = Depends(get_current_teacher),
     db: Session = Depends(get_db),
 ):
-    """List all students (excluding teachers)."""
-    students = db.query(Student).filter(Student.role == "student").all()
+    """List students. If class_id provided, list only enrolled students."""
+    if class_id:
+        # Verify teacher owns this class
+        class_ = db.query(Class).filter(
+            Class.id == class_id,
+            Class.teacher_id == teacher.id,
+        ).first()
+        if not class_:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Clase no encontrada",
+            )
+        # Get students enrolled in this class
+        enrollments = db.query(StudentClass).filter(
+            StudentClass.class_id == class_id
+        ).all()
+        students = [e.student for e in enrollments]
+    else:
+        students = db.query(Student).filter(Student.role == "student").all()
     return students
 
 
@@ -38,14 +56,26 @@ async def record_attendance(
     teacher: Student = Depends(get_current_teacher),
     db: Session = Depends(get_db),
 ):
-    """Record attendance for multiple students."""
+    """Record attendance for multiple students in a class."""
+    # Verify teacher owns this class
+    class_ = db.query(Class).filter(
+        Class.id == data.class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Clase no encontrada",
+        )
+
     attendance_date = data.date or date.today()
     results = []
 
     for record in data.records:
-        # Check if attendance already exists for this student and date
+        # Check if attendance already exists for this student, date, and class
         existing = db.query(Attendance).filter(
             Attendance.student_id == record.student_id,
+            Attendance.class_id == data.class_id,
             Attendance.date == attendance_date,
         ).first()
 
@@ -60,6 +90,7 @@ async def record_attendance(
             # Create new record
             attendance = Attendance(
                 student_id=record.student_id,
+                class_id=data.class_id,
                 date=attendance_date,
                 status=record.status,
                 notes=record.notes,
@@ -74,12 +105,24 @@ async def record_attendance(
 
 @router.get("/attendance", response_model=list[AttendanceResponse])
 async def get_attendance(
+    class_id: int,
     date: Optional[str] = None,
     teacher: Student = Depends(get_current_teacher),
     db: Session = Depends(get_db),
 ):
-    """Get attendance records for a specific date."""
-    query = db.query(Attendance)
+    """Get attendance records for a specific class and optionally a date."""
+    # Verify teacher owns this class
+    class_ = db.query(Class).filter(
+        Class.id == class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Clase no encontrada",
+        )
+
+    query = db.query(Attendance).filter(Attendance.class_id == class_id)
 
     if date:
         from datetime import datetime
@@ -89,7 +132,7 @@ async def get_attendance(
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid date format. Use YYYY-MM-DD.",
+                detail="Formato de fecha invalido. Usa YYYY-MM-DD.",
             )
 
     return query.order_by(Attendance.date.desc()).all()
@@ -101,17 +144,32 @@ async def add_grade(
     teacher: Student = Depends(get_current_teacher),
     db: Session = Depends(get_db),
 ):
-    """Add a grade for a student."""
-    # Verify student exists
-    student = db.query(Student).filter(Student.id == data.student_id).first()
-    if not student:
+    """Add a grade for a student in a class."""
+    # Verify teacher owns this class
+    class_ = db.query(Class).filter(
+        Class.id == data.class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found",
+            detail="Clase no encontrada",
+        )
+
+    # Verify student exists and is enrolled in the class
+    enrollment = db.query(StudentClass).filter(
+        StudentClass.student_id == data.student_id,
+        StudentClass.class_id == data.class_id,
+    ).first()
+    if not enrollment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Estudiante no encontrado en esta clase",
         )
 
     grade = Grade(
         student_id=data.student_id,
+        class_id=data.class_id,
         category=data.category,
         score=data.score,
         max_score=data.max_score,
@@ -125,12 +183,26 @@ async def add_grade(
 
 @router.get("/participation", response_model=list[ParticipationWithStudent])
 async def get_participation(
+    class_id: int,
     status_filter: Optional[str] = None,
     teacher: Student = Depends(get_current_teacher),
     db: Session = Depends(get_db),
 ):
-    """Get all participation submissions with student info."""
-    query = db.query(Participation).join(Student)
+    """Get participation submissions for a class with student info."""
+    # Verify teacher owns this class
+    class_ = db.query(Class).filter(
+        Class.id == class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Clase no encontrada",
+        )
+
+    query = db.query(Participation).join(Student).filter(
+        Participation.class_id == class_id
+    )
 
     if status_filter:
         query = query.filter(Participation.approved == status_filter)

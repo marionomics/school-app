@@ -4,8 +4,9 @@ A FastAPI application for managing student attendance, participation, and grades
 
 ## Features
 
-- **Student Dashboard**: View grades, attendance, submit participation
-- **Teacher Admin Panel**: Record attendance, manage grades, approve participation
+- **Multi-Class Support**: Teachers create classes with unique codes, students join via codes
+- **Student Dashboard**: View grades, attendance, submit participation (filtered by class)
+- **Teacher Admin Panel**: Manage classes, record attendance, manage grades, approve participation
 - **Google OAuth**: Secure authentication via Google accounts
 - **Spanish UI**: Full Spanish language interface
 - **Railway Ready**: Configured for easy cloud deployment
@@ -52,6 +53,22 @@ A FastAPI application for managing student attendance, participation, and grades
    - Admin Panel: http://localhost:8000/admin
    - API Docs: http://localhost:8000/docs
 
+## How Classes Work
+
+1. **Teacher creates a class** in the Admin Panel (Clases tab)
+   - Enters class name and optional code prefix (e.g., "MICRO")
+   - System generates unique code (e.g., "MICRO2026AB3X")
+
+2. **Teacher shares the code** with students
+
+3. **Students join the class** using the code
+   - After login, students see "Join Class" screen if not enrolled
+   - Enter the class code to enroll
+
+4. **All data is class-scoped**
+   - Attendance, grades, and participation are tied to specific classes
+   - Students can join multiple classes and switch between them
+
 ## Environment Variables
 
 | Variable | Description |
@@ -73,22 +90,33 @@ A FastAPI application for managing student attendance, participation, and grades
 | POST | `/api/auth/google` | Google OAuth login |
 | POST | `/api/auth/logout` | Logout |
 
+### Classes
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/classes/` | Create class (teacher) |
+| GET | `/api/classes/teaching` | List teacher's classes |
+| GET | `/api/classes/teaching/:id` | Get class with students |
+| DELETE | `/api/classes/teaching/:id` | Delete class |
+| GET | `/api/classes/enrolled` | List student's classes |
+| POST | `/api/classes/join` | Join class by code |
+| DELETE | `/api/classes/leave/:id` | Leave class |
+
 ### Student (requires auth)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/students/me` | Current student info |
-| GET | `/api/students/me/grades` | Student's grades |
-| GET | `/api/students/me/attendance` | Student's attendance |
-| POST | `/api/participation` | Submit participation |
+| GET | `/api/students/me/grades?class_id=X` | Student's grades |
+| GET | `/api/students/me/attendance?class_id=X` | Student's attendance |
+| POST | `/api/participation` | Submit participation (requires class_id) |
 
 ### Admin (teacher only)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/admin/students` | List all students |
-| POST | `/api/admin/attendance` | Record bulk attendance |
-| GET | `/api/admin/attendance` | Get attendance by date |
-| POST | `/api/admin/grades` | Add grade |
-| GET | `/api/admin/participation` | View all participation |
+| GET | `/api/admin/students?class_id=X` | List students in class |
+| POST | `/api/admin/attendance` | Record bulk attendance (requires class_id) |
+| GET | `/api/admin/attendance?class_id=X&date=Y` | Get attendance |
+| POST | `/api/admin/grades` | Add grade (requires class_id) |
+| GET | `/api/admin/participation?class_id=X` | View participation |
 | PATCH | `/api/admin/participation/:id` | Approve/reject |
 
 ## Railway Deployment
@@ -109,11 +137,12 @@ school-app/
 │   └── auth.py           # Google OAuth, session management
 ├── models/
 │   ├── database.py       # SQLAlchemy setup (SQLite/PostgreSQL)
-│   ├── models.py         # ORM models
+│   ├── models.py         # ORM models (Student, Class, Attendance, etc.)
 │   └── schemas.py        # Pydantic schemas
 ├── routes/
 │   ├── auth.py           # Auth endpoints
-│   ├── admin.py          # Admin endpoints
+│   ├── admin.py          # Admin endpoints (class-scoped)
+│   ├── classes.py        # Class management endpoints
 │   ├── students.py       # Student endpoints
 │   ├── participation.py  # Participation endpoints
 │   └── health.py         # Health check
@@ -121,8 +150,8 @@ school-app/
 │   ├── index.html        # Student dashboard (Spanish)
 │   ├── admin.html        # Admin panel (Spanish)
 │   └── js/
-│       ├── app.js        # Student JS
-│       └── admin.js      # Admin JS
+│       ├── app.js        # Student JS (class enrollment, switching)
+│       └── admin.js      # Admin JS (class management)
 ├── seed_data.py          # Test data script
 ├── requirements.txt
 ├── Procfile              # Railway start command
