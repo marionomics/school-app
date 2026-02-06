@@ -291,6 +291,52 @@ document.getElementById('create-class-form').addEventListener('submit', async (e
     }
 });
 
+// Student View Modal
+function openStudentViewModal() {
+    const modal = document.getElementById('student-view-modal');
+    const listContainer = document.getElementById('student-view-class-list');
+
+    modal.classList.remove('hidden');
+
+    if (classes.length === 0) {
+        listContainer.innerHTML = `
+            <div class="text-center py-4">
+                <p class="text-gray-500 text-sm">No tienes clases creadas.</p>
+                <p class="text-gray-400 text-xs mt-1">Crea una clase primero para poder previsualizar.</p>
+            </div>
+        `;
+        return;
+    }
+
+    listContainer.innerHTML = classes.map(c => `
+        <button onclick="openStudentView(${c.id})"
+                class="w-full text-left p-3 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition group">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="font-medium text-gray-800 group-hover:text-purple-700">${c.name}</div>
+                    <div class="text-sm text-gray-500">${c.student_count || 0} estudiante${c.student_count !== 1 ? 's' : ''}</div>
+                </div>
+                <svg class="w-5 h-5 text-gray-400 group-hover:text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </div>
+        </button>
+    `).join('');
+}
+
+function closeStudentViewModal() {
+    document.getElementById('student-view-modal').classList.add('hidden');
+}
+
+function openStudentView(classId) {
+    // Store preview mode info in sessionStorage
+    sessionStorage.setItem('teacherPreviewMode', 'true');
+    sessionStorage.setItem('previewClassId', classId.toString());
+
+    // Navigate to student dashboard
+    window.location.href = '/?preview=true&class_id=' + classId;
+}
+
 // Initialization
 async function init() {
     try {
