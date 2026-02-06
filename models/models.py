@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Float, Date, UniqueConstraint
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Float, Date, UniqueConstraint, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime, date
 import random
@@ -22,6 +22,7 @@ class Student(Base):
     grades = relationship("Grade", back_populates="student", cascade="all, delete-orphan")
     taught_classes = relationship("Class", back_populates="teacher", cascade="all, delete-orphan")
     enrollments = relationship("StudentClass", back_populates="student", cascade="all, delete-orphan")
+    special_points = relationship("SpecialPoints", back_populates="student", cascade="all, delete-orphan")
 
 
 class Attendance(Base):
@@ -61,7 +62,9 @@ class Grade(Base):
     id = Column(Integer, primary_key=True, index=True)
     student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=True)
-    category = Column(String(50), nullable=False)  # homework, quiz, exam, project
+    category_id = Column(Integer, ForeignKey("grade_categories.id"), nullable=True)
+    category = Column(String(50), nullable=True)  # Legacy: homework, quiz, exam, project
+    name = Column(String(100), nullable=True)  # Assignment name (e.g., "Reto Semana 1")
     score = Column(Float, nullable=False)
     max_score = Column(Float, nullable=False)
     date = Column(Date, nullable=False, default=date.today)
@@ -69,6 +72,7 @@ class Grade(Base):
     # Relationships
     student = relationship("Student", back_populates="grades")
     class_ = relationship("Class", back_populates="grades")
+    grade_category = relationship("GradeCategory", back_populates="grades")
 
 
 class Class(Base):
@@ -86,6 +90,8 @@ class Class(Base):
     attendances = relationship("Attendance", back_populates="class_")
     participations = relationship("Participation", back_populates="class_")
     grades = relationship("Grade", back_populates="class_")
+    grade_categories = relationship("GradeCategory", back_populates="class_", cascade="all, delete-orphan")
+    special_points = relationship("SpecialPoints", back_populates="class_", cascade="all, delete-orphan")
 
     @staticmethod
     def generate_code(prefix: str = "") -> str:
@@ -107,3 +113,38 @@ class StudentClass(Base):
     class_ = relationship("Class", back_populates="enrollments")
 
     __table_args__ = (UniqueConstraint('student_id', 'class_id', name='unique_student_class'),)
+
+
+class GradeCategory(Base):
+    __tablename__ = "grade_categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
+    name = Column(String(100), nullable=False)  # e.g., "Retos de la Semana", "Examenes"
+    weight = Column(Float, nullable=False)  # Percentage weight (e.g., 0.4 for 40%)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    class_ = relationship("Class", back_populates="grade_categories")
+    grades = relationship("Grade", back_populates="grade_category")
+
+    __table_args__ = (UniqueConstraint('class_id', 'name', name='unique_class_category'),)
+
+
+class SpecialPoints(Base):
+    __tablename__ = "special_points"
+
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
+    category = Column(String(20), nullable=False)  # "english" or "notebook"
+    opted_in = Column(Boolean, nullable=False, default=False)
+    awarded = Column(Boolean, nullable=False, default=False)
+    points_value = Column(Float, nullable=False, default=0.5)  # Default 0.5 points each
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    student = relationship("Student", back_populates="special_points")
+    class_ = relationship("Class", back_populates="special_points")
+
+    __table_args__ = (UniqueConstraint('student_id', 'class_id', 'category', name='unique_student_class_special'),)

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Clase</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4f46e5',
+                        secondary: '#7c3aed'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .tab-active { border-color: #4f46e5; color: #4f46e5; }
+        .status-good { background-color: #dcfce7; color: #166534; }
+        .status-warning { background-color: #fef9c3; color: #854d0e; }
+        .status-at_risk { background-color: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Loading State -->
+    <div id="loading-section" class="min-h-screen flex items-center justify-center">
+        <div class="text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p class="mt-4 text-gray-500">Cargando...</p>
+        </div>
+    </div>
+
+    <!-- Login Required -->
+    <div id="login-section" class="hidden min-h-screen flex items-center justify-center">
+        <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full mx-4 text-center">
+            <h1 class="text-2xl font-bold text-gray-800 mb-4">Acceso Requerido</h1>
+            <p class="text-gray-500 mb-6">Debes iniciar sesion como profesor para ver este dashboard.</p>
+            <a href="/admin" class="inline-block bg-primary hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg transition">
+                Ir a Panel de Admin
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboard-section" class="hidden">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center gap-4">
+                        <a href="/admin" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                            </svg>
+                        </a>
+                        <div>
+                            <h1 id="class-name" class="text-xl font-bold text-gray-800">Cargando...</h1>
+                            <p id="class-code" class="text-sm text-gray-500"></p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span id="teacher-name" class="text-gray-600 hidden sm:block"></span>
+                        <a href="/admin" class="text-gray-500 hover:text-gray-700 text-sm font-medium">
+                            Volver al Panel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Stats Cards -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                    <p class="text-sm text-gray-500">Estudiantes</p>
+                    <p id="stat-students" class="text-2xl font-bold text-primary">--</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                    <p class="text-sm text-gray-500">Asistencia</p>
+                    <p id="stat-attendance" class="text-2xl font-bold text-blue-600">--%</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                    <p class="text-sm text-gray-500">Promedio</p>
+                    <p id="stat-grade" class="text-2xl font-bold text-green-600">--</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                    <p class="text-sm text-gray-500">En Riesgo</p>
+                    <p id="stat-at-risk" class="text-2xl font-bold text-red-600">--</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                    <p class="text-sm text-gray-500">Top Performers</p>
+                    <p id="stat-top" class="text-2xl font-bold text-purple-600">--</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                    <p class="text-sm text-gray-500">Pendientes</p>
+                    <p id="stat-pending" class="text-2xl font-bold text-amber-600">--</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="bg-white border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <nav class="flex space-x-8 overflow-x-auto">
+                    <button onclick="showTab('overview')" id="tab-overview"
+                            class="tab-btn tab-active border-b-2 py-4 px-1 text-sm font-medium whitespace-nowrap">
+                        Vista General
+                    </button>
+                    <button onclick="showTab('roster')" id="tab-roster"
+                            class="tab-btn border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                        Lista de Alumnos
+                    </button>
+                    <button onclick="showTab('attendance')" id="tab-attendance"
+                            class="tab-btn border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                        Asistencia
+                    </button>
+                    <button onclick="showTab('grades')" id="tab-grades"
+                            class="tab-btn border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                        Calificaciones
+                    </button>
+                    <button onclick="showTab('participation')" id="tab-participation"
+                            class="tab-btn border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                        Participacion
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Tab Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <!-- Overview Tab -->
+            <div id="panel-overview" class="tab-panel">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Quick Actions -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Acciones Rapidas</h3>
+                        <div class="space-y-3">
+                            <button onclick="showTab('attendance')" class="w-full text-left px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition">
+                                <span class="font-medium">Tomar Asistencia</span>
+                                <span class="text-sm block text-blue-600">Registrar asistencia de hoy</span>
+                            </button>
+                            <button onclick="showTab('grades')" class="w-full text-left px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition">
+                                <span class="font-medium">Agregar Calificacion</span>
+                                <span class="text-sm block text-green-600">Registrar nueva calificacion</span>
+                            </button>
+                            <button onclick="showTab('participation')" class="w-full text-left px-4 py-3 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition">
+                                <span class="font-medium">Revisar Participaciones</span>
+                                <span class="text-sm block text-purple-600" id="pending-count">-- pendientes</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Students at Risk -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Estudiantes en Riesgo</h3>
+                        <div id="at-risk-list" class="space-y-3">
+                            <p class="text-gray-500 text-sm">Cargando...</p>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Actividad Reciente</h3>
+                        <div id="recent-activity" class="space-y-3">
+                            <p class="text-gray-500 text-sm">Cargando...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grade Categories -->
+                <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Categorias de Calificacion</h3>
+                    <div id="categories-overview" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <p class="text-gray-500 text-sm">Cargando...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Roster Tab -->
+            <div id="panel-roster" class="tab-panel hidden">
+                <!-- Filters -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <div class="flex-1">
+                            <input type="text" id="search-input" placeholder="Buscar por nombre o email..."
+                                   oninput="applyFilters()"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
+                        </div>
+                        <div class="flex gap-2 flex-wrap">
+                            <select id="sort-select" onchange="applyFilters()"
+                                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                                <option value="name-asc">Nombre A-Z</option>
+                                <option value="name-desc">Nombre Z-A</option>
+                                <option value="grade-desc">Calificacion (Mayor)</option>
+                                <option value="grade-asc">Calificacion (Menor)</option>
+                                <option value="attendance-desc">Asistencia (Mayor)</option>
+                                <option value="attendance-asc">Asistencia (Menor)</option>
+                                <option value="participation-desc">Participacion (Mayor)</option>
+                            </select>
+                            <select id="status-select" onchange="applyFilters()"
+                                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                                <option value="all">Todos</option>
+                                <option value="good">Buen estado</option>
+                                <option value="warning">Advertencia</option>
+                                <option value="at_risk">En riesgo</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Student Table -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estudiante</th>
+                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Estado</th>
+                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Asistencia</th>
+                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Participacion</th>
+                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Calificacion</th>
+                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ultima Actividad</th>
+                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="roster-table" class="divide-y divide-gray-100">
+                                <tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendance Tab -->
+            <div id="panel-attendance" class="tab-panel hidden">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <h2 class="text-lg font-semibold text-gray-800">Asistencia del Dia</h2>
+                        <div class="flex items-center gap-3">
+                            <input type="date" id="attendance-date"
+                                   class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                            <button onclick="loadAttendanceForDate()"
+                                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50">
+                                Cargar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estudiante</th>
+                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Presente</th>
+                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ausente</th>
+                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Tarde</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notas</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendance-table" class="divide-y divide-gray-100">
+                                <tr><td colspan="5" class="px-4 py-4 text-center text-gray-500">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-6 flex justify-end">
+                        <button onclick="saveAttendance()"
+                                class="bg-primary hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg transition">
+                            Guardar Asistencia
+                        </button>
+                    </div>
+                    <div id="attendance-success" class="hidden mt-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm">
+                        Asistencia guardada exitosamente!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grades Tab -->
+            <div id="panel-grades" class="tab-panel hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Add Grade Form -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Agregar Calificacion</h2>
+                        <form id="grade-form" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Estudiante</label>
+                                <select id="grade-student" required
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none">
+                                    <option value="">Selecciona un estudiante...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                                <select id="grade-category" required
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none">
+                                    <option value="">Selecciona una categoria...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre (opcional)</label>
+                                <input type="text" id="grade-name" placeholder="Ej: Reto Semana 1"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Calificacion</label>
+                                    <input type="number" id="grade-score" required min="0" step="0.5"
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Maximo</label>
+                                    <input type="number" id="grade-max" required min="1" step="0.5" value="100"
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none">
+                                </div>
+                            </div>
+                            <button type="submit"
+                                    class="w-full bg-primary hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg transition">
+                                Agregar Calificacion
+                            </button>
+                        </form>
+                        <div id="grade-success" class="hidden mt-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm">
+                            Calificacion agregada exitosamente!
+                        </div>
+                    </div>
+
+                    <!-- Grade Categories -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Categorias de Calificacion</h2>
+                        <div id="grade-categories-list" class="space-y-3 mb-6">
+                            <p class="text-gray-500 text-sm">Cargando...</p>
+                        </div>
+                        <div class="border-t pt-4">
+                            <h3 class="text-sm font-medium text-gray-700 mb-3">Agregar Categoria</h3>
+                            <div class="flex gap-2">
+                                <input type="text" id="new-category-name" placeholder="Nombre"
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                                <input type="number" id="new-category-weight" placeholder="%" min="1" max="100"
+                                       class="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                                <button onclick="addCategory()"
+                                        class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm">
+                                    Agregar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Participation Tab -->
+            <div id="panel-participation" class="tab-panel hidden">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <h2 class="text-lg font-semibold text-gray-800">Registros de Participacion</h2>
+                        <select id="participation-filter" onchange="loadParticipation()"
+                                class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                            <option value="">Todos</option>
+                            <option value="pending" selected>Pendientes</option>
+                            <option value="approved">Aprobados</option>
+                            <option value="rejected">Rechazados</option>
+                        </select>
+                    </div>
+
+                    <div id="participation-list" class="space-y-4">
+                        <p class="text-center text-gray-500 py-4">Cargando...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Student Detail Modal -->
+    <div id="student-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-lg max-w-2xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h2 id="modal-student-name" class="text-xl font-bold text-gray-800"></h2>
+                    <p id="modal-student-email" class="text-sm text-gray-500"></p>
+                </div>
+                <button onclick="closeStudentModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="modal-content" class="space-y-4">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/class-dashboard.js"></script>
+</body>
+</html>

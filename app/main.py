@@ -11,7 +11,7 @@ load_dotenv()
 from sqlalchemy import inspect
 from models.database import Base, engine
 # Import all models to ensure they are registered with Base.metadata
-from models.models import Student, Attendance, Participation, Grade, Class, StudentClass
+from models.models import Student, Attendance, Participation, Grade, Class, StudentClass, GradeCategory, SpecialPoints
 from routes import health, students, participation, auth, admin, classes
 
 
@@ -76,6 +76,12 @@ async def root():
 async def admin_page():
     """Serve the admin dashboard."""
     return FileResponse("static/admin.html")
+
+
+@app.get("/admin/class/{class_id}")
+async def class_dashboard_page(class_id: int):
+    """Serve the class dashboard page."""
+    return FileResponse("static/class-dashboard.html")
 
 
 @app.get("/api/config")

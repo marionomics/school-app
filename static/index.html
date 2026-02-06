@@ -92,12 +92,12 @@
         <!-- Contenido Principal -->
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <!-- Resumen de Estadísticas -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm text-gray-500">Promedio de Calificaciones</p>
-                            <p id="avg-grade" class="text-3xl font-bold text-gray-800">--%</p>
+                            <p class="text-sm text-gray-500">Calificacion Final</p>
+                            <p id="final-grade" class="text-3xl font-bold text-gray-800">--</p>
                         </div>
                         <div class="bg-green-100 p-3 rounded-full">
                             <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,7 +122,7 @@
                 <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm text-gray-500">Puntos de Participación</p>
+                            <p class="text-sm text-gray-500">Puntos de Participacion</p>
                             <p id="total-participation" class="text-3xl font-bold text-gray-800">--</p>
                         </div>
                         <div class="bg-purple-100 p-3 rounded-full">
@@ -131,6 +131,27 @@
                             </svg>
                         </div>
                     </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500">Puntos Extra</p>
+                            <p id="special-points" class="text-3xl font-bold text-gray-800">--</p>
+                        </div>
+                        <div class="bg-amber-100 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Desglose de Calificacion -->
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-8">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Desglose de Calificacion</h2>
+                <div id="grade-breakdown" class="space-y-3">
+                    <p class="text-center text-gray-500 py-4">Cargando...</p>
                 </div>
             </div>
 

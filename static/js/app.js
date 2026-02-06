@@ -229,10 +229,133 @@ async function loadDashboardData() {
     if (!selectedClassId) return;
 
     await Promise.all([
+        loadGradeCalculation(),
         loadGrades(),
         loadAttendance(),
         loadParticipationPoints()
     ]);
+}
+
+async function loadGradeCalculation() {
+    const breakdownEl = document.getElementById('grade-breakdown');
+    const finalGradeEl = document.getElementById('final-grade');
+    const specialPointsEl = document.getElementById('special-points');
+
+    try {
+        const calc = await apiCall(`/students/me/grade-calculation/${selectedClassId}`);
+        renderGradeBreakdown(calc);
+
+        // Update summary stats
+        finalGradeEl.textContent = calc.final_grade.toFixed(1);
+        finalGradeEl.className = `text-3xl font-bold ${calc.final_grade >= 70 ? 'text-green-600' : calc.final_grade >= 60 ? 'text-yellow-600' : 'text-red-600'}`;
+
+        specialPointsEl.textContent = `+${calc.special_points_total.toFixed(1)}`;
+
+    } catch (error) {
+        console.error('Error al cargar calculo de calificacion:', error);
+        breakdownEl.innerHTML = '<p class="text-center text-gray-500 py-4">No se pudo cargar el desglose</p>';
+        finalGradeEl.textContent = '--';
+        specialPointsEl.textContent = '--';
+    }
+}
+
+function renderGradeBreakdown(calc) {
+    const container = document.getElementById('grade-breakdown');
+
+    if (calc.categories.length === 0 && calc.participation_points === 0 && calc.special_points.length === 0) {
+        container.innerHTML = '<p class="text-center text-gray-500 py-4">No hay datos de calificacion aun</p>';
+        return;
+    }
+
+    let html = '';
+
+    // Category breakdowns
+    if (calc.categories.length > 0) {
+        html += '<div class="space-y-2">';
+        calc.categories.forEach(cat => {
+            const gradeCount = cat.grades.length;
+            html += `
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <div>
+                        <span class="font-medium text-gray-800">${cat.category_name}</span>
+                        <span class="text-xs text-gray-500 ml-2">(${(cat.weight * 100).toFixed(0)}% del total)</span>
+                        <span class="text-xs text-gray-400 ml-2">${gradeCount} calificacion(es)</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="font-medium ${cat.average >= 70 ? 'text-green-600' : cat.average >= 60 ? 'text-yellow-600' : 'text-red-600'}">
+                            ${cat.average.toFixed(1)}%
+                        </span>
+                        <span class="text-gray-400 text-sm ml-2">→ ${cat.weighted_contribution.toFixed(1)} pts</span>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    // Participation contribution
+    html += `
+        <div class="flex justify-between items-center p-3 bg-purple-50 rounded-lg mt-3">
+            <div>
+                <span class="font-medium text-purple-800">Participacion</span>
+                <span class="text-xs text-purple-600 ml-2">(${calc.participation_points} pts aprobados × 0.1)</span>
+            </div>
+            <span class="font-medium text-purple-800">+${calc.participation_contribution.toFixed(1)} pts</span>
+        </div>
+    `;
+
+    // Special points
+    if (calc.special_points.length > 0) {
+        const englishSp = calc.special_points.find(sp => sp.category === 'english');
+        const notebookSp = calc.special_points.find(sp => sp.category === 'notebook');
+
+        html += '<div class="mt-3 space-y-2">';
+
+        if (englishSp) {
+            html += renderSpecialPointRow('Ingles', englishSp);
+        }
+        if (notebookSp) {
+            html += renderSpecialPointRow('Cuaderno', notebookSp);
+        }
+
+        html += '</div>';
+    }
+
+    // Total
+    html += `
+        <div class="flex justify-between items-center p-3 bg-primary/10 rounded-lg mt-4 border-t-2 border-primary">
+            <span class="font-bold text-gray-800">Calificacion Final</span>
+            <span class="text-2xl font-bold ${calc.final_grade >= 70 ? 'text-green-600' : calc.final_grade >= 60 ? 'text-yellow-600' : 'text-red-600'}">
+                ${calc.final_grade.toFixed(1)}
+            </span>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+function renderSpecialPointRow(label, sp) {
+    const statusClass = sp.opted_in
+        ? (sp.awarded ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-800')
+        : 'bg-gray-50 text-gray-500';
+
+    const statusText = sp.opted_in
+        ? (sp.awarded ? 'Otorgado' : 'Inscrito - Pendiente')
+        : 'No inscrito';
+
+    const pointsText = sp.opted_in && sp.awarded
+        ? `+${sp.points_value.toFixed(1)} pts`
+        : '+0 pts';
+
+    return `
+        <div class="flex justify-between items-center p-3 ${statusClass} rounded-lg">
+            <div>
+                <span class="font-medium">${label}</span>
+                <span class="text-xs ml-2">(${statusText})</span>
+            </div>
+            <span class="font-medium">${pointsText}</span>
+        </div>
+    `;
 }
 
 async function loadParticipationPoints() {
@@ -250,7 +373,6 @@ async function loadGrades() {
     try {
         const grades = await apiCall(`/students/me/grades?class_id=${selectedClassId}`);
         renderGrades(grades);
-        calculateAverageGrade(grades);
     } catch (error) {
         console.error('Error al cargar calificaciones:', error);
         document.getElementById('grades-table').innerHTML = `
@@ -283,7 +405,8 @@ function renderGrades(grades) {
         return;
     }
 
-    const categoryNames = {
+    // Legacy category names (for backward compatibility)
+    const legacyCategoryNames = {
         homework: 'Tarea',
         quiz: 'Quiz',
         exam: 'Examen',
@@ -293,13 +416,15 @@ function renderGrades(grades) {
     tbody.innerHTML = grades.map(grade => {
         const percentage = ((grade.score / grade.max_score) * 100).toFixed(1);
         const colorClass = percentage >= 70 ? 'text-green-600' : percentage >= 50 ? 'text-yellow-600' : 'text-red-600';
-        const categoryName = categoryNames[grade.category] || grade.category;
+
+        // Use name if available, otherwise category (legacy)
+        let displayName = grade.name || legacyCategoryNames[grade.category] || grade.category || 'Sin categoria';
 
         return `
             <tr class="hover:bg-gray-50">
                 <td class="px-6 py-4">
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        ${categoryName}
+                        ${displayName}
                     </span>
                 </td>
                 <td class="px-6 py-4">
@@ -355,22 +480,6 @@ function renderAttendance(attendance) {
 }
 
 // Calculos
-function calculateAverageGrade(grades) {
-    const avgEl = document.getElementById('avg-grade');
-
-    if (grades.length === 0) {
-        avgEl.textContent = 'N/A';
-        return;
-    }
-
-    const totalPercentage = grades.reduce((sum, grade) => {
-        return sum + (grade.score / grade.max_score) * 100;
-    }, 0);
-
-    const average = (totalPercentage / grades.length).toFixed(1);
-    avgEl.textContent = `${average}%`;
-}
-
 function calculateAttendanceRate(attendance) {
     const rateEl = document.getElementById('attendance-rate');
 

@@ -2,12 +2,16 @@
 Admin routes for teacher functionality.
 """
 from datetime import date
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from models.database import get_db
-from models.models import Student, Attendance, Participation, Grade, Class, StudentClass
+from models.models import (
+    Student, Attendance, Participation, Grade, Class, StudentClass,
+    GradeCategory, SpecialPoints
+)
 from models.schemas import (
     StudentResponse,
     AttendanceResponse,
@@ -16,6 +20,14 @@ from models.schemas import (
     BulkAttendanceCreate,
     ParticipationUpdate,
     ParticipationWithStudent,
+    GradeCategoryCreate,
+    GradeCategoryResponse,
+    GradeCategoryUpdate,
+    SpecialPointsCreate,
+    SpecialPointsResponse,
+    SpecialPointsUpdate,
+    CategoryGradeBreakdown,
+    StudentRosterEntry,
 )
 from app.auth import get_current_teacher
 
@@ -57,12 +69,17 @@ async def record_attendance(
     db: Session = Depends(get_db),
 ):
     """Record attendance for multiple students in a class."""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Recording attendance: class_id={data.class_id}, date={data.date}, records={len(data.records)}")
+
     # Verify teacher owns this class
     class_ = db.query(Class).filter(
         Class.id == data.class_id,
         Class.teacher_id == teacher.id,
     ).first()
     if not class_:
+        logger.error(f"Class not found or not owned by teacher: class_id={data.class_id}, teacher_id={teacher.id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Clase no encontrada",
@@ -71,36 +88,57 @@ async def record_attendance(
     attendance_date = data.date or date.today()
     results = []
 
-    for record in data.records:
-        # Check if attendance already exists for this student, date, and class
-        existing = db.query(Attendance).filter(
-            Attendance.student_id == record.student_id,
-            Attendance.class_id == data.class_id,
-            Attendance.date == attendance_date,
-        ).first()
+    try:
+        for record in data.records:
+            # Verify student is enrolled in this class
+            enrollment = db.query(StudentClass).filter(
+                StudentClass.student_id == record.student_id,
+                StudentClass.class_id == data.class_id,
+            ).first()
+            if not enrollment:
+                logger.warning(f"Student {record.student_id} not enrolled in class {data.class_id}")
+                # Skip this student but continue with others
+                continue
 
-        if existing:
-            # Update existing record
-            existing.status = record.status
-            existing.notes = record.notes
-            db.commit()
-            db.refresh(existing)
-            results.append(existing)
-        else:
-            # Create new record
-            attendance = Attendance(
-                student_id=record.student_id,
-                class_id=data.class_id,
-                date=attendance_date,
-                status=record.status,
-                notes=record.notes,
-            )
-            db.add(attendance)
-            db.commit()
-            db.refresh(attendance)
-            results.append(attendance)
+            # Check if attendance already exists for this student, date, and class
+            existing = db.query(Attendance).filter(
+                Attendance.student_id == record.student_id,
+                Attendance.class_id == data.class_id,
+                Attendance.date == attendance_date,
+            ).first()
 
-    return results
+            if existing:
+                # Update existing record
+                existing.status = record.status
+                existing.notes = record.notes
+                results.append(existing)
+            else:
+                # Create new record
+                attendance = Attendance(
+                    student_id=record.student_id,
+                    class_id=data.class_id,
+                    date=attendance_date,
+                    status=record.status,
+                    notes=record.notes,
+                )
+                db.add(attendance)
+                results.append(attendance)
+
+        # Commit all changes at once
+        db.commit()
+        for r in results:
+            db.refresh(r)
+
+        logger.info(f"Successfully saved {len(results)} attendance records")
+        return results
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Database error saving attendance: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al guardar asistencia: {str(e)}",
+        )
 
 
 @router.get("/attendance", response_model=list[AttendanceResponse])
@@ -167,10 +205,24 @@ async def add_grade(
             detail="Estudiante no encontrado en esta clase",
         )
 
+    # Verify category_id if provided
+    if data.category_id:
+        category = db.query(GradeCategory).filter(
+            GradeCategory.id == data.category_id,
+            GradeCategory.class_id == data.class_id,
+        ).first()
+        if not category:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Categoria no encontrada",
+            )
+
     grade = Grade(
         student_id=data.student_id,
         class_id=data.class_id,
+        category_id=data.category_id,
         category=data.category,
+        name=data.name,
         score=data.score,
         max_score=data.max_score,
         date=data.date or date.today(),
@@ -260,4 +312,607 @@ async def update_participation(
         approved=participation.approved,
         student_name=participation.student.name,
         student_email=participation.student.email,
+    )
+
+
+# ==================== Grade Categories ====================
+
+@router.get("/categories/{class_id}", response_model=List[GradeCategoryResponse])
+async def get_grade_categories(
+    class_id: int,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Get all grade categories for a class."""
+    class_ = db.query(Class).filter(
+        Class.id == class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=404, detail="Clase no encontrada")
+
+    return db.query(GradeCategory).filter(GradeCategory.class_id == class_id).all()
+
+
+@router.post("/categories/{class_id}", response_model=GradeCategoryResponse)
+async def create_grade_category(
+    class_id: int,
+    data: GradeCategoryCreate,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Create a grade category for a class."""
+    class_ = db.query(Class).filter(
+        Class.id == class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=404, detail="Clase no encontrada")
+
+    # Check if category name already exists
+    existing = db.query(GradeCategory).filter(
+        GradeCategory.class_id == class_id,
+        GradeCategory.name == data.name,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe una categoria con ese nombre")
+
+    category = GradeCategory(
+        class_id=class_id,
+        name=data.name,
+        weight=data.weight,
+    )
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return category
+
+
+@router.put("/categories/{class_id}/{category_id}", response_model=GradeCategoryResponse)
+async def update_grade_category(
+    class_id: int,
+    category_id: int,
+    data: GradeCategoryUpdate,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Update a grade category."""
+    # Verify teacher owns the class
+    class_ = db.query(Class).filter(
+        Class.id == class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=403, detail="No tienes permiso para editar esta categoria")
+
+    category = db.query(GradeCategory).filter(
+        GradeCategory.id == category_id,
+        GradeCategory.class_id == class_id,
+    ).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Categoria no encontrada")
+
+    if data.name is not None:
+        category.name = data.name
+    if data.weight is not None:
+        category.weight = data.weight
+
+    db.commit()
+    db.refresh(category)
+    return category
+
+
+@router.delete("/categories/{class_id}/{category_id}")
+async def delete_grade_category(
+    class_id: int,
+    category_id: int,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Delete a grade category."""
+    class_ = db.query(Class).filter(
+        Class.id == class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=403, detail="No tienes permiso")
+
+    category = db.query(GradeCategory).filter(
+        GradeCategory.id == category_id,
+        GradeCategory.class_id == class_id,
+    ).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Categoria no encontrada")
+
+    db.delete(category)
+    db.commit()
+    return {"message": "Categoria eliminada"}
+
+
+# ==================== Special Points ====================
+
+@router.get("/special-points", response_model=List[SpecialPointsResponse])
+async def get_special_points(
+    class_id: int,
+    student_id: Optional[int] = None,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Get special points for a class, optionally filtered by student."""
+    class_ = db.query(Class).filter(
+        Class.id == class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=404, detail="Clase no encontrada")
+
+    query = db.query(SpecialPoints).filter(SpecialPoints.class_id == class_id)
+    if student_id:
+        query = query.filter(SpecialPoints.student_id == student_id)
+
+    return query.all()
+
+
+class SpecialPointsCreateFull(SpecialPointsCreate):
+    """Extended schema with student_id and class_id."""
+    student_id: int
+    class_id: int
+
+
+@router.post("/special-points", response_model=SpecialPointsResponse)
+async def create_special_points(
+    data: SpecialPointsCreateFull,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Create special points entry for a student."""
+    class_ = db.query(Class).filter(
+        Class.id == data.class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=404, detail="Clase no encontrada")
+
+    # Verify student is enrolled
+    enrollment = db.query(StudentClass).filter(
+        StudentClass.student_id == data.student_id,
+        StudentClass.class_id == data.class_id,
+    ).first()
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Estudiante no inscrito en esta clase")
+
+    # Check if already exists
+    existing = db.query(SpecialPoints).filter(
+        SpecialPoints.student_id == data.student_id,
+        SpecialPoints.class_id == data.class_id,
+        SpecialPoints.category == data.category,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe un registro de puntos especiales para esta categoria")
+
+    special = SpecialPoints(
+        student_id=data.student_id,
+        class_id=data.class_id,
+        category=data.category,
+        opted_in=data.opted_in,
+    )
+    db.add(special)
+    db.commit()
+    db.refresh(special)
+    return special
+
+
+@router.patch("/special-points/{special_id}", response_model=SpecialPointsResponse)
+async def update_special_points(
+    special_id: int,
+    data: SpecialPointsUpdate,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Update special points (opt-in status or award)."""
+    special = db.query(SpecialPoints).filter(SpecialPoints.id == special_id).first()
+    if not special:
+        raise HTTPException(status_code=404, detail="Registro no encontrado")
+
+    class_ = db.query(Class).filter(
+        Class.id == special.class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=403, detail="No tienes permiso")
+
+    if data.opted_in is not None:
+        special.opted_in = data.opted_in
+    if data.awarded is not None:
+        special.awarded = data.awarded
+
+    db.commit()
+    db.refresh(special)
+    return special
+
+
+# ==================== Student Roster with Grade Calculation ====================
+
+def calculate_student_grade(
+    student_id: int,
+    class_id: int,
+    db: Session
+) -> dict:
+    """Calculate a student's final grade for a class."""
+    # Get grade categories
+    categories = db.query(GradeCategory).filter(GradeCategory.class_id == class_id).all()
+
+    category_breakdowns = []
+    total_weighted = 0.0
+
+    for cat in categories:
+        # Get grades for this category
+        grades = db.query(Grade).filter(
+            Grade.student_id == student_id,
+            Grade.class_id == class_id,
+            Grade.category_id == cat.id,
+        ).all()
+
+        if grades:
+            # Calculate average percentage
+            total_pct = sum((g.score / g.max_score) * 100 for g in grades)
+            average = total_pct / len(grades)
+        else:
+            average = 0.0
+
+        weighted = cat.weight * average
+        total_weighted += weighted
+
+        category_breakdowns.append({
+            "category_id": cat.id,
+            "category_name": cat.name,
+            "weight": cat.weight,
+            "grades": grades,
+            "average": average,
+            "weighted_contribution": weighted,
+        })
+
+    # Get participation points
+    participation_points = db.query(func.sum(Participation.points)).filter(
+        Participation.student_id == student_id,
+        Participation.class_id == class_id,
+        Participation.approved == "approved",
+    ).scalar() or 0
+
+    participation_contribution = 0.1 * participation_points
+
+    # Get special points
+    special_points = db.query(SpecialPoints).filter(
+        SpecialPoints.student_id == student_id,
+        SpecialPoints.class_id == class_id,
+    ).all()
+
+    special_total = sum(
+        sp.points_value for sp in special_points
+        if sp.opted_in and sp.awarded
+    )
+
+    # Final grade calculation
+    final_grade = total_weighted + participation_contribution + special_total
+
+    return {
+        "categories": category_breakdowns,
+        "participation_points": participation_points,
+        "participation_contribution": participation_contribution,
+        "special_points": special_points,
+        "special_points_total": special_total,
+        "final_grade": min(final_grade, 100),  # Cap at 100
+    }
+
+
+@router.get("/roster/{class_id}", response_model=List[StudentRosterEntry])
+async def get_student_roster(
+    class_id: int,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Get full student roster with grades, attendance, and calculated final grade."""
+    class_ = db.query(Class).filter(
+        Class.id == class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=404, detail="Clase no encontrada")
+
+    # Get enrolled students
+    enrollments = db.query(StudentClass).filter(StudentClass.class_id == class_id).all()
+
+    roster = []
+    for enrollment in enrollments:
+        student = enrollment.student
+
+        # Calculate attendance rate
+        attendance_records = db.query(Attendance).filter(
+            Attendance.student_id == student.id,
+            Attendance.class_id == class_id,
+        ).all()
+
+        if attendance_records:
+            present = sum(1 for a in attendance_records if a.status in ("present", "late"))
+            attendance_rate = (present / len(attendance_records)) * 100
+        else:
+            attendance_rate = 0.0
+
+        # Calculate grades
+        grade_data = calculate_student_grade(student.id, class_id, db)
+
+        roster.append(StudentRosterEntry(
+            student=StudentResponse(
+                id=student.id,
+                name=student.name,
+                email=student.email,
+                role=student.role,
+                created_at=student.created_at,
+            ),
+            attendance_rate=attendance_rate,
+            participation_points=grade_data["participation_points"],
+            grade_breakdown=[
+                CategoryGradeBreakdown(
+                    category_id=c["category_id"],
+                    category_name=c["category_name"],
+                    weight=c["weight"],
+                    grades=[GradeResponse(
+                        id=g.id,
+                        student_id=g.student_id,
+                        category_id=g.category_id,
+                        category=g.category,
+                        name=g.name,
+                        score=g.score,
+                        max_score=g.max_score,
+                        date=g.date,
+                    ) for g in c["grades"]],
+                    average=c["average"],
+                    weighted_contribution=c["weighted_contribution"],
+                ) for c in grade_data["categories"]
+            ],
+            special_points=[
+                SpecialPointsResponse(
+                    id=sp.id,
+                    student_id=sp.student_id,
+                    class_id=sp.class_id,
+                    category=sp.category,
+                    opted_in=sp.opted_in,
+                    awarded=sp.awarded,
+                    points_value=sp.points_value,
+                    created_at=sp.created_at,
+                ) for sp in grade_data["special_points"]
+            ],
+            final_grade=grade_data["final_grade"],
+        ))
+
+    return roster
+
+
+# ==================== Class Dashboard ====================
+
+from models.schemas import ClassDashboardResponse, ClassDashboardStats, StudentDashboardEntry
+
+
+@router.get("/classes/{class_id}/dashboard", response_model=ClassDashboardResponse)
+async def get_class_dashboard(
+    class_id: int,
+    sort_by: str = "name",  # name, attendance, grade, participation
+    sort_order: str = "asc",  # asc, desc
+    search: Optional[str] = None,
+    status_filter: Optional[str] = None,  # all, at_risk, good
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Get comprehensive class dashboard with stats and student data."""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Verify teacher owns this class
+    class_ = db.query(Class).filter(
+        Class.id == class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=404, detail="Clase no encontrada")
+
+    # Get enrolled students
+    enrollments = db.query(StudentClass).filter(StudentClass.class_id == class_id).all()
+
+    # Get grade categories
+    categories = db.query(GradeCategory).filter(GradeCategory.class_id == class_id).all()
+
+    # Get pending participation count
+    pending_participation = db.query(Participation).filter(
+        Participation.class_id == class_id,
+        Participation.approved == "pending",
+    ).count()
+
+    students_data = []
+    total_attendance_rate = 0.0
+    total_grade = 0.0
+
+    for enrollment in enrollments:
+        student = enrollment.student
+
+        # Attendance data
+        attendance_records = db.query(Attendance).filter(
+            Attendance.student_id == student.id,
+            Attendance.class_id == class_id,
+        ).all()
+
+        attendance_present = sum(1 for a in attendance_records if a.status in ("present", "late"))
+        attendance_total = len(attendance_records)
+        attendance_rate = (attendance_present / attendance_total * 100) if attendance_total > 0 else 0.0
+
+        # Participation data
+        participation_approved = db.query(func.sum(Participation.points)).filter(
+            Participation.student_id == student.id,
+            Participation.class_id == class_id,
+            Participation.approved == "approved",
+        ).scalar() or 0
+
+        participation_pending = db.query(Participation).filter(
+            Participation.student_id == student.id,
+            Participation.class_id == class_id,
+            Participation.approved == "pending",
+        ).count()
+
+        # Grade data
+        grade_data = calculate_student_grade(student.id, class_id, db)
+        final_grade = grade_data["final_grade"]
+
+        # Calculate average grade (simple average across all grades)
+        all_grades = db.query(Grade).filter(
+            Grade.student_id == student.id,
+            Grade.class_id == class_id,
+        ).all()
+        if all_grades:
+            avg_grade = sum((g.score / g.max_score) * 100 for g in all_grades) / len(all_grades)
+        else:
+            avg_grade = 0.0
+
+        # Last activity (most recent attendance, grade, or participation)
+        last_attendance = db.query(Attendance).filter(
+            Attendance.student_id == student.id,
+            Attendance.class_id == class_id,
+        ).order_by(Attendance.date.desc()).first()
+
+        last_participation = db.query(Participation).filter(
+            Participation.student_id == student.id,
+            Participation.class_id == class_id,
+        ).order_by(Participation.date.desc()).first()
+
+        last_grade = db.query(Grade).filter(
+            Grade.student_id == student.id,
+            Grade.class_id == class_id,
+        ).order_by(Grade.date.desc()).first()
+
+        dates = []
+        if last_attendance:
+            from datetime import datetime as dt
+            dates.append(dt.combine(last_attendance.date, dt.min.time()))
+        if last_participation:
+            dates.append(dt.combine(last_participation.date, dt.min.time()))
+        if last_grade:
+            dates.append(dt.combine(last_grade.date, dt.min.time()))
+
+        last_activity = max(dates) if dates else None
+
+        # Determine status
+        if attendance_rate < 60 or final_grade < 60:
+            student_status = "at_risk"
+        elif attendance_rate < 80 or final_grade < 70:
+            student_status = "warning"
+        else:
+            student_status = "good"
+
+        students_data.append(StudentDashboardEntry(
+            id=student.id,
+            name=student.name,
+            email=student.email,
+            attendance_rate=attendance_rate,
+            attendance_present=attendance_present,
+            attendance_total=attendance_total,
+            participation_points=participation_approved,
+            participation_pending=participation_pending,
+            average_grade=avg_grade,
+            final_grade=final_grade,
+            last_activity=last_activity,
+            status=student_status,
+        ))
+
+        total_attendance_rate += attendance_rate
+        total_grade += final_grade
+
+    # Apply search filter
+    if search:
+        search_lower = search.lower()
+        students_data = [s for s in students_data if search_lower in s.name.lower() or search_lower in s.email.lower()]
+
+    # Apply status filter
+    if status_filter and status_filter != "all":
+        students_data = [s for s in students_data if s.status == status_filter]
+
+    # Sort students
+    reverse = sort_order == "desc"
+    if sort_by == "name":
+        students_data.sort(key=lambda s: s.name.lower(), reverse=reverse)
+    elif sort_by == "attendance":
+        students_data.sort(key=lambda s: s.attendance_rate, reverse=reverse)
+    elif sort_by == "grade":
+        students_data.sort(key=lambda s: s.final_grade, reverse=reverse)
+    elif sort_by == "participation":
+        students_data.sort(key=lambda s: s.participation_points, reverse=reverse)
+
+    # Calculate overall stats
+    num_students = len(enrollments)
+    overall_attendance = (total_attendance_rate / num_students) if num_students > 0 else 0.0
+    average_grade = (total_grade / num_students) if num_students > 0 else 0.0
+
+    students_at_risk = sum(1 for s in students_data if s.status == "at_risk")
+    top_performers = sum(1 for s in students_data if s.final_grade >= 90)
+
+    # Recent activity (last 10 items)
+    recent_activity = []
+
+    # Recent attendance
+    recent_attendance = db.query(Attendance).filter(
+        Attendance.class_id == class_id,
+    ).order_by(Attendance.date.desc()).limit(5).all()
+
+    for a in recent_attendance:
+        student = db.query(Student).filter(Student.id == a.student_id).first()
+        recent_activity.append({
+            "type": "attendance",
+            "date": str(a.date),
+            "student_name": student.name if student else "Unknown",
+            "detail": f"Asistencia: {a.status}",
+        })
+
+    # Recent participation
+    recent_participation = db.query(Participation).filter(
+        Participation.class_id == class_id,
+    ).order_by(Participation.date.desc()).limit(5).all()
+
+    for p in recent_participation:
+        student = db.query(Student).filter(Student.id == p.student_id).first()
+        recent_activity.append({
+            "type": "participation",
+            "date": str(p.date),
+            "student_name": student.name if student else "Unknown",
+            "detail": f"Participación: {p.description[:50]}..." if len(p.description) > 50 else f"Participación: {p.description}",
+            "status": p.approved,
+        })
+
+    # Sort by date
+    recent_activity.sort(key=lambda x: x["date"], reverse=True)
+    recent_activity = recent_activity[:10]
+
+    # Build category responses
+    from models.schemas import GradeCategoryResponse
+    category_responses = [
+        GradeCategoryResponse(
+            id=c.id,
+            class_id=c.class_id,
+            name=c.name,
+            weight=c.weight,
+            created_at=c.created_at,
+        ) for c in categories
+    ]
+
+    return ClassDashboardResponse(
+        stats=ClassDashboardStats(
+            class_id=class_id,
+            class_name=class_.name,
+            class_code=class_.code,
+            total_students=num_students,
+            overall_attendance_rate=overall_attendance,
+            average_grade=average_grade,
+            pending_participation=pending_participation,
+            students_at_risk=students_at_risk,
+            top_performers=top_performers,
+            categories=category_responses,
+        ),
+        students=students_data,
+        recent_activity=recent_activity,
     )

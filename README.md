@@ -5,8 +5,10 @@ A FastAPI application for managing student attendance, participation, and grades
 ## Features
 
 - **Multi-Class Support**: Teachers create classes with unique codes, students join via codes
-- **Student Dashboard**: View grades, attendance, submit participation (filtered by class)
-- **Teacher Admin Panel**: Manage classes, record attendance, manage grades, approve participation
+- **Class Dashboard**: Comprehensive per-class view with stats, roster, attendance, grades, and participation tabs
+- **Weighted Grading System**: Configurable grade categories with weights, participation points, special bonus points
+- **Student Dashboard**: View grades breakdown, attendance, submit participation (filtered by class)
+- **Teacher Admin Panel**: Simple class overview with quick stats, click any class to open detailed dashboard
 - **Google OAuth**: Secure authentication via Google accounts
 - **Spanish UI**: Full Spanish language interface
 - **Railway Ready**: Configured for easy cloud deployment
@@ -51,6 +53,7 @@ A FastAPI application for managing student attendance, participation, and grades
 5. **Open**:
    - Student Dashboard: http://localhost:8000
    - Admin Panel: http://localhost:8000/admin
+   - Class Dashboard: http://localhost:8000/admin/class/{id}
    - API Docs: http://localhost:8000/docs
 
 ## How Classes Work
@@ -68,6 +71,29 @@ A FastAPI application for managing student attendance, participation, and grades
 4. **All data is class-scoped**
    - Attendance, grades, and participation are tied to specific classes
    - Students can join multiple classes and switch between them
+
+## Grading System
+
+The app uses a weighted grading formula:
+
+```
+Final Grade = Σ(Category Weight × Category Average) + (0.1 × Participation Points) + Special Points
+```
+
+### Grade Categories
+- Teachers configure categories per class (e.g., "Retos de la Semana" 40%, "Examenes" 40%, "Proyecto" 20%)
+- Each grade is assigned to a category
+- Category averages are weighted and summed
+
+### Participation Points
+- Students submit participation entries describing their contributions
+- Teachers approve/reject and assign points (1-3)
+- Approved points × 0.1 added to final grade
+
+### Special Points
+- Two optional categories: English (0.5 pts) and Notebook (0.5 pts)
+- Students opt-in at start of semester
+- Teacher awards at end of semester if criteria met
 
 ## Environment Variables
 
@@ -112,12 +138,18 @@ A FastAPI application for managing student attendance, participation, and grades
 ### Admin (teacher only)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/api/admin/classes/:id/dashboard` | Full class dashboard with stats |
+| GET | `/api/admin/roster/:id` | Student roster with grades |
 | GET | `/api/admin/students?class_id=X` | List students in class |
 | POST | `/api/admin/attendance` | Record bulk attendance (requires class_id) |
 | GET | `/api/admin/attendance?class_id=X&date=Y` | Get attendance |
 | POST | `/api/admin/grades` | Add grade (requires class_id) |
 | GET | `/api/admin/participation?class_id=X` | View participation |
 | PATCH | `/api/admin/participation/:id` | Approve/reject |
+| GET | `/api/admin/categories/:id` | List grade categories |
+| POST | `/api/admin/categories/:id` | Create grade category |
+| PUT | `/api/admin/categories/:id/:cat_id` | Update category |
+| DELETE | `/api/admin/categories/:id/:cat_id` | Delete category |
 
 ## Database Migrations
 
@@ -203,10 +235,12 @@ school-app/
 │   └── migrate.py        # Production migration script
 ├── static/
 │   ├── index.html        # Student dashboard (Spanish)
-│   ├── admin.html        # Admin panel (Spanish)
+│   ├── admin.html        # Admin panel - class overview (Spanish)
+│   ├── class-dashboard.html  # Per-class dashboard (Spanish)
 │   └── js/
 │       ├── app.js        # Student JS (class enrollment, switching)
-│       └── admin.js      # Admin JS (class management)
+│       ├── admin.js      # Admin JS (class list, quick stats)
+│       └── class-dashboard.js  # Class dashboard JS (tabs, attendance, grades)
 ├── alembic.ini           # Alembic configuration
 ├── seed_data.py          # Test data script
 ├── requirements.txt
@@ -214,6 +248,16 @@ school-app/
 ├── railway.json          # Railway config
 └── .env.example
 ```
+
+## Roadmap
+
+### Planned Features
+
+- **Homework System**: Assignments with due dates, file uploads, grading, and feedback
+- **Lessons/Classroom**: Rich content lessons with video embeds, attachments, and progress tracking
+- **Forum**: Class discussion boards with threaded replies and likes
+
+See `CLAUDE.md` for detailed schema designs.
 
 ## License
 

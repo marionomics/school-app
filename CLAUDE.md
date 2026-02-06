@@ -26,20 +26,22 @@ python seed_data.py
 
 ## Project Structure
 
-- `app/main.py` - FastAPI app entry point, routes registration
+- `app/main.py` - FastAPI app entry point, routes registration, serves static pages
 - `app/auth.py` - Google OAuth token verification and session management
 - `routes/auth.py` - Authentication endpoints (`/api/auth/google`, `/api/auth/logout`)
-- `routes/admin.py` - Teacher admin endpoints (attendance, grades, participation - all class-scoped)
+- `routes/admin.py` - Teacher admin endpoints (dashboard, roster, attendance, grades, participation, categories)
 - `routes/classes.py` - Class management endpoints (create, join, leave, list)
 - `routes/students.py` - Student endpoints (grades, attendance with optional class filter)
 - `routes/participation.py` - Participation submission (requires class_id)
-- `models/models.py` - SQLAlchemy ORM models (Student, Class, StudentClass, Attendance, Participation, Grade)
+- `models/models.py` - SQLAlchemy ORM models (Student, Class, StudentClass, Attendance, Participation, Grade, GradeCategory, SpecialPoints)
 - `models/schemas.py` - Pydantic request/response schemas
 - `models/database.py` - Database connection and session management
 - `static/index.html` - Student dashboard frontend (Spanish: "Portal del Estudiante")
 - `static/js/app.js` - Student dashboard JavaScript (class enrollment, switching)
-- `static/admin.html` - Teacher admin panel frontend (Spanish: "Panel del Profesor")
-- `static/js/admin.js` - Admin panel JavaScript (class management, class-scoped operations)
+- `static/admin.html` - Teacher admin panel - class overview (Spanish: "Panel del Profesor")
+- `static/js/admin.js` - Admin panel JavaScript (class list, quick stats)
+- `static/class-dashboard.html` - Per-class dashboard with tabs (Spanish)
+- `static/js/class-dashboard.js` - Class dashboard JavaScript (attendance, grades, participation, roster)
 
 ## Multi-Class System
 
@@ -48,6 +50,21 @@ python seed_data.py
 - Students join classes by entering the code
 - All data (attendance, participation, grades) is scoped to specific classes
 - Students can be enrolled in multiple classes and switch between them
+
+### Teacher UI Flow
+```
+/admin (Main Panel)
+  - Quick stats: total classes, students, pending participation
+  - List of class cards (click to open dashboard)
+  - Create class button
+      ↓ Click a class
+/admin/class/{id} (Class Dashboard)
+  ├── Overview tab: quick actions, at-risk students, recent activity
+  ├── Roster tab: student list with search/filter/sort
+  ├── Attendance tab: take attendance by date
+  ├── Grades tab: add grades, manage categories
+  └── Participation tab: approve/reject submissions
+```
 
 ### Database Models
 - `Class` - id, name, code (unique), teacher_id, created_at
@@ -81,12 +98,21 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `POST /api/participation` - Submit participation entry (requires class_id)
 
 ### Admin Endpoints (Teacher only)
+- `GET /api/admin/classes/{id}/dashboard` - Full class dashboard with stats, students, recent activity
+- `GET /api/admin/roster/{id}` - Student roster with grade calculations
 - `GET /api/admin/students?class_id=X` - List students (optional: filter by class enrollment)
 - `POST /api/admin/attendance` - Record attendance (requires class_id)
 - `GET /api/admin/attendance?class_id=X&date=Y` - View attendance for class and date
 - `POST /api/admin/grades` - Add grade (requires class_id)
 - `GET /api/admin/participation?class_id=X` - View participation for class
 - `PATCH /api/admin/participation/:id` - Approve/reject participation
+- `GET /api/admin/categories/{class_id}` - List grade categories for class
+- `POST /api/admin/categories/{class_id}` - Create grade category
+- `PUT /api/admin/categories/{class_id}/{cat_id}` - Update category
+- `DELETE /api/admin/categories/{class_id}/{cat_id}` - Delete category
+- `GET /api/admin/special-points?class_id=X` - Get special points for class
+- `POST /api/admin/special-points` - Create special points entry
+- `PATCH /api/admin/special-points/{id}` - Update special points (opt-in, awarded)
 
 ## Authentication
 
@@ -118,13 +144,82 @@ Uses Google OAuth with Google Identity Services (client-side Sign-In button).
 - **Development:** SQLite (auto-creates `school.db`)
 - **Production:** PostgreSQL (Railway provides this)
 
-Tables:
+### Current Tables
 - `students` - Student records (includes `role`: student/teacher)
 - `classes` - Class records (name, code, teacher_id)
 - `student_classes` - Student-class enrollments (many-to-many)
 - `attendances` - Daily attendance (status: present/absent/late/excused, class_id)
 - `participations` - Class participation entries with points and approval status (class_id)
-- `grades` - Scored assignments (category: homework/quiz/exam/project, class_id)
+- `grades` - Scored assignments (category_id, name, score, max_score, class_id)
+- `grade_categories` - Weighted grade categories per class (name, weight)
+- `special_points` - Optional bonus points per student (english, notebook)
+
+### Grading System
+
+**Grade Calculation Formula:**
+```
+Final Grade = Σ(Category Weight × Category Average) + (0.1 × Participation Points) + Special Points
+```
+
+**Grade Categories** (`grade_categories`):
+- Teacher defines categories per class (e.g., "Retos", "Examenes")
+- Each category has a weight (percentages should sum to 100%)
+- Grades are assigned to categories via `category_id`
+
+**Special Points** (`special_points`):
+- Two categories: "english" and "notebook" (0.5 pts each)
+- Students opt-in, teacher awards at end of semester
+- TODO: Add `awarded_at` and `awarded_by` columns for audit trail
+
+## Planned Features (Schema Design)
+
+### 1. Homework System
+```
+assignments
+├── id, class_id, category_id, title, description
+├── due_date, max_points, file_required, allow_late, published
+└── created_at, updated_at
+
+submissions
+├── id, assignment_id, student_id
+├── file_url, text_content, submitted_at, is_late
+├── grade, feedback, graded_at, graded_by
+└── UNIQUE(assignment_id, student_id)
+```
+
+### 2. Lessons/Classroom
+```
+lessons
+├── id, class_id, title, content_html, video_url
+├── order_index, published, created_at, updated_at
+
+lesson_attachments
+├── id, lesson_id, file_name, file_url, file_type, file_size
+
+lesson_progress
+├── id, lesson_id, student_id
+├── started_at, completed, completed_at, time_spent_sec
+└── UNIQUE(lesson_id, student_id)
+```
+
+### 3. Forum
+```
+forum_posts
+├── id, class_id, author_id, title, content
+├── pinned, locked, reply_count, like_count
+└── created_at, updated_at
+
+forum_replies
+├── id, post_id, author_id, parent_id (for threading)
+├── content, like_count, created_at, updated_at
+
+forum_likes
+├── id, user_id, post_id (nullable), reply_id (nullable)
+└── CHECK: exactly one of post_id/reply_id is set
+```
+
+### Pending Schema Updates
+- `special_points`: Add `awarded_at` (DATETIME) and `awarded_by` (FK to students)
 
 ## Development Notes
 
