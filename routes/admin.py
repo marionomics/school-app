@@ -533,49 +533,78 @@ async def update_special_points(
 
 # ==================== Student Roster with Grade Calculation ====================
 
+def _table_exists(db: Session, table_name: str) -> bool:
+    """Check if a database table exists."""
+    try:
+        from sqlalchemy import inspect as sa_inspect
+        inspector = sa_inspect(db.bind)
+        return table_name in inspector.get_table_names()
+    except Exception:
+        return False
+
+
 def calculate_student_grade(
     student_id: int,
     class_id: int,
     db: Session
 ) -> dict:
-    """Calculate a student's final grade for a class."""
-    # Get grade categories
-    categories = db.query(GradeCategory).filter(GradeCategory.class_id == class_id).all()
+    """Calculate a student's final grade for a class.
 
+    Works with or without grade_categories / special_points tables.
+    When tables are missing, falls back to a simple average of all grades.
+    """
+    # --- Grade categories (may not exist in production yet) ---
     category_breakdowns = []
     total_weighted = 0.0
+    has_categories = False
 
-    for cat in categories:
-        # Get grades for this category
-        grades = db.query(Grade).filter(
+    try:
+        categories = db.query(GradeCategory).filter(GradeCategory.class_id == class_id).all()
+        has_categories = len(categories) > 0
+    except Exception:
+        categories = []
+
+    if has_categories:
+        for cat in categories:
+            grades = db.query(Grade).filter(
+                Grade.student_id == student_id,
+                Grade.class_id == class_id,
+                Grade.category_id == cat.id,
+            ).all()
+
+            if grades:
+                total_pct = sum(
+                    (g.score / g.max_score) * 100 for g in grades if g.max_score > 0
+                )
+                graded_count = sum(1 for g in grades if g.max_score > 0)
+                average = (total_pct / graded_count) if graded_count > 0 else 0.0
+            else:
+                average = 0.0
+
+            weighted = cat.weight * average
+            total_weighted += weighted
+
+            category_breakdowns.append({
+                "category_id": cat.id,
+                "category_name": cat.name,
+                "weight": cat.weight,
+                "grades": grades,
+                "average": average,
+                "weighted_contribution": weighted,
+            })
+    else:
+        # No categories — compute simple average from all grades
+        all_grades = db.query(Grade).filter(
             Grade.student_id == student_id,
             Grade.class_id == class_id,
-            Grade.category_id == cat.id,
         ).all()
-
-        if grades:
-            # Calculate average percentage
-            total_pct = sum(
-                (g.score / g.max_score) * 100 for g in grades if g.max_score > 0
-            )
-            graded_count = sum(1 for g in grades if g.max_score > 0)
-            average = (total_pct / graded_count) if graded_count > 0 else 0.0
+        valid = [g for g in all_grades if g.max_score > 0]
+        if valid:
+            total_weighted = sum((g.score / g.max_score) * 100 for g in valid) / len(valid)
         else:
-            average = 0.0
+            total_weighted = 0.0
 
-        weighted = cat.weight * average
-        total_weighted += weighted
-
-        category_breakdowns.append({
-            "category_id": cat.id,
-            "category_name": cat.name,
-            "weight": cat.weight,
-            "grades": grades,
-            "average": average,
-            "weighted_contribution": weighted,
-        })
-
-    # Get participation points
+    # --- Participation points ---
     participation_points = db.query(func.sum(Participation.points)).filter(
         Participation.student_id == student_id,
         Participation.class_id == class_id,
@@ -584,16 +613,20 @@ def calculate_student_grade(
 
     participation_contribution = 0.1 * participation_points
 
-    # Get special points
-    special_points = db.query(SpecialPoints).filter(
-        SpecialPoints.student_id == student_id,
-        SpecialPoints.class_id == class_id,
-    ).all()
-
-    special_total = sum(
-        sp.points_value for sp in special_points
-        if sp.opted_in and sp.awarded
-    )
+    # --- Special points (may not exist in production yet) ---
+    special_points = []
+    special_total = 0.0
+    try:
+        special_points = db.query(SpecialPoints).filter(
+            SpecialPoints.student_id == student_id,
+            SpecialPoints.class_id == class_id,
+        ).all()
+        special_total = sum(
+            sp.points_value for sp in special_points
+            if sp.opted_in and sp.awarded
+        )
+    except Exception:
+        pass
 
     # Final grade calculation
     final_grade = total_weighted + participation_contribution + special_total
@@ -644,18 +677,11 @@ async def get_student_roster(
         # Calculate grades
         grade_data = calculate_student_grade(student.id, class_id, db)
 
-        roster.append(StudentRosterEntry(
-            student=StudentResponse(
-                id=student.id,
-                name=student.name,
-                email=student.email,
-                role=student.role,
-                created_at=student.created_at,
-            ),
-            attendance_rate=attendance_rate,
-            participation_points=grade_data["participation_points"],
-            grade_breakdown=[
-                CategoryGradeBreakdown(
+        # Build grade breakdown (safe when categories table is missing)
+        grade_breakdown = []
+        for c in grade_data["categories"]:
+            try:
+                grade_breakdown.append(CategoryGradeBreakdown(
                     category_id=c["category_id"],
                     category_name=c["category_name"],
                     weight=c["weight"],
@@ -671,10 +697,15 @@ async def get_student_roster(
                     ) for g in c["grades"]],
                     average=c["average"],
                     weighted_contribution=c["weighted_contribution"],
-                ) for c in grade_data["categories"]
-            ],
-            special_points=[
-                SpecialPointsResponse(
+                ))
+            except Exception as e:
+                logger.warning(f"Skipping category breakdown: {e}")
+
+        # Build special points (safe when table is missing)
+        sp_list = []
+        for sp in grade_data["special_points"]:
+            try:
+                sp_list.append(SpecialPointsResponse(
                     id=sp.id,
                     student_id=sp.student_id,
                     class_id=sp.class_id,
@@ -683,8 +714,22 @@ async def get_student_roster(
                     awarded=sp.awarded,
                     points_value=sp.points_value,
                     created_at=sp.created_at,
-                ) for sp in grade_data["special_points"]
-            ],
+                ))
+            except Exception as e:
+                logger.warning(f"Skipping special point: {e}")
+
+        roster.append(StudentRosterEntry(
+            student=StudentResponse(
+                id=student.id,
+                name=student.name,
+                email=student.email,
+                role=student.role,
+                created_at=student.created_at,
+            ),
+            attendance_rate=attendance_rate,
+            participation_points=grade_data["participation_points"],
+            grade_breakdown=grade_breakdown,
+            special_points=sp_list,
             final_grade=grade_data["final_grade"],
         ))
 
@@ -722,8 +767,12 @@ async def get_class_dashboard(
         enrollments = db.query(StudentClass).filter(StudentClass.class_id == class_id).all()
         logger.info(f"Class {class_id}: {len(enrollments)} enrollments")
 
-        # Get grade categories
-        categories = db.query(GradeCategory).filter(GradeCategory.class_id == class_id).all()
+        # Get grade categories (table may not exist in production yet)
+        categories = []
+        try:
+            categories = db.query(GradeCategory).filter(GradeCategory.class_id == class_id).all()
+        except Exception as e:
+            logger.warning(f"Could not query grade_categories: {e}")
 
         # Get pending participation count
         pending_participation = db.query(Participation).filter(
@@ -905,16 +954,19 @@ async def get_class_dashboard(
         recent_activity.sort(key=lambda x: x["date"], reverse=True)
         recent_activity = recent_activity[:10]
 
-        # Build category responses
-        category_responses = [
-            GradeCategoryResponse(
-                id=c.id,
-                class_id=c.class_id,
-                name=c.name,
-                weight=c.weight,
-                created_at=c.created_at,
-            ) for c in categories
-        ]
+        # Build category responses (safe if categories is empty)
+        category_responses = []
+        for c in categories:
+            try:
+                category_responses.append(GradeCategoryResponse(
+                    id=c.id,
+                    class_id=c.class_id,
+                    name=c.name,
+                    weight=c.weight,
+                    created_at=c.created_at,
+                ))
+            except Exception as e:
+                logger.warning(f"Skipping category {c.id}: {e}")
 
         logger.info(f"Dashboard for class {class_id}: {len(students_data)} students processed successfully")
 
