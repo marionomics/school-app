@@ -531,120 +531,41 @@ async def update_special_points(
     return special
 
 
-# ==================== Student Roster with Grade Calculation ====================
+# ==================== Grade Calculation (core tables only) ====================
 
-def _check_optional_tables(db: Session) -> dict:
-    """Check which optional tables exist. Cached per-request via dict return."""
-    from sqlalchemy import inspect as sa_inspect
-    try:
-        inspector = sa_inspect(db.bind)
-        tables = set(inspector.get_table_names())
-    except Exception:
-        tables = set()
-    return {
-        "grade_categories": "grade_categories" in tables,
-        "special_points": "special_points" in tables,
-    }
+def _calc_simple_grade(student_id: int, class_id: int, db: Session) -> dict:
+    """Calculate grade using only core tables: grades + participations.
+    No grade_categories or special_points queries."""
 
+    # Simple average of all grades for this student/class
+    grades = db.query(Grade).filter(
+        Grade.student_id == student_id,
+        Grade.class_id == class_id,
+    ).all()
 
-def calculate_student_grade(
-    student_id: int,
-    class_id: int,
-    db: Session,
-    available_tables: dict = None,
-) -> dict:
-    """Calculate a student's final grade for a class.
+    valid = [g for g in grades if g.max_score and g.max_score > 0]
+    if valid:
+        avg = sum((g.score / g.max_score) * 100 for g in valid) / len(valid)
+    else:
+        avg = 0.0
 
-    Works with or without grade_categories / special_points tables.
-    When tables are missing, falls back to a simple average of all grades.
-    """
-    if available_tables is None:
-        available_tables = _check_optional_tables(db)
-
-    # --- Grade categories ---
-    category_breakdowns = []
-    total_weighted = 0.0
-
-    if available_tables.get("grade_categories"):
-        categories = db.query(GradeCategory).filter(
-            GradeCategory.class_id == class_id
-        ).all()
-
-        if categories:
-            for cat in categories:
-                grades = db.query(Grade).filter(
-                    Grade.student_id == student_id,
-                    Grade.class_id == class_id,
-                    Grade.category_id == cat.id,
-                ).all()
-
-                if grades:
-                    total_pct = sum(
-                        (g.score / g.max_score) * 100 for g in grades if g.max_score > 0
-                    )
-                    graded_count = sum(1 for g in grades if g.max_score > 0)
-                    average = (total_pct / graded_count) if graded_count > 0 else 0.0
-                else:
-                    average = 0.0
-
-                weighted = cat.weight * average
-                total_weighted += weighted
-
-                category_breakdowns.append({
-                    "category_id": cat.id,
-                    "category_name": cat.name,
-                    "weight": cat.weight,
-                    "grades": grades,
-                    "average": average,
-                    "weighted_contribution": weighted,
-                })
-
-    # If no categories (table missing OR no categories defined), simple average
-    if not category_breakdowns:
-        all_grades = db.query(Grade).filter(
-            Grade.student_id == student_id,
-            Grade.class_id == class_id,
-        ).all()
-        valid = [g for g in all_grades if g.max_score > 0]
-        if valid:
-            total_weighted = sum((g.score / g.max_score) * 100 for g in valid) / len(valid)
-        else:
-            total_weighted = 0.0
-
-    # --- Participation points ---
-    participation_points = db.query(func.sum(Participation.points)).filter(
+    # Participation bonus
+    part_pts = db.query(func.sum(Participation.points)).filter(
         Participation.student_id == student_id,
         Participation.class_id == class_id,
         Participation.approved == "approved",
     ).scalar() or 0
 
-    participation_contribution = 0.1 * participation_points
-
-    # --- Special points ---
-    special_points = []
-    special_total = 0.0
-    if available_tables.get("special_points"):
-        special_points = db.query(SpecialPoints).filter(
-            SpecialPoints.student_id == student_id,
-            SpecialPoints.class_id == class_id,
-        ).all()
-        special_total = sum(
-            sp.points_value for sp in special_points
-            if sp.opted_in and sp.awarded
-        )
-
-    # Final grade calculation
-    final_grade = total_weighted + participation_contribution + special_total
+    final = min(avg + (0.1 * part_pts), 100)
 
     return {
-        "categories": category_breakdowns,
-        "participation_points": participation_points,
-        "participation_contribution": participation_contribution,
-        "special_points": special_points,
-        "special_points_total": special_total,
-        "final_grade": min(final_grade, 100),  # Cap at 100
+        "average_grade": avg,
+        "participation_points": int(part_pts),
+        "final_grade": final,
     }
 
+
+# ==================== Student Roster ====================
 
 @router.get("/roster/{class_id}", response_model=List[StudentRosterEntry])
 async def get_student_roster(
@@ -652,7 +573,7 @@ async def get_student_roster(
     teacher: Student = Depends(get_current_teacher),
     db: Session = Depends(get_db),
 ):
-    """Get full student roster with grades, attendance, and calculated final grade."""
+    """Get student roster with grades and attendance."""
     class_ = db.query(Class).filter(
         Class.id == class_id,
         Class.teacher_id == teacher.id,
@@ -660,65 +581,22 @@ async def get_student_roster(
     if not class_:
         raise HTTPException(status_code=404, detail="Clase no encontrada")
 
-    # Check which optional tables exist (once per request)
-    available_tables = _check_optional_tables(db)
-
-    # Get enrolled students
     enrollments = db.query(StudentClass).filter(StudentClass.class_id == class_id).all()
 
     roster = []
     for enrollment in enrollments:
         student = enrollment.student
+        if not student:
+            continue
 
-        # Calculate attendance rate
-        attendance_records = db.query(Attendance).filter(
+        att = db.query(Attendance).filter(
             Attendance.student_id == student.id,
             Attendance.class_id == class_id,
         ).all()
+        present = sum(1 for a in att if a.status in ("present", "late"))
+        att_rate = (present / len(att) * 100) if att else 0.0
 
-        if attendance_records:
-            present = sum(1 for a in attendance_records if a.status in ("present", "late"))
-            attendance_rate = (present / len(attendance_records)) * 100
-        else:
-            attendance_rate = 0.0
-
-        # Calculate grades
-        grade_data = calculate_student_grade(student.id, class_id, db, available_tables)
-
-        # Build grade breakdown (empty list when no categories)
-        grade_breakdown = [
-            CategoryGradeBreakdown(
-                category_id=c["category_id"],
-                category_name=c["category_name"],
-                weight=c["weight"],
-                grades=[GradeResponse(
-                    id=g.id,
-                    student_id=g.student_id,
-                    category_id=g.category_id,
-                    category=g.category,
-                    name=g.name,
-                    score=g.score,
-                    max_score=g.max_score,
-                    date=g.date,
-                ) for g in c["grades"]],
-                average=c["average"],
-                weighted_contribution=c["weighted_contribution"],
-            ) for c in grade_data["categories"]
-        ]
-
-        # Build special points (empty list when table missing)
-        sp_list = [
-            SpecialPointsResponse(
-                id=sp.id,
-                student_id=sp.student_id,
-                class_id=sp.class_id,
-                category=sp.category,
-                opted_in=sp.opted_in,
-                awarded=sp.awarded,
-                points_value=sp.points_value,
-                created_at=sp.created_at,
-            ) for sp in grade_data["special_points"]
-        ]
+        gd = _calc_simple_grade(student.id, class_id, db)
 
         roster.append(StudentRosterEntry(
             student=StudentResponse(
@@ -728,11 +606,11 @@ async def get_student_roster(
                 role=student.role,
                 created_at=student.created_at,
             ),
-            attendance_rate=attendance_rate,
-            participation_points=grade_data["participation_points"],
-            grade_breakdown=grade_breakdown,
-            special_points=sp_list,
-            final_grade=grade_data["final_grade"],
+            attendance_rate=att_rate,
+            participation_points=gd["participation_points"],
+            grade_breakdown=[],
+            special_points=[],
+            final_grade=gd["final_grade"],
         ))
 
     return roster
@@ -743,20 +621,20 @@ async def get_student_roster(
 from models.schemas import ClassDashboardResponse, ClassDashboardStats, StudentDashboardEntry
 
 
-@router.get("/classes/{class_id}/dashboard", response_model=ClassDashboardResponse)
+@router.get("/classes/{class_id}/dashboard")
 async def get_class_dashboard(
     class_id: int,
-    sort_by: str = "name",  # name, attendance, grade, participation
-    sort_order: str = "asc",  # asc, desc
+    sort_by: str = "name",
+    sort_order: str = "asc",
     search: Optional[str] = None,
-    status_filter: Optional[str] = None,  # all, at_risk, good
+    status_filter: Optional[str] = None,
     teacher: Student = Depends(get_current_teacher),
     db: Session = Depends(get_db),
 ):
-    """Get comprehensive class dashboard with stats and student data."""
-    logger.info(f"Dashboard requested for class_id={class_id}, teacher_id={teacher.id}")
+    """Class dashboard using only core tables. No grade_categories/special_points."""
+    logger.info(f"Dashboard requested for class_id={class_id}")
 
-    # Verify teacher owns this class
+    # 1. Class info
     class_ = db.query(Class).filter(
         Class.id == class_id,
         Class.teacher_id == teacher.id,
@@ -765,233 +643,176 @@ async def get_class_dashboard(
         raise HTTPException(status_code=404, detail="Clase no encontrada")
 
     try:
-        # Check which optional tables exist (once per request)
-        available_tables = _check_optional_tables(db)
-        logger.info(f"Available optional tables: {available_tables}")
+        # 2. Enrolled students
+        enrollments = db.query(StudentClass).filter(
+            StudentClass.class_id == class_id
+        ).all()
+        logger.info(f"Class {class_id}: {len(enrollments)} students")
 
-        # Get enrolled students
-        enrollments = db.query(StudentClass).filter(StudentClass.class_id == class_id).all()
-        logger.info(f"Class {class_id}: {len(enrollments)} enrollments")
-
-        # Get grade categories (only if table exists)
-        categories = []
-        if available_tables.get("grade_categories"):
-            categories = db.query(GradeCategory).filter(GradeCategory.class_id == class_id).all()
-
-        # Get pending participation count
-        pending_participation = db.query(Participation).filter(
+        # 3. Pending participation
+        pending_participation = db.query(func.count(Participation.id)).filter(
             Participation.class_id == class_id,
             Participation.approved == "pending",
-        ).count()
+        ).scalar() or 0
 
+        # 4. Build student rows — one at a time, simple queries
         students_data = []
-        total_attendance_rate = 0.0
+        total_att = 0.0
         total_grade = 0.0
 
         for enrollment in enrollments:
             student = enrollment.student
             if not student:
-                logger.warning(f"Enrollment {enrollment.id} has no student, skipping")
                 continue
 
-            try:
-                # Attendance data
-                attendance_records = db.query(Attendance).filter(
-                    Attendance.student_id == student.id,
-                    Attendance.class_id == class_id,
-                ).all()
+            # Attendance
+            att_records = db.query(Attendance).filter(
+                Attendance.student_id == student.id,
+                Attendance.class_id == class_id,
+            ).all()
+            att_total = len(att_records)
+            att_present = sum(1 for a in att_records if a.status in ("present", "late"))
+            att_rate = (att_present / att_total * 100) if att_total > 0 else 0.0
 
-                attendance_present = sum(1 for a in attendance_records if a.status in ("present", "late"))
-                attendance_total = len(attendance_records)
-                attendance_rate = (attendance_present / attendance_total * 100) if attendance_total > 0 else 0.0
+            # Participation
+            part_approved = db.query(func.sum(Participation.points)).filter(
+                Participation.student_id == student.id,
+                Participation.class_id == class_id,
+                Participation.approved == "approved",
+            ).scalar() or 0
 
-                # Participation data
-                participation_approved = db.query(func.sum(Participation.points)).filter(
-                    Participation.student_id == student.id,
-                    Participation.class_id == class_id,
-                    Participation.approved == "approved",
-                ).scalar() or 0
+            part_pending = db.query(func.count(Participation.id)).filter(
+                Participation.student_id == student.id,
+                Participation.class_id == class_id,
+                Participation.approved == "pending",
+            ).scalar() or 0
 
-                participation_pending = db.query(Participation).filter(
-                    Participation.student_id == student.id,
-                    Participation.class_id == class_id,
-                    Participation.approved == "pending",
-                ).count()
+            # Grades
+            gd = _calc_simple_grade(student.id, class_id, db)
 
-                # Grade data
-                grade_data = calculate_student_grade(student.id, class_id, db, available_tables)
-                final_grade = grade_data["final_grade"]
+            # Last activity date
+            last_att = db.query(func.max(Attendance.date)).filter(
+                Attendance.student_id == student.id,
+                Attendance.class_id == class_id,
+            ).scalar()
+            last_part = db.query(func.max(Participation.date)).filter(
+                Participation.student_id == student.id,
+                Participation.class_id == class_id,
+            ).scalar()
+            last_grd = db.query(func.max(Grade.date)).filter(
+                Grade.student_id == student.id,
+                Grade.class_id == class_id,
+            ).scalar()
 
-                # Calculate average grade (simple average across all grades)
-                all_grades = db.query(Grade).filter(
-                    Grade.student_id == student.id,
-                    Grade.class_id == class_id,
-                ).all()
-                if all_grades:
-                    valid_grades = [g for g in all_grades if g.max_score > 0]
-                    if valid_grades:
-                        avg_grade = sum((g.score / g.max_score) * 100 for g in valid_grades) / len(valid_grades)
-                    else:
-                        avg_grade = 0.0
-                else:
-                    avg_grade = 0.0
+            dates = [d for d in [last_att, last_part, last_grd] if d is not None]
+            last_activity = dt.combine(max(dates), dt.min.time()) if dates else None
 
-                # Last activity (most recent attendance, grade, or participation)
-                last_attendance = db.query(Attendance).filter(
-                    Attendance.student_id == student.id,
-                    Attendance.class_id == class_id,
-                ).order_by(Attendance.date.desc()).first()
+            # Status
+            final = gd["final_grade"]
+            if att_rate < 60 or final < 60:
+                sstatus = "at_risk"
+            elif att_rate < 80 or final < 70:
+                sstatus = "warning"
+            else:
+                sstatus = "good"
 
-                last_participation = db.query(Participation).filter(
-                    Participation.student_id == student.id,
-                    Participation.class_id == class_id,
-                ).order_by(Participation.date.desc()).first()
+            students_data.append({
+                "id": student.id,
+                "name": student.name,
+                "email": student.email,
+                "attendance_rate": att_rate,
+                "attendance_present": att_present,
+                "attendance_total": att_total,
+                "participation_points": int(part_approved),
+                "participation_pending": int(part_pending),
+                "average_grade": gd["average_grade"],
+                "final_grade": final,
+                "last_activity": last_activity.isoformat() if last_activity else None,
+                "status": sstatus,
+            })
 
-                last_grade = db.query(Grade).filter(
-                    Grade.student_id == student.id,
-                    Grade.class_id == class_id,
-                ).order_by(Grade.date.desc()).first()
+            total_att += att_rate
+            total_grade += final
 
-                dates = []
-                if last_attendance:
-                    dates.append(dt.combine(last_attendance.date, dt.min.time()))
-                if last_participation:
-                    dates.append(dt.combine(last_participation.date, dt.min.time()))
-                if last_grade:
-                    dates.append(dt.combine(last_grade.date, dt.min.time()))
-
-                last_activity = max(dates) if dates else None
-
-                # Determine status
-                if attendance_rate < 60 or final_grade < 60:
-                    student_status = "at_risk"
-                elif attendance_rate < 80 or final_grade < 70:
-                    student_status = "warning"
-                else:
-                    student_status = "good"
-
-                students_data.append(StudentDashboardEntry(
-                    id=student.id,
-                    name=student.name,
-                    email=student.email,
-                    attendance_rate=attendance_rate,
-                    attendance_present=attendance_present,
-                    attendance_total=attendance_total,
-                    participation_points=participation_approved,
-                    participation_pending=participation_pending,
-                    average_grade=avg_grade,
-                    final_grade=final_grade,
-                    last_activity=last_activity,
-                    status=student_status,
-                ))
-
-                total_attendance_rate += attendance_rate
-                total_grade += final_grade
-
-            except Exception as e:
-                logger.error(f"Error processing student {student.id} ({student.email}): {e}", exc_info=True)
-                # Skip this student but continue with others
-                continue
-
-        # Apply search filter
+        # 5. Filter
         if search:
-            search_lower = search.lower()
-            students_data = [s for s in students_data if search_lower in s.name.lower() or search_lower in s.email.lower()]
+            sl = search.lower()
+            students_data = [s for s in students_data if sl in s["name"].lower() or sl in s["email"].lower()]
 
-        # Apply status filter
         if status_filter and status_filter != "all":
-            students_data = [s for s in students_data if s.status == status_filter]
+            students_data = [s for s in students_data if s["status"] == status_filter]
 
-        # Sort students
+        # 6. Sort
         reverse = sort_order == "desc"
-        if sort_by == "name":
-            students_data.sort(key=lambda s: s.name.lower(), reverse=reverse)
-        elif sort_by == "attendance":
-            students_data.sort(key=lambda s: s.attendance_rate, reverse=reverse)
-        elif sort_by == "grade":
-            students_data.sort(key=lambda s: s.final_grade, reverse=reverse)
-        elif sort_by == "participation":
-            students_data.sort(key=lambda s: s.participation_points, reverse=reverse)
+        sort_keys = {
+            "name": lambda s: s["name"].lower(),
+            "attendance": lambda s: s["attendance_rate"],
+            "grade": lambda s: s["final_grade"],
+            "participation": lambda s: s["participation_points"],
+        }
+        students_data.sort(key=sort_keys.get(sort_by, sort_keys["name"]), reverse=reverse)
 
-        # Calculate overall stats
-        num_students = len(enrollments)
-        overall_attendance = (total_attendance_rate / num_students) if num_students > 0 else 0.0
-        average_grade = (total_grade / num_students) if num_students > 0 else 0.0
+        # 7. Stats
+        n = len(enrollments)
+        overall_att = (total_att / n) if n > 0 else 0.0
+        avg_grade = (total_grade / n) if n > 0 else 0.0
+        at_risk = sum(1 for s in students_data if s["status"] == "at_risk")
+        top = sum(1 for s in students_data if s["final_grade"] >= 90)
 
-        students_at_risk = sum(1 for s in students_data if s.status == "at_risk")
-        top_performers = sum(1 for s in students_data if s.final_grade >= 90)
+        # 8. Recent activity
+        recent = []
 
-        # Recent activity (last 10 items)
-        recent_activity = []
-
-        # Recent attendance
-        recent_attendance = db.query(Attendance).filter(
-            Attendance.class_id == class_id,
-        ).order_by(Attendance.date.desc()).limit(5).all()
-
-        for a in recent_attendance:
-            student = db.query(Student).filter(Student.id == a.student_id).first()
-            recent_activity.append({
+        for a in db.query(Attendance).filter(
+            Attendance.class_id == class_id
+        ).order_by(Attendance.date.desc()).limit(5).all():
+            st = db.query(Student).filter(Student.id == a.student_id).first()
+            recent.append({
                 "type": "attendance",
                 "date": str(a.date),
-                "student_name": student.name if student else "Unknown",
+                "student_name": st.name if st else "Desconocido",
                 "detail": f"Asistencia: {a.status}",
             })
 
-        # Recent participation
-        recent_participation = db.query(Participation).filter(
-            Participation.class_id == class_id,
-        ).order_by(Participation.date.desc()).limit(5).all()
-
-        for p in recent_participation:
-            student = db.query(Student).filter(Student.id == p.student_id).first()
+        for p in db.query(Participation).filter(
+            Participation.class_id == class_id
+        ).order_by(Participation.date.desc()).limit(5).all():
+            st = db.query(Student).filter(Student.id == p.student_id).first()
             desc = p.description or ""
-            recent_activity.append({
+            recent.append({
                 "type": "participation",
                 "date": str(p.date),
-                "student_name": student.name if student else "Unknown",
-                "detail": f"Participación: {desc[:50]}..." if len(desc) > 50 else f"Participación: {desc}",
+                "student_name": st.name if st else "Desconocido",
+                "detail": f"Participación: {desc[:50]}" if len(desc) > 50 else f"Participación: {desc}",
                 "status": p.approved,
             })
 
-        # Sort by date
-        recent_activity.sort(key=lambda x: x["date"], reverse=True)
-        recent_activity = recent_activity[:10]
+        recent.sort(key=lambda x: x["date"], reverse=True)
+        recent = recent[:10]
 
-        # Build category responses (empty list when table missing)
-        category_responses = [
-            GradeCategoryResponse(
-                id=c.id,
-                class_id=c.class_id,
-                name=c.name,
-                weight=c.weight,
-                created_at=c.created_at,
-            ) for c in categories
-        ]
+        # 9. Return
+        logger.info(f"Dashboard OK: class {class_id}, {len(students_data)} students")
 
-        logger.info(f"Dashboard for class {class_id}: {len(students_data)} students processed successfully")
-
-        return ClassDashboardResponse(
-            stats=ClassDashboardStats(
-                class_id=class_id,
-                class_name=class_.name,
-                class_code=class_.code,
-                total_students=num_students,
-                overall_attendance_rate=overall_attendance,
-                average_grade=average_grade,
-                pending_participation=pending_participation,
-                students_at_risk=students_at_risk,
-                top_performers=top_performers,
-                categories=category_responses,
-            ),
-            students=students_data,
-            recent_activity=recent_activity,
-        )
+        return {
+            "stats": {
+                "class_id": class_id,
+                "class_name": class_.name,
+                "class_code": class_.code,
+                "total_students": n,
+                "overall_attendance_rate": overall_att,
+                "average_grade": avg_grade,
+                "pending_participation": pending_participation,
+                "students_at_risk": at_risk,
+                "top_performers": top,
+                "categories": [],
+            },
+            "students": students_data,
+            "recent_activity": recent,
+        }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Dashboard error for class {class_id}: {e}", exc_info=True)
+        logger.error(f"Dashboard error class {class_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Error al cargar dashboard: {type(e).__name__}: {str(e)}",
