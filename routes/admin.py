@@ -1,11 +1,14 @@
 """
 Admin routes for teacher functionality.
 """
-from datetime import date
+import logging
+from datetime import date, datetime as dt
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+
+logger = logging.getLogger(__name__)
 
 from models.database import get_db
 from models.models import (
@@ -69,8 +72,6 @@ async def record_attendance(
     db: Session = Depends(get_db),
 ):
     """Record attendance for multiple students in a class."""
-    import logging
-    logger = logging.getLogger(__name__)
     logger.info(f"Recording attendance: class_id={data.class_id}, date={data.date}, records={len(data.records)}")
 
     # Verify teacher owns this class
@@ -163,9 +164,8 @@ async def get_attendance(
     query = db.query(Attendance).filter(Attendance.class_id == class_id)
 
     if date:
-        from datetime import datetime
         try:
-            attendance_date = datetime.strptime(date, "%Y-%m-%d").date()
+            attendance_date = dt.strptime(date, "%Y-%m-%d").date()
             query = query.filter(Attendance.date == attendance_date)
         except ValueError:
             raise HTTPException(
@@ -555,8 +555,11 @@ def calculate_student_grade(
 
         if grades:
             # Calculate average percentage
-            total_pct = sum((g.score / g.max_score) * 100 for g in grades)
-            average = total_pct / len(grades)
+            total_pct = sum(
+                (g.score / g.max_score) * 100 for g in grades if g.max_score > 0
+            )
+            graded_count = sum(1 for g in grades if g.max_score > 0)
+            average = (total_pct / graded_count) if graded_count > 0 else 0.0
         else:
             average = 0.0
 
@@ -704,8 +707,6 @@ async def get_class_dashboard(
     db: Session = Depends(get_db),
 ):
     """Get comprehensive class dashboard with stats and student data."""
-    import logging
-    logger = logging.getLogger(__name__)
 
     # Verify teacher owns this class
     class_ = db.query(Class).filter(
@@ -767,7 +768,11 @@ async def get_class_dashboard(
             Grade.class_id == class_id,
         ).all()
         if all_grades:
-            avg_grade = sum((g.score / g.max_score) * 100 for g in all_grades) / len(all_grades)
+            valid_grades = [g for g in all_grades if g.max_score > 0]
+            if valid_grades:
+                avg_grade = sum((g.score / g.max_score) * 100 for g in valid_grades) / len(valid_grades)
+            else:
+                avg_grade = 0.0
         else:
             avg_grade = 0.0
 
@@ -789,7 +794,6 @@ async def get_class_dashboard(
 
         dates = []
         if last_attendance:
-            from datetime import datetime as dt
             dates.append(dt.combine(last_attendance.date, dt.min.time()))
         if last_participation:
             dates.append(dt.combine(last_participation.date, dt.min.time()))
@@ -889,7 +893,6 @@ async def get_class_dashboard(
     recent_activity = recent_activity[:10]
 
     # Build category responses
-    from models.schemas import GradeCategoryResponse
     category_responses = [
         GradeCategoryResponse(
             id=c.id,
