@@ -129,7 +129,6 @@ async def get_student_grade_calculation(
         "grades": [
             {
                 "id": g.id,
-                "name": g.name,
                 "category": g.category,
                 "score": g.score,
                 "max_score": g.max_score,

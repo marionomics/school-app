@@ -209,7 +209,6 @@ async def add_grade(
         student_id=data.student_id,
         class_id=data.class_id,
         category=data.category,
-        name=data.name,
         score=data.score,
         max_score=data.max_score,
         date=data.date or date.today(),

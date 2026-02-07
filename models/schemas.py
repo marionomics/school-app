@@ -65,7 +65,6 @@ class GradeCreate(BaseModel):
     student_id: int
     class_id: int
     category: Optional[str] = None  # homework, quiz, exam, project
-    name: Optional[str] = None  # Assignment name
     score: float
     max_score: float
     date: Optional[date_type] = None
@@ -75,7 +74,6 @@ class GradeResponse(BaseModel):
     id: int
     student_id: int
     category: Optional[str] = None
-    name: Optional[str] = None
     score: float
     max_score: float
     date: date_type

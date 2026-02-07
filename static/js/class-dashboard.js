@@ -538,7 +538,6 @@ document.getElementById('grade-form').addEventListener('submit', async (e) => {
     const studentId = parseInt(document.getElementById('grade-student').value);
     const categorySelect = document.getElementById('grade-category');
     const category = categorySelect ? categorySelect.value : null;
-    const name = document.getElementById('grade-name').value || null;
     const score = parseFloat(document.getElementById('grade-score').value);
     const maxScore = parseFloat(document.getElementById('grade-max').value);
 
@@ -554,7 +553,6 @@ document.getElementById('grade-form').addEventListener('submit', async (e) => {
                 student_id: studentId,
                 class_id: classId,
                 category: category || null,
-                name,
                 score,
                 max_score: maxScore
             })
@@ -566,7 +564,6 @@ document.getElementById('grade-form').addEventListener('submit', async (e) => {
 
         // Reset form
         document.getElementById('grade-score').value = '';
-        document.getElementById('grade-name').value = '';
 
         // Refresh dashboard
         loadDashboard();

@@ -63,7 +63,6 @@ class Grade(Base):
     student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=True)
     category = Column(String(50), nullable=True)  # homework, quiz, exam, project
-    name = Column(String(100), nullable=True)  # Assignment name (e.g., "Reto Semana 1")
     score = Column(Float, nullable=False)
     max_score = Column(Float, nullable=False)
     date = Column(Date, nullable=False, default=date.today)
