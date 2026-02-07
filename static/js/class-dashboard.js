@@ -536,7 +536,8 @@ document.getElementById('grade-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const studentId = parseInt(document.getElementById('grade-student').value);
-    const categoryId = document.getElementById('grade-category').value;
+    const categorySelect = document.getElementById('grade-category');
+    const category = categorySelect ? categorySelect.value : null;
     const name = document.getElementById('grade-name').value || null;
     const score = parseFloat(document.getElementById('grade-score').value);
     const maxScore = parseFloat(document.getElementById('grade-max').value);
@@ -546,18 +547,13 @@ document.getElementById('grade-form').addEventListener('submit', async (e) => {
         return;
     }
 
-    if (!categoryId) {
-        alert('Por favor selecciona una categoria.');
-        return;
-    }
-
     try {
         await apiCall('/admin/grades', {
             method: 'POST',
             body: JSON.stringify({
                 student_id: studentId,
                 class_id: classId,
-                category_id: parseInt(categoryId),
+                category: category || null,
                 name,
                 score,
                 max_score: maxScore

@@ -62,8 +62,7 @@ class Grade(Base):
     id = Column(Integer, primary_key=True, index=True)
     student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=True)
-    category_id = Column(Integer, ForeignKey("grade_categories.id"), nullable=True)
-    category = Column(String(50), nullable=True)  # Legacy: homework, quiz, exam, project
+    category = Column(String(50), nullable=True)  # homework, quiz, exam, project
     name = Column(String(100), nullable=True)  # Assignment name (e.g., "Reto Semana 1")
     score = Column(Float, nullable=False)
     max_score = Column(Float, nullable=False)
@@ -72,7 +71,6 @@ class Grade(Base):
     # Relationships
     student = relationship("Student", back_populates="grades")
     class_ = relationship("Class", back_populates="grades")
-    grade_category = relationship("GradeCategory", back_populates="grades")
 
 
 class Class(Base):
@@ -126,7 +124,6 @@ class GradeCategory(Base):
 
     # Relationships
     class_ = relationship("Class", back_populates="grade_categories")
-    grades = relationship("Grade", back_populates="grade_category")
 
     __table_args__ = (UniqueConstraint('class_id', 'name', name='unique_class_category'),)
 

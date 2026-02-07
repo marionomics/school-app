@@ -5,10 +5,9 @@ from typing import List, Optional
 import logging
 
 from models.database import get_db
-from models.models import Student, Attendance, Grade, Participation, GradeCategory, SpecialPoints, StudentClass
+from models.models import Student, Attendance, Grade, Participation, StudentClass
 from models.schemas import (
     StudentResponse, AttendanceResponse, GradeResponse, ParticipationResponse,
-    StudentGradeCalculation, CategoryGradeBreakdown, SpecialPointsResponse
 )
 from app.auth import get_current_student
 
@@ -90,14 +89,13 @@ async def get_student_participation_points(
     return {"total_points": total_points, "class_id": class_id}
 
 
-@router.get("/me/grade-calculation/{class_id}", response_model=StudentGradeCalculation)
+@router.get("/me/grade-calculation/{class_id}")
 async def get_student_grade_calculation(
     class_id: int,
     current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db)
 ):
-    """Get full grade calculation breakdown for a class."""
-    # Verify student is enrolled in this class
+    """Get grade calculation breakdown for a class (simple average)."""
     enrollment = db.query(StudentClass).filter(
         StudentClass.student_id == current_student.id,
         StudentClass.class_id == class_id,
@@ -105,89 +103,42 @@ async def get_student_grade_calculation(
     if not enrollment:
         raise HTTPException(status_code=404, detail="No estas inscrito en esta clase")
 
-    # Get grade categories
-    categories = db.query(GradeCategory).filter(GradeCategory.class_id == class_id).all()
+    # All grades for this student/class
+    grades = db.query(Grade).filter(
+        Grade.student_id == current_student.id,
+        Grade.class_id == class_id,
+    ).all()
 
-    category_breakdowns = []
-    total_weighted = 0.0
+    valid = [g for g in grades if g.max_score and g.max_score > 0]
+    avg = sum((g.score / g.max_score) * 100 for g in valid) / len(valid) if valid else 0.0
 
-    for cat in categories:
-        # Get grades for this category
-        grades = db.query(Grade).filter(
-            Grade.student_id == current_student.id,
-            Grade.class_id == class_id,
-            Grade.category_id == cat.id,
-        ).all()
-
-        if grades:
-            total_pct = sum((g.score / g.max_score) * 100 for g in grades)
-            average = total_pct / len(grades)
-        else:
-            average = 0.0
-
-        weighted = cat.weight * average
-        total_weighted += weighted
-
-        category_breakdowns.append(CategoryGradeBreakdown(
-            category_id=cat.id,
-            category_name=cat.name,
-            weight=cat.weight,
-            grades=[GradeResponse(
-                id=g.id,
-                student_id=g.student_id,
-                category_id=g.category_id,
-                category=g.category,
-                name=g.name,
-                score=g.score,
-                max_score=g.max_score,
-                date=g.date,
-            ) for g in grades],
-            average=average,
-            weighted_contribution=weighted,
-        ))
-
-    # Get participation points
-    participation_points = db.query(func.sum(Participation.points)).filter(
+    # Participation
+    part_pts = db.query(func.sum(Participation.points)).filter(
         Participation.student_id == current_student.id,
         Participation.class_id == class_id,
         Participation.approved == "approved",
     ).scalar() or 0
 
-    participation_contribution = 0.1 * participation_points
+    part_contribution = 0.1 * part_pts
+    final_grade = min(avg + part_contribution, 100)
 
-    # Get special points
-    special_points = db.query(SpecialPoints).filter(
-        SpecialPoints.student_id == current_student.id,
-        SpecialPoints.class_id == class_id,
-    ).all()
-
-    special_total = sum(
-        sp.points_value for sp in special_points
-        if sp.opted_in and sp.awarded
-    )
-
-    # Final grade calculation
-    final_grade = total_weighted + participation_contribution + special_total
-
-    return StudentGradeCalculation(
-        student_id=current_student.id,
-        student_name=current_student.name,
-        student_email=current_student.email,
-        categories=category_breakdowns,
-        participation_points=participation_points,
-        participation_contribution=participation_contribution,
-        special_points=[
-            SpecialPointsResponse(
-                id=sp.id,
-                student_id=sp.student_id,
-                class_id=sp.class_id,
-                category=sp.category,
-                opted_in=sp.opted_in,
-                awarded=sp.awarded,
-                points_value=sp.points_value,
-                created_at=sp.created_at,
-            ) for sp in special_points
+    return {
+        "student_id": current_student.id,
+        "student_name": current_student.name,
+        "student_email": current_student.email,
+        "grades": [
+            {
+                "id": g.id,
+                "name": g.name,
+                "category": g.category,
+                "score": g.score,
+                "max_score": g.max_score,
+                "percentage": (g.score / g.max_score * 100) if g.max_score > 0 else 0,
+                "date": str(g.date),
+            } for g in grades
         ],
-        special_points_total=special_total,
-        final_grade=min(final_grade, 100),
-    )
+        "average_grade": avg,
+        "participation_points": int(part_pts),
+        "participation_contribution": part_contribution,
+        "final_grade": final_grade,
+    }

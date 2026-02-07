@@ -205,22 +205,9 @@ async def add_grade(
             detail="Estudiante no encontrado en esta clase",
         )
 
-    # Verify category_id if provided
-    if data.category_id:
-        category = db.query(GradeCategory).filter(
-            GradeCategory.id == data.category_id,
-            GradeCategory.class_id == data.class_id,
-        ).first()
-        if not category:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Categoria no encontrada",
-            )
-
     grade = Grade(
         student_id=data.student_id,
         class_id=data.class_id,
-        category_id=data.category_id,
         category=data.category,
         name=data.name,
         score=data.score,

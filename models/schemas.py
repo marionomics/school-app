@@ -64,8 +64,7 @@ class ParticipationResponse(BaseModel):
 class GradeCreate(BaseModel):
     student_id: int
     class_id: int
-    category_id: Optional[int] = None  # New: references GradeCategory
-    category: Optional[str] = None  # Legacy support
+    category: Optional[str] = None  # homework, quiz, exam, project
     name: Optional[str] = None  # Assignment name
     score: float
     max_score: float
@@ -75,7 +74,6 @@ class GradeCreate(BaseModel):
 class GradeResponse(BaseModel):
     id: int
     student_id: int
-    category_id: Optional[int] = None
     category: Optional[str] = None
     name: Optional[str] = None
     score: float
