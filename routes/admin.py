@@ -707,6 +707,7 @@ async def get_class_dashboard(
     db: Session = Depends(get_db),
 ):
     """Get comprehensive class dashboard with stats and student data."""
+    logger.info(f"Dashboard requested for class_id={class_id}, teacher_id={teacher.id}")
 
     # Verify teacher owns this class
     class_ = db.query(Class).filter(
@@ -716,206 +717,229 @@ async def get_class_dashboard(
     if not class_:
         raise HTTPException(status_code=404, detail="Clase no encontrada")
 
-    # Get enrolled students
-    enrollments = db.query(StudentClass).filter(StudentClass.class_id == class_id).all()
+    try:
+        # Get enrolled students
+        enrollments = db.query(StudentClass).filter(StudentClass.class_id == class_id).all()
+        logger.info(f"Class {class_id}: {len(enrollments)} enrollments")
 
-    # Get grade categories
-    categories = db.query(GradeCategory).filter(GradeCategory.class_id == class_id).all()
+        # Get grade categories
+        categories = db.query(GradeCategory).filter(GradeCategory.class_id == class_id).all()
 
-    # Get pending participation count
-    pending_participation = db.query(Participation).filter(
-        Participation.class_id == class_id,
-        Participation.approved == "pending",
-    ).count()
-
-    students_data = []
-    total_attendance_rate = 0.0
-    total_grade = 0.0
-
-    for enrollment in enrollments:
-        student = enrollment.student
-
-        # Attendance data
-        attendance_records = db.query(Attendance).filter(
-            Attendance.student_id == student.id,
-            Attendance.class_id == class_id,
-        ).all()
-
-        attendance_present = sum(1 for a in attendance_records if a.status in ("present", "late"))
-        attendance_total = len(attendance_records)
-        attendance_rate = (attendance_present / attendance_total * 100) if attendance_total > 0 else 0.0
-
-        # Participation data
-        participation_approved = db.query(func.sum(Participation.points)).filter(
-            Participation.student_id == student.id,
-            Participation.class_id == class_id,
-            Participation.approved == "approved",
-        ).scalar() or 0
-
-        participation_pending = db.query(Participation).filter(
-            Participation.student_id == student.id,
+        # Get pending participation count
+        pending_participation = db.query(Participation).filter(
             Participation.class_id == class_id,
             Participation.approved == "pending",
         ).count()
 
-        # Grade data
-        grade_data = calculate_student_grade(student.id, class_id, db)
-        final_grade = grade_data["final_grade"]
+        students_data = []
+        total_attendance_rate = 0.0
+        total_grade = 0.0
 
-        # Calculate average grade (simple average across all grades)
-        all_grades = db.query(Grade).filter(
-            Grade.student_id == student.id,
-            Grade.class_id == class_id,
-        ).all()
-        if all_grades:
-            valid_grades = [g for g in all_grades if g.max_score > 0]
-            if valid_grades:
-                avg_grade = sum((g.score / g.max_score) * 100 for g in valid_grades) / len(valid_grades)
-            else:
-                avg_grade = 0.0
-        else:
-            avg_grade = 0.0
+        for enrollment in enrollments:
+            student = enrollment.student
+            if not student:
+                logger.warning(f"Enrollment {enrollment.id} has no student, skipping")
+                continue
 
-        # Last activity (most recent attendance, grade, or participation)
-        last_attendance = db.query(Attendance).filter(
-            Attendance.student_id == student.id,
+            try:
+                # Attendance data
+                attendance_records = db.query(Attendance).filter(
+                    Attendance.student_id == student.id,
+                    Attendance.class_id == class_id,
+                ).all()
+
+                attendance_present = sum(1 for a in attendance_records if a.status in ("present", "late"))
+                attendance_total = len(attendance_records)
+                attendance_rate = (attendance_present / attendance_total * 100) if attendance_total > 0 else 0.0
+
+                # Participation data
+                participation_approved = db.query(func.sum(Participation.points)).filter(
+                    Participation.student_id == student.id,
+                    Participation.class_id == class_id,
+                    Participation.approved == "approved",
+                ).scalar() or 0
+
+                participation_pending = db.query(Participation).filter(
+                    Participation.student_id == student.id,
+                    Participation.class_id == class_id,
+                    Participation.approved == "pending",
+                ).count()
+
+                # Grade data
+                grade_data = calculate_student_grade(student.id, class_id, db)
+                final_grade = grade_data["final_grade"]
+
+                # Calculate average grade (simple average across all grades)
+                all_grades = db.query(Grade).filter(
+                    Grade.student_id == student.id,
+                    Grade.class_id == class_id,
+                ).all()
+                if all_grades:
+                    valid_grades = [g for g in all_grades if g.max_score > 0]
+                    if valid_grades:
+                        avg_grade = sum((g.score / g.max_score) * 100 for g in valid_grades) / len(valid_grades)
+                    else:
+                        avg_grade = 0.0
+                else:
+                    avg_grade = 0.0
+
+                # Last activity (most recent attendance, grade, or participation)
+                last_attendance = db.query(Attendance).filter(
+                    Attendance.student_id == student.id,
+                    Attendance.class_id == class_id,
+                ).order_by(Attendance.date.desc()).first()
+
+                last_participation = db.query(Participation).filter(
+                    Participation.student_id == student.id,
+                    Participation.class_id == class_id,
+                ).order_by(Participation.date.desc()).first()
+
+                last_grade = db.query(Grade).filter(
+                    Grade.student_id == student.id,
+                    Grade.class_id == class_id,
+                ).order_by(Grade.date.desc()).first()
+
+                dates = []
+                if last_attendance:
+                    dates.append(dt.combine(last_attendance.date, dt.min.time()))
+                if last_participation:
+                    dates.append(dt.combine(last_participation.date, dt.min.time()))
+                if last_grade:
+                    dates.append(dt.combine(last_grade.date, dt.min.time()))
+
+                last_activity = max(dates) if dates else None
+
+                # Determine status
+                if attendance_rate < 60 or final_grade < 60:
+                    student_status = "at_risk"
+                elif attendance_rate < 80 or final_grade < 70:
+                    student_status = "warning"
+                else:
+                    student_status = "good"
+
+                students_data.append(StudentDashboardEntry(
+                    id=student.id,
+                    name=student.name,
+                    email=student.email,
+                    attendance_rate=attendance_rate,
+                    attendance_present=attendance_present,
+                    attendance_total=attendance_total,
+                    participation_points=participation_approved,
+                    participation_pending=participation_pending,
+                    average_grade=avg_grade,
+                    final_grade=final_grade,
+                    last_activity=last_activity,
+                    status=student_status,
+                ))
+
+                total_attendance_rate += attendance_rate
+                total_grade += final_grade
+
+            except Exception as e:
+                logger.error(f"Error processing student {student.id} ({student.email}): {e}", exc_info=True)
+                # Skip this student but continue with others
+                continue
+
+        # Apply search filter
+        if search:
+            search_lower = search.lower()
+            students_data = [s for s in students_data if search_lower in s.name.lower() or search_lower in s.email.lower()]
+
+        # Apply status filter
+        if status_filter and status_filter != "all":
+            students_data = [s for s in students_data if s.status == status_filter]
+
+        # Sort students
+        reverse = sort_order == "desc"
+        if sort_by == "name":
+            students_data.sort(key=lambda s: s.name.lower(), reverse=reverse)
+        elif sort_by == "attendance":
+            students_data.sort(key=lambda s: s.attendance_rate, reverse=reverse)
+        elif sort_by == "grade":
+            students_data.sort(key=lambda s: s.final_grade, reverse=reverse)
+        elif sort_by == "participation":
+            students_data.sort(key=lambda s: s.participation_points, reverse=reverse)
+
+        # Calculate overall stats
+        num_students = len(enrollments)
+        overall_attendance = (total_attendance_rate / num_students) if num_students > 0 else 0.0
+        average_grade = (total_grade / num_students) if num_students > 0 else 0.0
+
+        students_at_risk = sum(1 for s in students_data if s.status == "at_risk")
+        top_performers = sum(1 for s in students_data if s.final_grade >= 90)
+
+        # Recent activity (last 10 items)
+        recent_activity = []
+
+        # Recent attendance
+        recent_attendance = db.query(Attendance).filter(
             Attendance.class_id == class_id,
-        ).order_by(Attendance.date.desc()).first()
+        ).order_by(Attendance.date.desc()).limit(5).all()
 
-        last_participation = db.query(Participation).filter(
-            Participation.student_id == student.id,
+        for a in recent_attendance:
+            student = db.query(Student).filter(Student.id == a.student_id).first()
+            recent_activity.append({
+                "type": "attendance",
+                "date": str(a.date),
+                "student_name": student.name if student else "Unknown",
+                "detail": f"Asistencia: {a.status}",
+            })
+
+        # Recent participation
+        recent_participation = db.query(Participation).filter(
             Participation.class_id == class_id,
-        ).order_by(Participation.date.desc()).first()
+        ).order_by(Participation.date.desc()).limit(5).all()
 
-        last_grade = db.query(Grade).filter(
-            Grade.student_id == student.id,
-            Grade.class_id == class_id,
-        ).order_by(Grade.date.desc()).first()
+        for p in recent_participation:
+            student = db.query(Student).filter(Student.id == p.student_id).first()
+            desc = p.description or ""
+            recent_activity.append({
+                "type": "participation",
+                "date": str(p.date),
+                "student_name": student.name if student else "Unknown",
+                "detail": f"Participación: {desc[:50]}..." if len(desc) > 50 else f"Participación: {desc}",
+                "status": p.approved,
+            })
 
-        dates = []
-        if last_attendance:
-            dates.append(dt.combine(last_attendance.date, dt.min.time()))
-        if last_participation:
-            dates.append(dt.combine(last_participation.date, dt.min.time()))
-        if last_grade:
-            dates.append(dt.combine(last_grade.date, dt.min.time()))
+        # Sort by date
+        recent_activity.sort(key=lambda x: x["date"], reverse=True)
+        recent_activity = recent_activity[:10]
 
-        last_activity = max(dates) if dates else None
+        # Build category responses
+        category_responses = [
+            GradeCategoryResponse(
+                id=c.id,
+                class_id=c.class_id,
+                name=c.name,
+                weight=c.weight,
+                created_at=c.created_at,
+            ) for c in categories
+        ]
 
-        # Determine status
-        if attendance_rate < 60 or final_grade < 60:
-            student_status = "at_risk"
-        elif attendance_rate < 80 or final_grade < 70:
-            student_status = "warning"
-        else:
-            student_status = "good"
+        logger.info(f"Dashboard for class {class_id}: {len(students_data)} students processed successfully")
 
-        students_data.append(StudentDashboardEntry(
-            id=student.id,
-            name=student.name,
-            email=student.email,
-            attendance_rate=attendance_rate,
-            attendance_present=attendance_present,
-            attendance_total=attendance_total,
-            participation_points=participation_approved,
-            participation_pending=participation_pending,
-            average_grade=avg_grade,
-            final_grade=final_grade,
-            last_activity=last_activity,
-            status=student_status,
-        ))
+        return ClassDashboardResponse(
+            stats=ClassDashboardStats(
+                class_id=class_id,
+                class_name=class_.name,
+                class_code=class_.code,
+                total_students=num_students,
+                overall_attendance_rate=overall_attendance,
+                average_grade=average_grade,
+                pending_participation=pending_participation,
+                students_at_risk=students_at_risk,
+                top_performers=top_performers,
+                categories=category_responses,
+            ),
+            students=students_data,
+            recent_activity=recent_activity,
+        )
 
-        total_attendance_rate += attendance_rate
-        total_grade += final_grade
-
-    # Apply search filter
-    if search:
-        search_lower = search.lower()
-        students_data = [s for s in students_data if search_lower in s.name.lower() or search_lower in s.email.lower()]
-
-    # Apply status filter
-    if status_filter and status_filter != "all":
-        students_data = [s for s in students_data if s.status == status_filter]
-
-    # Sort students
-    reverse = sort_order == "desc"
-    if sort_by == "name":
-        students_data.sort(key=lambda s: s.name.lower(), reverse=reverse)
-    elif sort_by == "attendance":
-        students_data.sort(key=lambda s: s.attendance_rate, reverse=reverse)
-    elif sort_by == "grade":
-        students_data.sort(key=lambda s: s.final_grade, reverse=reverse)
-    elif sort_by == "participation":
-        students_data.sort(key=lambda s: s.participation_points, reverse=reverse)
-
-    # Calculate overall stats
-    num_students = len(enrollments)
-    overall_attendance = (total_attendance_rate / num_students) if num_students > 0 else 0.0
-    average_grade = (total_grade / num_students) if num_students > 0 else 0.0
-
-    students_at_risk = sum(1 for s in students_data if s.status == "at_risk")
-    top_performers = sum(1 for s in students_data if s.final_grade >= 90)
-
-    # Recent activity (last 10 items)
-    recent_activity = []
-
-    # Recent attendance
-    recent_attendance = db.query(Attendance).filter(
-        Attendance.class_id == class_id,
-    ).order_by(Attendance.date.desc()).limit(5).all()
-
-    for a in recent_attendance:
-        student = db.query(Student).filter(Student.id == a.student_id).first()
-        recent_activity.append({
-            "type": "attendance",
-            "date": str(a.date),
-            "student_name": student.name if student else "Unknown",
-            "detail": f"Asistencia: {a.status}",
-        })
-
-    # Recent participation
-    recent_participation = db.query(Participation).filter(
-        Participation.class_id == class_id,
-    ).order_by(Participation.date.desc()).limit(5).all()
-
-    for p in recent_participation:
-        student = db.query(Student).filter(Student.id == p.student_id).first()
-        recent_activity.append({
-            "type": "participation",
-            "date": str(p.date),
-            "student_name": student.name if student else "Unknown",
-            "detail": f"Participación: {p.description[:50]}..." if len(p.description) > 50 else f"Participación: {p.description}",
-            "status": p.approved,
-        })
-
-    # Sort by date
-    recent_activity.sort(key=lambda x: x["date"], reverse=True)
-    recent_activity = recent_activity[:10]
-
-    # Build category responses
-    category_responses = [
-        GradeCategoryResponse(
-            id=c.id,
-            class_id=c.class_id,
-            name=c.name,
-            weight=c.weight,
-            created_at=c.created_at,
-        ) for c in categories
-    ]
-
-    return ClassDashboardResponse(
-        stats=ClassDashboardStats(
-            class_id=class_id,
-            class_name=class_.name,
-            class_code=class_.code,
-            total_students=num_students,
-            overall_attendance_rate=overall_attendance,
-            average_grade=average_grade,
-            pending_participation=pending_participation,
-            students_at_risk=students_at_risk,
-            top_performers=top_performers,
-            categories=category_responses,
-        ),
-        students=students_data,
-        recent_activity=recent_activity,
-    )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Dashboard error for class {class_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al cargar dashboard: {type(e).__name__}: {str(e)}",
+        )

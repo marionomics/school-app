@@ -125,13 +125,26 @@ async function loadDashboard() {
             url += `&status_filter=${statusSelect.value}`;
         }
 
+        console.log('Dashboard URL:', url);
         dashboardData = await apiCall(url);
         studentsData = dashboardData.students;
         categories = dashboardData.stats.categories;
 
         updateDashboardUI();
     } catch (error) {
-        console.error('Error loading dashboard:', error);
+        console.error('Dashboard load error:', error);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+
+        // Show error inline instead of just an alert
+        const statsSection = document.querySelector('.grid.grid-cols-2');
+        if (statsSection) {
+            statsSection.insertAdjacentHTML('beforebegin',
+                `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+                    <strong>Error al cargar dashboard:</strong> ${error.message}
+                </div>`
+            );
+        }
         alert('Error al cargar el dashboard: ' + error.message);
     }
 }
