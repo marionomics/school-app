@@ -77,8 +77,8 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                         </svg>
-                        <span class="font-medium">Modo Vista de Estudiante</span>
-                        <span class="text-purple-200">- Estas viendo el dashboard como lo veria un estudiante</span>
+                        <span class="font-medium">Modo de Vista Previa</span>
+                        <span class="text-purple-200">- Viendo como estudiante de <span id="preview-class-name"></span></span>
                     </div>
                     <button onclick="exitPreviewMode()"
                             class="flex items-center gap-2 px-4 py-1.5 bg-white text-purple-700 rounded-lg font-medium hover:bg-purple-50 transition">
@@ -179,7 +179,7 @@
             </div>
 
             <!-- Formulario de Participación -->
-            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-8">
+            <div id="participation-section" class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-8">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4">Registrar Participación</h2>
                 <form id="participation-form" class="space-y-4">
                     <div>

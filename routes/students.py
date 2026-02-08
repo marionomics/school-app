@@ -9,7 +9,7 @@ from models.models import Student, Attendance, Grade, Participation, StudentClas
 from models.schemas import (
     StudentResponse, AttendanceResponse, GradeResponse, ParticipationResponse,
 )
-from app.auth import get_current_student
+from app.auth import get_current_student, get_student_or_impersonated
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/students", tags=["students"])
 
 @router.get("/me", response_model=StudentResponse)
 async def get_current_student_info(
-    current_student: Student = Depends(get_current_student)
+    current_student: Student = Depends(get_student_or_impersonated)
 ):
     """Get current authenticated student's information."""
     return current_student
@@ -27,7 +27,7 @@ async def get_current_student_info(
 @router.get("/me/grades", response_model=List[GradeResponse])
 async def get_student_grades(
     class_id: Optional[int] = None,
-    current_student: Student = Depends(get_current_student),
+    current_student: Student = Depends(get_student_or_impersonated),
     db: Session = Depends(get_db)
 ):
     """Get current student's grades. Optionally filter by class."""
@@ -40,7 +40,7 @@ async def get_student_grades(
 @router.get("/me/attendance", response_model=List[AttendanceResponse])
 async def get_student_attendance(
     class_id: Optional[int] = None,
-    current_student: Student = Depends(get_current_student),
+    current_student: Student = Depends(get_student_or_impersonated),
     db: Session = Depends(get_db)
 ):
     """Get current student's attendance records. Optionally filter by class."""
@@ -73,7 +73,7 @@ async def get_student_participation(
 @router.get("/me/participation/points")
 async def get_student_participation_points(
     class_id: Optional[int] = None,
-    current_student: Student = Depends(get_current_student),
+    current_student: Student = Depends(get_student_or_impersonated),
     db: Session = Depends(get_db)
 ):
     """Get total approved participation points for current student."""
@@ -92,7 +92,7 @@ async def get_student_participation_points(
 @router.get("/me/grade-calculation/{class_id}")
 async def get_student_grade_calculation(
     class_id: int,
-    current_student: Student = Depends(get_current_student),
+    current_student: Student = Depends(get_student_or_impersonated),
     db: Session = Depends(get_db)
 ):
     """Get grade calculation breakdown for a class (simple average)."""

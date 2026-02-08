@@ -4,6 +4,8 @@ let currentStudent = null;
 let googleClientId = null;
 let enrolledClasses = [];
 let selectedClassId = localStorage.getItem('selectedClassId') ? parseInt(localStorage.getItem('selectedClassId')) : null;
+let previewMode = false;
+let previewStudentId = null;
 
 // Helpers de API
 const API_BASE = '/api';
@@ -16,6 +18,10 @@ async function apiCall(endpoint, options = {}) {
 
     if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    if (previewMode && previewStudentId) {
+        headers['X-Impersonate'] = previewStudentId.toString();
     }
 
     const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -98,6 +104,14 @@ async function logout() {
     }
 }
 
+function exitPreviewMode() {
+    sessionStorage.removeItem('teacherPreviewMode');
+    sessionStorage.removeItem('previewClassId');
+    sessionStorage.removeItem('previewStudentId');
+    sessionStorage.removeItem('previewClassName');
+    window.location.href = '/admin';
+}
+
 // Funciones de UI
 function showLogin() {
     document.getElementById('login-section').classList.remove('hidden');
@@ -125,6 +139,20 @@ function showDashboard() {
 
     if (currentStudent) {
         document.getElementById('student-name').textContent = currentStudent.name;
+    }
+
+    if (previewMode) {
+        document.getElementById('preview-banner').classList.remove('hidden');
+        const previewClassName = sessionStorage.getItem('previewClassName') || 'Clase';
+        const classNameSpan = document.getElementById('preview-class-name');
+        if (classNameSpan) {
+            classNameSpan.textContent = previewClassName;
+        }
+        // Hide participation form in preview mode
+        const participationSection = document.getElementById('participation-section');
+        if (participationSection) {
+            participationSection.classList.add('hidden');
+        }
     }
 
     populateClassSelector();
@@ -544,6 +572,34 @@ async function init() {
         googleClientId = config.google_client_id;
     } catch (error) {
         console.error('Error al obtener configuracion:', error);
+    }
+
+    // Check for teacher preview mode
+    if (sessionStorage.getItem('teacherPreviewMode') === 'true' && authToken) {
+        previewMode = true;
+        previewStudentId = parseInt(sessionStorage.getItem('previewStudentId'));
+        selectedClassId = parseInt(sessionStorage.getItem('previewClassId'));
+        const previewClassName = sessionStorage.getItem('previewClassName') || 'Clase';
+
+        try {
+            // Fetch impersonated student info (X-Impersonate header is added by apiCall)
+            currentStudent = await apiCall('/students/me');
+
+            // Build a fake enrolledClasses entry so the class selector works
+            enrolledClasses = [{
+                class_id: selectedClassId,
+                class_name: previewClassName,
+                class_code: '',
+                joined_at: new Date().toISOString(),
+            }];
+
+            showDashboard();
+            loadDashboardData();
+        } catch (error) {
+            console.error('Error en modo preview:', error);
+            exitPreviewMode();
+        }
+        return;
     }
 
     if (authToken) {

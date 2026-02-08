@@ -4,13 +4,13 @@ Verifies Google ID tokens and manages session tokens.
 """
 import os
 import secrets
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from sqlalchemy.orm import Session
 from models.database import get_db
-from models.models import Student
+from models.models import Student, Class, StudentClass
 
 security = HTTPBearer(auto_error=False)
 
@@ -134,6 +134,85 @@ async def get_current_student(
         )
 
     return student
+
+
+async def get_student_or_impersonated(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> Student:
+    """
+    Get the current student, or an impersonated student if the caller is a teacher
+    sending the X-Impersonate header with a student ID.
+    """
+    # First, resolve the caller normally
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = credentials.credentials
+    student_id = sessions.get(token)
+
+    if student_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired session token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    caller = db.query(Student).filter(Student.id == student_id).first()
+    if not caller:
+        delete_session(token)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Student not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Check for impersonation header
+    impersonate_id = request.headers.get("X-Impersonate")
+    if not impersonate_id:
+        return caller
+
+    # Only teachers can impersonate
+    if caller.role != "teacher":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can use impersonation",
+        )
+
+    try:
+        target_id = int(impersonate_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid X-Impersonate value",
+        )
+
+    target = db.query(Student).filter(Student.id == target_id).first()
+    if not target:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Impersonation target not found",
+        )
+
+    # Verify the teacher owns a class where the target student is enrolled
+    teacher_class_ids = db.query(Class.id).filter(Class.teacher_id == caller.id).subquery()
+    enrollment = db.query(StudentClass).filter(
+        StudentClass.student_id == target_id,
+        StudentClass.class_id.in_(teacher_class_ids),
+    ).first()
+
+    if not enrollment:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Target student is not enrolled in any of your classes",
+        )
+
+    return target
 
 
 async def get_current_teacher(

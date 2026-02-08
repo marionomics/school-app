@@ -15,7 +15,7 @@ from models.schemas import (
     ClassWithStudents,
     StudentResponse,
 )
-from app.auth import get_current_student, get_current_teacher
+from app.auth import get_current_student, get_current_teacher, get_student_or_impersonated
 
 router = APIRouter(prefix="/api/classes", tags=["classes"])
 
@@ -146,7 +146,7 @@ async def delete_class(
 
 @router.get("/enrolled", response_model=list[StudentClassResponse])
 async def list_enrolled_classes(
-    student: Student = Depends(get_current_student),
+    student: Student = Depends(get_student_or_impersonated),
     db: Session = Depends(get_db),
 ):
     """List all classes the current student is enrolled in."""

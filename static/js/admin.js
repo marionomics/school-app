@@ -328,13 +328,26 @@ function closeStudentViewModal() {
     document.getElementById('student-view-modal').classList.add('hidden');
 }
 
-function openStudentView(classId) {
-    // Store preview mode info in sessionStorage
-    sessionStorage.setItem('teacherPreviewMode', 'true');
-    sessionStorage.setItem('previewClassId', classId.toString());
+async function openStudentView(classId) {
+    try {
+        const students = await apiCall(`/admin/students?class_id=${classId}`);
+        if (!students || students.length === 0) {
+            alert('No hay estudiantes inscritos en esta clase. Inscribe al menos un estudiante para previsualizar.');
+            return;
+        }
 
-    // Navigate to student dashboard
-    window.location.href = '/?preview=true&class_id=' + classId;
+        const firstStudent = students[0];
+        const classInfo = classes.find(c => c.id === classId);
+
+        sessionStorage.setItem('teacherPreviewMode', 'true');
+        sessionStorage.setItem('previewClassId', classId.toString());
+        sessionStorage.setItem('previewStudentId', firstStudent.id.toString());
+        sessionStorage.setItem('previewClassName', classInfo ? classInfo.name : 'Clase');
+
+        window.location.href = '/?preview=true';
+    } catch (error) {
+        alert('Error al cargar estudiantes: ' + error.message);
+    }
 }
 
 // Initialization
