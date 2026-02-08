@@ -178,6 +178,16 @@ class ParticipationUpdate(BaseModel):
     points: Optional[int] = None
 
 
+class BulkParticipationItem(BaseModel):
+    id: int
+    points: Optional[int] = None
+
+
+class BulkParticipationApprove(BaseModel):
+    class_id: int
+    items: List[BulkParticipationItem]
+
+
 class ParticipationWithStudent(ParticipationResponse):
     student_name: str
     student_email: str

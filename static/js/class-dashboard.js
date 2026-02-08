@@ -646,8 +646,10 @@ async function deleteCategory(categoryId) {
 async function loadParticipation() {
     const filter = document.getElementById('participation-filter').value;
     const container = document.getElementById('participation-list');
+    const btnApproveAll = document.getElementById('btn-approve-all');
 
     container.innerHTML = '<p class="text-center text-gray-500 py-4">Cargando...</p>';
+    btnApproveAll.classList.add('hidden');
 
     try {
         let url = `/admin/participation?class_id=${classId}`;
@@ -708,6 +710,12 @@ async function loadParticipation() {
                 </div>
             `;
         }).join('');
+
+        // Show "Aprobar Todo" button if there are pending records visible
+        const hasPending = participations.some(p => p.approved === 'pending');
+        if (hasPending) {
+            btnApproveAll.classList.remove('hidden');
+        }
     } catch (error) {
         container.innerHTML = `<p class="text-center text-red-500 py-4">Error al cargar: ${error.message}</p>`;
     }
@@ -728,6 +736,34 @@ async function updateParticipation(id, status) {
         loadDashboard();
     } catch (error) {
         alert('Error al actualizar: ' + error.message);
+    }
+}
+
+async function bulkApproveAll() {
+    const pendingCards = document.querySelectorAll('#participation-list [data-participation-id]');
+    const items = [];
+
+    pendingCards.forEach(card => {
+        const id = parseInt(card.dataset.participationId);
+        const pointsInput = card.querySelector('.points-input');
+        const points = pointsInput ? parseInt(pointsInput.value) : null;
+        items.push({ id, points });
+    });
+
+    if (items.length === 0) return;
+
+    if (!confirm(`¿Aprobar ${items.length} participacion(es) pendiente(s)?`)) return;
+
+    try {
+        await apiCall('/admin/participation/bulk-approve', {
+            method: 'PATCH',
+            body: JSON.stringify({ class_id: classId, items })
+        });
+
+        loadParticipation();
+        loadDashboard();
+    } catch (error) {
+        alert('Error al aprobar: ' + error.message);
     }
 }
 

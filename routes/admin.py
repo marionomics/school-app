@@ -22,6 +22,7 @@ from models.schemas import (
     GradeResponse,
     BulkAttendanceCreate,
     ParticipationUpdate,
+    BulkParticipationApprove,
     ParticipationWithStudent,
     GradeCategoryCreate,
     GradeCategoryResponse,
@@ -262,6 +263,49 @@ async def get_participation(
         ))
 
     return results
+
+
+@router.patch("/participation/bulk-approve")
+async def bulk_approve_participation(
+    data: BulkParticipationApprove,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Approve multiple participation submissions at once."""
+    # Verify teacher owns this class
+    class_ = db.query(Class).filter(
+        Class.id == data.class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Clase no encontrada",
+        )
+
+    item_ids = [item.id for item in data.items]
+    points_map = {item.id: item.points for item in data.items}
+
+    participations = db.query(Participation).filter(
+        Participation.id.in_(item_ids),
+        Participation.class_id == data.class_id,
+        Participation.approved == "pending",
+    ).all()
+
+    if not participations:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se encontraron participaciones pendientes",
+        )
+
+    for p in participations:
+        p.approved = "approved"
+        if points_map.get(p.id) is not None:
+            p.points = points_map[p.id]
+
+    db.commit()
+
+    return {"approved_count": len(participations)}
 
 
 @router.patch("/participation/{participation_id}", response_model=ParticipationWithStudent)
