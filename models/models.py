@@ -62,7 +62,9 @@ class Grade(Base):
     id = Column(Integer, primary_key=True, index=True)
     student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=True)
-    category = Column(String(50), nullable=True)  # homework, quiz, exam, project
+    category_id = Column(Integer, ForeignKey("grade_categories.id"), nullable=True)
+    category = Column(String(50), nullable=True)  # legacy string field
+    name = Column(String(200), nullable=True)  # e.g., "Reto Semana 1"
     score = Column(Float, nullable=False)
     max_score = Column(Float, nullable=False)
     date = Column(Date, nullable=False, default=date.today)
@@ -70,6 +72,7 @@ class Grade(Base):
     # Relationships
     student = relationship("Student", back_populates="grades")
     class_ = relationship("Class", back_populates="grades")
+    grade_category = relationship("GradeCategory")
 
 
 class Class(Base):

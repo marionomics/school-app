@@ -206,10 +206,21 @@ async def add_grade(
             detail="Estudiante no encontrado en esta clase",
         )
 
+    # If category_id provided, verify it belongs to this class
+    if data.category_id:
+        cat = db.query(GradeCategory).filter(
+            GradeCategory.id == data.category_id,
+            GradeCategory.class_id == data.class_id,
+        ).first()
+        if not cat:
+            raise HTTPException(status_code=404, detail="Categoría no encontrada en esta clase")
+
     grade = Grade(
         student_id=data.student_id,
         class_id=data.class_id,
+        category_id=data.category_id,
         category=data.category,
+        name=data.name,
         score=data.score,
         max_score=data.max_score,
         date=data.date or date.today(),
@@ -561,36 +572,81 @@ async def update_special_points(
     return special
 
 
-# ==================== Grade Calculation (core tables only) ====================
+# ==================== Grade Calculation ====================
 
-def _calc_simple_grade(student_id: int, class_id: int, db: Session) -> dict:
-    """Calculate grade using only core tables: grades + participations.
-    No grade_categories or special_points queries."""
+def _calc_grade(student_id: int, class_id: int, db: Session) -> dict:
+    """Calculate grade using category weights, participation, and special points.
 
-    # Simple average of all grades for this student/class
-    grades = db.query(Grade).filter(
+    Formula: Σ(category_avg × weight) + (participation × 0.1) + special_points
+    """
+    # Get categories for this class
+    categories = db.query(GradeCategory).filter(
+        GradeCategory.class_id == class_id
+    ).all()
+
+    # Get all grades for this student/class
+    all_grades = db.query(Grade).filter(
         Grade.student_id == student_id,
         Grade.class_id == class_id,
     ).all()
 
-    valid = [g for g in grades if g.max_score and g.max_score > 0]
-    if valid:
-        avg = sum((g.score / g.max_score) * 100 for g in valid) / len(valid)
-    else:
-        avg = 0.0
+    category_breakdowns = []
+    weighted_sum = 0.0
 
-    # Participation bonus
+    for cat in categories:
+        cat_grades = [g for g in all_grades if g.category_id == cat.id]
+        valid = [g for g in cat_grades if g.max_score and g.max_score > 0]
+        avg = (sum((g.score / g.max_score) * 100 for g in valid) / len(valid)) if valid else 0.0
+        contribution = avg * cat.weight
+        weighted_sum += contribution
+
+        category_breakdowns.append(CategoryGradeBreakdown(
+            category_id=cat.id,
+            category_name=cat.name,
+            weight=cat.weight,
+            grades=[GradeResponse(
+                id=g.id, student_id=g.student_id, category_id=g.category_id,
+                category=g.category, name=g.name, score=g.score,
+                max_score=g.max_score, date=g.date,
+            ) for g in cat_grades],
+            average=avg,
+            weighted_contribution=contribution,
+        ))
+
+    # Fallback: if no categories, use simple average
+    if not categories:
+        valid = [g for g in all_grades if g.max_score and g.max_score > 0]
+        weighted_sum = (sum((g.score / g.max_score) * 100 for g in valid) / len(valid)) if valid else 0.0
+
+    # Participation bonus (no cap)
     part_pts = db.query(func.sum(Participation.points)).filter(
         Participation.student_id == student_id,
         Participation.class_id == class_id,
         Participation.approved == "approved",
     ).scalar() or 0
 
-    final = min(avg + (0.1 * part_pts), 100)
+    part_contribution = 0.1 * int(part_pts)
+
+    # Special points
+    sp_records = db.query(SpecialPoints).filter(
+        SpecialPoints.student_id == student_id,
+        SpecialPoints.class_id == class_id,
+    ).all()
+    sp_total = sum(sp.points_value for sp in sp_records if sp.opted_in and sp.awarded)
+
+    final = weighted_sum + part_contribution + sp_total
+
+    # Simple average for display (without weights)
+    valid_all = [g for g in all_grades if g.max_score and g.max_score > 0]
+    avg_grade = (sum((g.score / g.max_score) * 100 for g in valid_all) / len(valid_all)) if valid_all else 0.0
 
     return {
-        "average_grade": avg,
+        "average_grade": avg_grade,
         "participation_points": int(part_pts),
+        "participation_contribution": part_contribution,
+        "special_points": sp_records,
+        "special_points_total": sp_total,
+        "category_breakdowns": category_breakdowns,
         "final_grade": final,
     }
 
@@ -626,7 +682,13 @@ async def get_student_roster(
         present = sum(1 for a in att if a.status in ("present", "late"))
         att_rate = (present / len(att) * 100) if att else 0.0
 
-        gd = _calc_simple_grade(student.id, class_id, db)
+        gd = _calc_grade(student.id, class_id, db)
+
+        sp_responses = [SpecialPointsResponse(
+            id=sp.id, student_id=sp.student_id, class_id=sp.class_id,
+            category=sp.category, opted_in=sp.opted_in, awarded=sp.awarded,
+            points_value=sp.points_value, created_at=sp.created_at,
+        ) for sp in gd["special_points"]]
 
         roster.append(StudentRosterEntry(
             student=StudentResponse(
@@ -638,8 +700,8 @@ async def get_student_roster(
             ),
             attendance_rate=att_rate,
             participation_points=gd["participation_points"],
-            grade_breakdown=[],
-            special_points=[],
+            grade_breakdown=gd["category_breakdowns"],
+            special_points=sp_responses,
             final_grade=gd["final_grade"],
         ))
 
@@ -718,7 +780,7 @@ async def get_class_dashboard(
             ).scalar() or 0
 
             # Grades
-            gd = _calc_simple_grade(student.id, class_id, db)
+            gd = _calc_grade(student.id, class_id, db)
 
             # Last activity date
             last_att = db.query(func.max(Attendance.date)).filter(
@@ -819,7 +881,17 @@ async def get_class_dashboard(
         recent.sort(key=lambda x: x["date"], reverse=True)
         recent = recent[:10]
 
-        # 9. Return
+        # 9. Load categories for this class
+        class_categories = db.query(GradeCategory).filter(
+            GradeCategory.class_id == class_id
+        ).all()
+
+        cat_responses = [GradeCategoryResponse(
+            id=c.id, class_id=c.class_id, name=c.name,
+            weight=c.weight, created_at=c.created_at,
+        ) for c in class_categories]
+
+        # 10. Return
         logger.info(f"Dashboard OK: class {class_id}, {len(students_data)} students")
 
         return {
@@ -833,7 +905,7 @@ async def get_class_dashboard(
                 "pending_participation": pending_participation,
                 "students_at_risk": at_risk,
                 "top_performers": top,
-                "categories": [],
+                "categories": cat_responses,
             },
             "students": students_data,
             "recent_activity": recent,

@@ -8,30 +8,37 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 from models.database import Base, engine
 # Import all models to ensure they are registered with Base.metadata
 from models.models import Student, Attendance, Participation, Grade, Class, StudentClass, GradeCategory, SpecialPoints
 from routes import health, students, participation, auth, admin, classes
 
 
-def tables_exist() -> bool:
-    """Check if database tables already exist."""
+def _ensure_columns():
+    """Add missing columns to existing tables (lightweight migration)."""
     inspector = inspect(engine)
-    existing_tables = inspector.get_table_names()
-    return "students" in existing_tables
+
+    if "grades" in inspector.get_table_names():
+        existing_cols = {col["name"] for col in inspector.get_columns("grades")}
+
+        with engine.begin() as conn:
+            if "category_id" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE grades ADD COLUMN category_id INTEGER REFERENCES grade_categories(id)"
+                ))
+            if "name" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE grades ADD COLUMN name VARCHAR(200)"
+                ))
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Database initialization
-    # In production, use 'alembic upgrade head' before starting the app
-    # For development convenience, create tables if they don't exist
-    # NOTE: create_all() only creates tables that don't already exist (checkfirst=True by default)
-    # NEVER use drop_all() - it would delete all data
-    if not tables_exist():
-        # Only for initial setup - after first run, use alembic migrations
-        Base.metadata.create_all(bind=engine)
+    # create_all() is safe to call always: checkfirst=True (default) only
+    # creates tables that don't already exist, never drops or modifies existing ones.
+    Base.metadata.create_all(bind=engine)
+    _ensure_columns()
     yield
     # Shutdown: cleanup if needed
 

@@ -537,12 +537,19 @@ document.getElementById('grade-form').addEventListener('submit', async (e) => {
 
     const studentId = parseInt(document.getElementById('grade-student').value);
     const categorySelect = document.getElementById('grade-category');
-    const category = categorySelect ? categorySelect.value : null;
+    const categoryId = categorySelect && categorySelect.value ? parseInt(categorySelect.value) : null;
+    const nameInput = document.getElementById('grade-name');
+    const name = nameInput ? nameInput.value.trim() || null : null;
     const score = parseFloat(document.getElementById('grade-score').value);
     const maxScore = parseFloat(document.getElementById('grade-max').value);
 
     if (!studentId) {
         alert('Por favor selecciona un estudiante.');
+        return;
+    }
+
+    if (!categoryId) {
+        alert('Por favor selecciona una categoría.');
         return;
     }
 
@@ -552,7 +559,8 @@ document.getElementById('grade-form').addEventListener('submit', async (e) => {
             body: JSON.stringify({
                 student_id: studentId,
                 class_id: classId,
-                category: category || null,
+                category_id: categoryId,
+                name,
                 score,
                 max_score: maxScore
             })
@@ -564,6 +572,7 @@ document.getElementById('grade-form').addEventListener('submit', async (e) => {
 
         // Reset form
         document.getElementById('grade-score').value = '';
+        if (nameInput) nameInput.value = '';
 
         // Refresh dashboard
         loadDashboard();

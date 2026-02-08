@@ -7,10 +7,12 @@ A FastAPI application for managing student attendance, participation, and grades
 - **Multi-Class Support**: Teachers create classes with unique codes, students join via codes
 - **Class Dashboard**: Comprehensive per-class view with stats, roster, attendance, grades, and participation tabs
 - **Weighted Grading System**: Configurable grade categories with weights, participation points, special bonus points
+- **Student Preview Mode**: Teachers can preview the student dashboard as any enrolled student via impersonation
 - **Student Dashboard**: View grades breakdown, attendance, submit participation (filtered by class)
 - **Teacher Admin Panel**: Simple class overview with quick stats, click any class to open detailed dashboard
 - **Google OAuth**: Secure authentication via Google accounts
 - **Spanish UI**: Full Spanish language interface
+- **Auto-Migration**: Missing tables and columns are created automatically on startup
 - **Railway Ready**: Configured for easy cloud deployment
 
 ## Tech Stack
@@ -77,23 +79,38 @@ A FastAPI application for managing student attendance, participation, and grades
 The app uses a weighted grading formula:
 
 ```
-Final Grade = Σ(Category Weight × Category Average) + (0.1 × Participation Points) + Special Points
+Final Grade = Σ(Category Weight × Category Average) + (Participation Points × 0.1) + Special Points
 ```
 
 ### Grade Categories
-- Teachers configure categories per class (e.g., "Retos de la Semana" 40%, "Examenes" 40%, "Proyecto" 20%)
-- Each grade is assigned to a category
+- New classes auto-create default categories: "Retos de la Semana" (40%) and "Exámenes y Proyectos" (40%)
+- The remaining 20% comes from participation + special points (no category needed)
+- Teachers can customize categories per class (add, edit, delete, change weights)
+- Each grade is assigned to a category via `category_id`
 - Category averages are weighted and summed
 
 ### Participation Points
 - Students submit participation entries describing their contributions
 - Teachers approve/reject and assign points (1-3)
-- Approved points × 0.1 added to final grade
+- Approved points × 0.1 added to final grade (no cap)
 
 ### Special Points
 - Two optional categories: English (0.5 pts) and Notebook (0.5 pts)
 - Students opt-in at start of semester
 - Teacher awards at end of semester if criteria met
+
+## Student Preview Mode
+
+Teachers can preview the student dashboard to see exactly what a student sees:
+
+1. Click "Vista de Estudiante" in the admin panel
+2. Select a class (must have at least one enrolled student)
+3. View the student dashboard with real data from the first enrolled student
+4. Banner shows "Modo de Vista Previa" with the class name
+5. Participation form is hidden (teachers can't submit as students)
+6. Click "Volver al Panel de Profesor" to return
+
+**Technical**: Uses `X-Impersonate` header — the teacher's auth token is preserved, and student endpoints return the impersonated student's data. Only teachers who own a class where the target student is enrolled can impersonate.
 
 ## Environment Variables
 
@@ -133,7 +150,11 @@ Final Grade = Σ(Category Weight × Category Average) + (0.1 × Participation Po
 | GET | `/api/students/me` | Current student info |
 | GET | `/api/students/me/grades?class_id=X` | Student's grades |
 | GET | `/api/students/me/attendance?class_id=X` | Student's attendance |
+| GET | `/api/students/me/participation/points?class_id=X` | Participation point total |
+| GET | `/api/students/me/grade-calculation/:class_id` | Full grade breakdown with categories |
 | POST | `/api/participation` | Submit participation (requires class_id) |
+
+> Student endpoints support teacher impersonation via `X-Impersonate: {student_id}` header.
 
 ### Admin (teacher only)
 | Method | Endpoint | Description |
@@ -150,6 +171,10 @@ Final Grade = Σ(Category Weight × Category Average) + (0.1 × Participation Po
 | POST | `/api/admin/categories/:id` | Create grade category |
 | PUT | `/api/admin/categories/:id/:cat_id` | Update category |
 | DELETE | `/api/admin/categories/:id/:cat_id` | Delete category |
+| GET | `/api/admin/special-points?class_id=X` | Get special points |
+| POST | `/api/admin/special-points` | Create special points entry |
+| PATCH | `/api/admin/special-points/:id` | Update special points |
+| PATCH | `/api/admin/participation/bulk-approve` | Bulk approve participation |
 
 ## Database Migrations
 

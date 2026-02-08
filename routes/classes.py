@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from models.database import get_db
-from models.models import Student, Class, StudentClass
+from models.models import Student, Class, StudentClass, GradeCategory
 from models.schemas import (
     ClassCreate,
     ClassResponse,
@@ -43,6 +43,14 @@ async def create_class(
     db.add(new_class)
     db.commit()
     db.refresh(new_class)
+
+    # Create default grade categories
+    defaults = [
+        GradeCategory(class_id=new_class.id, name="Retos de la Semana", weight=0.4),
+        GradeCategory(class_id=new_class.id, name="Exámenes y Proyectos", weight=0.4),
+    ]
+    db.add_all(defaults)
+    db.commit()
 
     return ClassResponse(
         id=new_class.id,

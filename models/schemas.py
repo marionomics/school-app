@@ -64,7 +64,9 @@ class ParticipationResponse(BaseModel):
 class GradeCreate(BaseModel):
     student_id: int
     class_id: int
-    category: Optional[str] = None  # homework, quiz, exam, project
+    category_id: Optional[int] = None
+    category: Optional[str] = None  # legacy string field
+    name: Optional[str] = None  # e.g., "Reto Semana 1"
     score: float
     max_score: float
     date: Optional[date_type] = None
@@ -73,7 +75,9 @@ class GradeCreate(BaseModel):
 class GradeResponse(BaseModel):
     id: int
     student_id: int
+    category_id: Optional[int] = None
     category: Optional[str] = None
+    name: Optional[str] = None
     score: float
     max_score: float
     date: date_type
