@@ -23,6 +23,7 @@ class Student(Base):
     taught_classes = relationship("Class", back_populates="teacher", cascade="all, delete-orphan")
     enrollments = relationship("StudentClass", back_populates="student", cascade="all, delete-orphan")
     special_points = relationship("SpecialPoints", back_populates="student", cascade="all, delete-orphan")
+    submissions = relationship("Submission", back_populates="student", cascade="all, delete-orphan", foreign_keys="[Submission.student_id]")
 
 
 class Attendance(Base):
@@ -92,6 +93,7 @@ class Class(Base):
     grades = relationship("Grade", back_populates="class_")
     grade_categories = relationship("GradeCategory", back_populates="class_", cascade="all, delete-orphan")
     special_points = relationship("SpecialPoints", back_populates="class_", cascade="all, delete-orphan")
+    assignments = relationship("Assignment", back_populates="class_", cascade="all, delete-orphan")
 
     @staticmethod
     def generate_code(prefix: str = "") -> str:
@@ -147,3 +149,45 @@ class SpecialPoints(Base):
     class_ = relationship("Class", back_populates="special_points")
 
     __table_args__ = (UniqueConstraint('student_id', 'class_id', 'category', name='unique_student_class_special'),)
+
+
+class Assignment(Base):
+    __tablename__ = "assignments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
+    category_id = Column(Integer, ForeignKey("grade_categories.id"), nullable=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    due_date = Column(DateTime, nullable=False)
+    max_points = Column(Float, nullable=False, default=100)
+    allow_late = Column(Boolean, nullable=False, default=True)
+    published = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    class_ = relationship("Class", back_populates="assignments")
+    grade_category = relationship("GradeCategory")
+    submissions = relationship("Submission", back_populates="assignment", cascade="all, delete-orphan")
+
+
+class Submission(Base):
+    __tablename__ = "submissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    assignment_id = Column(Integer, ForeignKey("assignments.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    text_content = Column(Text, nullable=True)
+    submitted_at = Column(DateTime, default=datetime.utcnow)
+    is_late = Column(Boolean, nullable=False, default=False)
+    grade = Column(Float, nullable=True)
+    feedback = Column(Text, nullable=True)
+    graded_at = Column(DateTime, nullable=True)
+    graded_by = Column(Integer, ForeignKey("students.id"), nullable=True)
+
+    # Relationships
+    assignment = relationship("Assignment", back_populates="submissions")
+    student = relationship("Student", back_populates="submissions", foreign_keys=[student_id])
+
+    __table_args__ = (UniqueConstraint('assignment_id', 'student_id', name='unique_assignment_student'),)

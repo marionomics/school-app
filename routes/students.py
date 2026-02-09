@@ -5,10 +5,11 @@ from typing import List, Optional
 import logging
 
 from models.database import get_db
-from models.models import Student, Attendance, Grade, Participation, StudentClass, GradeCategory, SpecialPoints
+from models.models import Student, Attendance, Grade, Participation, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission
 from models.schemas import (
     StudentResponse, AttendanceResponse, GradeResponse, ParticipationResponse,
     CategoryGradeBreakdown, SpecialPointsResponse,
+    AssignmentStudentView, SubmissionCreate, SubmissionResponse,
 )
 from app.auth import get_current_student, get_student_or_impersonated
 
@@ -178,3 +179,111 @@ async def get_student_grade_calculation(
         "special_points_total": sp_total,
         "final_grade": final_grade,
     }
+
+
+@router.get("/me/assignments", response_model=list[AssignmentStudentView])
+async def get_student_assignments(
+    class_id: int,
+    current_student: Student = Depends(get_student_or_impersonated),
+    db: Session = Depends(get_db),
+):
+    """Get assignments for a class with the student's submission status."""
+    assignments = db.query(Assignment).filter(
+        Assignment.class_id == class_id,
+        Assignment.published == True,
+    ).order_by(Assignment.due_date.asc()).all()
+
+    results = []
+    for a in assignments:
+        submission = db.query(Submission).filter(
+            Submission.assignment_id == a.id,
+            Submission.student_id == current_student.id,
+        ).first()
+
+        sub_response = None
+        if submission:
+            sub_response = SubmissionResponse(
+                id=submission.id,
+                assignment_id=submission.assignment_id,
+                student_id=submission.student_id,
+                text_content=submission.text_content,
+                submitted_at=submission.submitted_at,
+                is_late=submission.is_late,
+                grade=submission.grade,
+                feedback=submission.feedback,
+                graded_at=submission.graded_at,
+            )
+
+        results.append(AssignmentStudentView(
+            id=a.id,
+            class_id=a.class_id,
+            title=a.title,
+            description=a.description,
+            due_date=a.due_date,
+            max_points=a.max_points,
+            allow_late=a.allow_late,
+            created_at=a.created_at,
+            submission=sub_response,
+        ))
+
+    return results
+
+
+@router.post("/me/assignments/{assignment_id}/submit", response_model=SubmissionResponse)
+async def submit_assignment(
+    assignment_id: int,
+    data: SubmissionCreate,
+    current_student: Student = Depends(get_student_or_impersonated),
+    db: Session = Depends(get_db),
+):
+    """Submit an assignment."""
+    assignment = db.query(Assignment).filter(
+        Assignment.id == assignment_id,
+        Assignment.published == True,
+    ).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Reto no encontrado")
+
+    # Verify student is enrolled
+    enrollment = db.query(StudentClass).filter(
+        StudentClass.student_id == current_student.id,
+        StudentClass.class_id == assignment.class_id,
+    ).first()
+    if not enrollment:
+        raise HTTPException(status_code=403, detail="No estas inscrito en esta clase")
+
+    # Check for existing submission
+    existing = db.query(Submission).filter(
+        Submission.assignment_id == assignment_id,
+        Submission.student_id == current_student.id,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya enviaste este reto")
+
+    from datetime import datetime as _dt
+    is_late = _dt.utcnow() > assignment.due_date
+
+    if is_late and not assignment.allow_late:
+        raise HTTPException(status_code=400, detail="La fecha limite ha pasado y no se permiten entregas tardias")
+
+    submission = Submission(
+        assignment_id=assignment_id,
+        student_id=current_student.id,
+        text_content=data.text_content,
+        is_late=is_late,
+    )
+    db.add(submission)
+    db.commit()
+    db.refresh(submission)
+
+    return SubmissionResponse(
+        id=submission.id,
+        assignment_id=submission.assignment_id,
+        student_id=submission.student_id,
+        text_content=submission.text_content,
+        submitted_at=submission.submitted_at,
+        is_late=submission.is_late,
+        grade=submission.grade,
+        feedback=submission.feedback,
+        graded_at=submission.graded_at,
+    )

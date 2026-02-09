@@ -11,7 +11,7 @@ load_dotenv()
 from sqlalchemy import inspect, text
 from models.database import Base, engine
 # Import all models to ensure they are registered with Base.metadata
-from models.models import Student, Attendance, Participation, Grade, Class, StudentClass, GradeCategory, SpecialPoints
+from models.models import Student, Attendance, Participation, Grade, Class, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission
 from routes import health, students, participation, auth, admin, classes
 
 

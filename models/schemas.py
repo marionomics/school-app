@@ -270,3 +270,64 @@ class ClassDashboardResponse(BaseModel):
     stats: ClassDashboardStats
     students: List[StudentDashboardEntry]
     recent_activity: List[dict]  # Recent attendance, grades, participation
+
+
+# Assignment schemas
+class AssignmentCreate(BaseModel):
+    class_id: int
+    title: str
+    description: Optional[str] = None
+    due_date: Optional[datetime] = None
+    max_points: Optional[float] = 100
+
+
+class SubmissionResponse(BaseModel):
+    id: int
+    assignment_id: int
+    student_id: int
+    text_content: Optional[str] = None
+    submitted_at: datetime
+    is_late: bool
+    grade: Optional[float] = None
+    feedback: Optional[str] = None
+    graded_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AssignmentResponse(BaseModel):
+    id: int
+    class_id: int
+    category_id: Optional[int] = None
+    title: str
+    description: Optional[str] = None
+    due_date: datetime
+    max_points: float
+    allow_late: bool
+    published: bool
+    created_at: datetime
+    submission_count: int = 0
+    graded_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class AssignmentStudentView(BaseModel):
+    id: int
+    class_id: int
+    title: str
+    description: Optional[str] = None
+    due_date: datetime
+    max_points: float
+    allow_late: bool
+    created_at: datetime
+    submission: Optional[SubmissionResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class SubmissionCreate(BaseModel):
+    text_content: Optional[str] = None

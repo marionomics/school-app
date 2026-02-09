@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 from models.database import get_db
 from models.models import (
     Student, Attendance, Participation, Grade, Class, StudentClass,
-    GradeCategory, SpecialPoints
+    GradeCategory, SpecialPoints, Assignment, Submission
 )
 from models.schemas import (
     StudentResponse,
@@ -32,6 +32,8 @@ from models.schemas import (
     SpecialPointsUpdate,
     CategoryGradeBreakdown,
     StudentRosterEntry,
+    AssignmentCreate,
+    AssignmentResponse,
 )
 from app.auth import get_current_teacher
 
@@ -919,3 +921,139 @@ async def get_class_dashboard(
             status_code=500,
             detail=f"Error al cargar dashboard: {type(e).__name__}: {str(e)}",
         )
+
+
+# ==================== Assignments ====================
+
+@router.post("/assignments", response_model=AssignmentResponse)
+async def create_assignment(
+    data: AssignmentCreate,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Create an assignment (reto) for a class."""
+    class_ = db.query(Class).filter(
+        Class.id == data.class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=404, detail="Clase no encontrada")
+
+    # Auto-find "Retos de la Semana" category
+    category_id = None
+    retos_cat = db.query(GradeCategory).filter(
+        GradeCategory.class_id == data.class_id,
+        GradeCategory.name == "Retos de la Semana",
+    ).first()
+    if retos_cat:
+        category_id = retos_cat.id
+
+    # Default due_date: next Sunday 23:59
+    due_date = data.due_date
+    if not due_date:
+        from datetime import timedelta
+        today = date.today()
+        days_until_sunday = (6 - today.weekday()) % 7
+        if days_until_sunday == 0:
+            days_until_sunday = 7
+        next_sunday = today + timedelta(days=days_until_sunday)
+        due_date = dt.combine(next_sunday, dt.min.time()).replace(hour=23, minute=59)
+
+    assignment = Assignment(
+        class_id=data.class_id,
+        category_id=category_id,
+        title=data.title,
+        description=data.description,
+        due_date=due_date,
+        max_points=data.max_points or 100,
+    )
+    db.add(assignment)
+    db.commit()
+    db.refresh(assignment)
+
+    return AssignmentResponse(
+        id=assignment.id,
+        class_id=assignment.class_id,
+        category_id=assignment.category_id,
+        title=assignment.title,
+        description=assignment.description,
+        due_date=assignment.due_date,
+        max_points=assignment.max_points,
+        allow_late=assignment.allow_late,
+        published=assignment.published,
+        created_at=assignment.created_at,
+        submission_count=0,
+        graded_count=0,
+    )
+
+
+@router.get("/assignments", response_model=List[AssignmentResponse])
+async def list_assignments(
+    class_id: int,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """List assignments for a class with submission counts."""
+    class_ = db.query(Class).filter(
+        Class.id == class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=404, detail="Clase no encontrada")
+
+    assignments = db.query(Assignment).filter(
+        Assignment.class_id == class_id,
+    ).order_by(Assignment.due_date.desc()).all()
+
+    results = []
+    for a in assignments:
+        sub_count = db.query(func.count(Submission.id)).filter(
+            Submission.assignment_id == a.id,
+        ).scalar() or 0
+        graded_count = db.query(func.count(Submission.id)).filter(
+            Submission.assignment_id == a.id,
+            Submission.grade.isnot(None),
+        ).scalar() or 0
+
+        results.append(AssignmentResponse(
+            id=a.id,
+            class_id=a.class_id,
+            category_id=a.category_id,
+            title=a.title,
+            description=a.description,
+            due_date=a.due_date,
+            max_points=a.max_points,
+            allow_late=a.allow_late,
+            published=a.published,
+            created_at=a.created_at,
+            submission_count=sub_count,
+            graded_count=graded_count,
+        ))
+
+    return results
+
+
+@router.delete("/assignments/{assignment_id}")
+async def delete_assignment(
+    assignment_id: int,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Delete an assignment."""
+    assignment = db.query(Assignment).filter(
+        Assignment.id == assignment_id,
+    ).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Reto no encontrado")
+
+    # Verify teacher owns the class
+    class_ = db.query(Class).filter(
+        Class.id == assignment.class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=403, detail="No tienes permiso")
+
+    db.delete(assignment)
+    db.commit()
+    return {"message": "Reto eliminado"}

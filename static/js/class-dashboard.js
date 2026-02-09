@@ -95,6 +95,8 @@ function showTab(tabName) {
         initGradesTab();
     } else if (tabName === 'participation') {
         loadParticipation();
+    } else if (tabName === 'assignments') {
+        loadAssignments();
     }
 }
 
@@ -932,6 +934,144 @@ function closeStudentModal() {
 function formatDate(dateString) {
     const date = new Date(dateString);
     return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// ==================== Assignments Tab ====================
+
+function toggleAssignmentForm() {
+    const container = document.getElementById('assignment-form-container');
+    container.classList.toggle('hidden');
+
+    // Pre-fill due date with next Sunday 23:59
+    if (!container.classList.contains('hidden')) {
+        const dueDateInput = document.getElementById('assignment-due-date');
+        if (!dueDateInput.value) {
+            const today = new Date();
+            const daysUntilSunday = (7 - today.getDay()) % 7 || 7;
+            const nextSunday = new Date(today);
+            nextSunday.setDate(today.getDate() + daysUntilSunday);
+            nextSunday.setHours(23, 59, 0, 0);
+            // Format for datetime-local input
+            const pad = n => String(n).padStart(2, '0');
+            dueDateInput.value = `${nextSunday.getFullYear()}-${pad(nextSunday.getMonth() + 1)}-${pad(nextSunday.getDate())}T${pad(nextSunday.getHours())}:${pad(nextSunday.getMinutes())}`;
+        }
+    }
+}
+
+document.getElementById('assignment-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const title = document.getElementById('assignment-title').value.trim();
+    const description = document.getElementById('assignment-description').value.trim() || null;
+    const dueDateInput = document.getElementById('assignment-due-date').value;
+    const maxPoints = parseFloat(document.getElementById('assignment-max-points').value) || 100;
+
+    if (!title) {
+        alert('Por favor ingresa un titulo.');
+        return;
+    }
+
+    const payload = {
+        class_id: classId,
+        title,
+        description,
+        max_points: maxPoints,
+    };
+
+    if (dueDateInput) {
+        payload.due_date = new Date(dueDateInput).toISOString();
+    }
+
+    try {
+        await apiCall('/admin/assignments', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        // Reset form and hide
+        document.getElementById('assignment-title').value = '';
+        document.getElementById('assignment-description').value = '';
+        document.getElementById('assignment-due-date').value = '';
+        document.getElementById('assignment-max-points').value = '100';
+        document.getElementById('assignment-form-container').classList.add('hidden');
+
+        loadAssignments();
+    } catch (error) {
+        alert('Error al crear reto: ' + error.message);
+    }
+});
+
+async function loadAssignments() {
+    const container = document.getElementById('assignments-list');
+    container.innerHTML = '<p class="text-center text-gray-500 py-4">Cargando...</p>';
+
+    try {
+        const assignments = await apiCall(`/admin/assignments?class_id=${classId}`);
+        const totalStudents = dashboardData?.stats?.total_students || 0;
+
+        if (assignments.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-500 py-4">No hay retos creados. Crea el primero!</p>';
+            return;
+        }
+
+        container.innerHTML = assignments.map(a => {
+            const now = new Date();
+            const due = new Date(a.due_date);
+            const isPast = now > due;
+            const dueBadge = isPast
+                ? '<span class="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">Vencido</span>'
+                : '<span class="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">Activo</span>';
+
+            return `
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <div class="flex flex-col sm:flex-row justify-between gap-3">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-medium text-gray-800">${a.title}</span>
+                                ${dueBadge}
+                            </div>
+                            ${a.description ? `<p class="text-gray-600 text-sm mb-2">${a.description}</p>` : ''}
+                            <div class="flex items-center gap-4 text-xs text-gray-500">
+                                <span>Fecha limite: ${formatDate(a.due_date.split('T')[0])} ${due.toLocaleTimeString('es-MX', {hour: '2-digit', minute: '2-digit'})}</span>
+                                <span>Puntos: ${a.max_points}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-primary">${a.submission_count}/${totalStudents}</div>
+                                <div class="text-xs text-gray-500">Entregas</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-green-600">${a.graded_count}</div>
+                                <div class="text-xs text-gray-500">Calificados</div>
+                            </div>
+                            <button onclick="deleteAssignment(${a.id})"
+                                    class="text-red-400 hover:text-red-600" title="Eliminar">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        container.innerHTML = `<p class="text-center text-red-500 py-4">Error al cargar: ${error.message}</p>`;
+    }
+}
+
+async function deleteAssignment(id) {
+    if (!confirm('¿Estas seguro de eliminar este reto? Se eliminaran todas las entregas asociadas.')) {
+        return;
+    }
+
+    try {
+        await apiCall(`/admin/assignments/${id}`, { method: 'DELETE' });
+        loadAssignments();
+    } catch (error) {
+        alert('Error al eliminar: ' + error.message);
+    }
 }
 
 // ==================== Initialization ====================

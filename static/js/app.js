@@ -260,7 +260,8 @@ async function loadDashboardData() {
         loadGradeCalculation(),
         loadGrades(),
         loadAttendance(),
-        loadParticipationPoints()
+        loadParticipationPoints(),
+        loadAssignments()
     ]);
 }
 
@@ -519,6 +520,119 @@ function calculateAttendanceRate(attendance) {
     const present = attendance.filter(r => r.status === 'present' || r.status === 'late').length;
     const rate = ((present / attendance.length) * 100).toFixed(1);
     rateEl.textContent = `${rate}%`;
+}
+
+// Assignments (Retos)
+async function loadAssignments() {
+    const container = document.getElementById('assignments-container');
+    if (!container) return;
+
+    try {
+        const assignments = await apiCall(`/students/me/assignments?class_id=${selectedClassId}`);
+
+        if (assignments.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-500 py-4">No hay retos asignados</p>';
+            return;
+        }
+
+        container.innerHTML = assignments.map(a => {
+            const now = new Date();
+            const due = new Date(a.due_date);
+            const isPast = now > due;
+            const diff = due - now;
+
+            // Status and badge
+            let statusBadge, statusColor;
+            if (a.submission?.grade !== null && a.submission?.grade !== undefined) {
+                statusBadge = `Calificado: ${a.submission.grade}/${a.max_points}`;
+                statusColor = 'bg-blue-100 text-blue-800';
+            } else if (a.submission) {
+                statusBadge = 'Entregado';
+                statusColor = 'bg-green-100 text-green-800';
+            } else if (isPast) {
+                statusBadge = 'Vencido';
+                statusColor = 'bg-red-100 text-red-800';
+            } else {
+                statusBadge = 'Pendiente';
+                statusColor = 'bg-yellow-100 text-yellow-800';
+            }
+
+            // Countdown
+            let countdown = '';
+            if (!a.submission && !isPast) {
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                if (days > 0) {
+                    countdown = `${days}d ${hours}h restantes`;
+                } else {
+                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    countdown = `${hours}h ${minutes}m restantes`;
+                }
+            }
+
+            // Submit form (hidden in preview mode or if already submitted)
+            const showSubmit = !a.submission && !previewMode && (a.allow_late || !isPast);
+            const submitHtml = showSubmit ? `
+                <div class="mt-3 pt-3 border-t border-gray-100">
+                    <div class="flex gap-2">
+                        <textarea id="submit-text-${a.id}" rows="2" placeholder="Escribe tu respuesta..."
+                                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none resize-none"></textarea>
+                        <button onclick="submitAssignment(${a.id})"
+                                class="self-end px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-indigo-700 transition">
+                            Enviar
+                        </button>
+                    </div>
+                </div>
+            ` : '';
+
+            // Feedback display
+            const feedbackHtml = a.submission?.feedback ? `
+                <div class="mt-2 p-2 bg-blue-50 rounded text-sm text-blue-800">
+                    <span class="font-medium">Retroalimentacion:</span> ${a.submission.feedback}
+                </div>
+            ` : '';
+
+            return `
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <div class="flex flex-col sm:flex-row justify-between gap-2">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-medium text-gray-800">${a.title}</span>
+                                <span class="text-xs px-2 py-0.5 rounded ${statusColor}">${statusBadge}</span>
+                            </div>
+                            ${a.description ? `<p class="text-gray-600 text-sm mb-1">${a.description}</p>` : ''}
+                            <div class="flex items-center gap-3 text-xs text-gray-500">
+                                <span>Fecha limite: ${formatDate(a.due_date.split('T')[0])}</span>
+                                ${countdown ? `<span class="text-amber-600 font-medium">${countdown}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    ${feedbackHtml}
+                    ${a.submission?.is_late ? '<div class="mt-1 text-xs text-amber-600">Entregado tarde</div>' : ''}
+                    ${submitHtml}
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Error al cargar retos:', error);
+        container.innerHTML = '<p class="text-center text-gray-500 py-4">No se pudieron cargar los retos</p>';
+    }
+}
+
+async function submitAssignment(assignmentId) {
+    const textarea = document.getElementById(`submit-text-${assignmentId}`);
+    const textContent = textarea?.value.trim() || null;
+
+    try {
+        await apiCall(`/students/me/assignments/${assignmentId}/submit`, {
+            method: 'POST',
+            body: JSON.stringify({ text_content: textContent })
+        });
+
+        loadAssignments();
+    } catch (error) {
+        alert('Error al enviar reto: ' + error.message);
+    }
 }
 
 // Formulario de participacion
