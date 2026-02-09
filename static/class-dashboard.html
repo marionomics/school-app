@@ -457,6 +457,56 @@
         </div>
     </div>
 
+    <!-- Submissions Modal -->
+    <div id="submissions-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h2 id="submissions-modal-title" class="text-xl font-bold text-gray-800"></h2>
+                    <p id="submissions-modal-subtitle" class="text-sm text-gray-500"></p>
+                </div>
+                <button onclick="closeSubmissionsModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Filter bar -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                <select id="submissions-filter" onchange="filterSubmissions()"
+                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                    <option value="">Todos</option>
+                    <option value="ungraded">Sin calificar</option>
+                    <option value="graded">Calificados</option>
+                    <option value="late">Entrega tardia</option>
+                </select>
+                <button onclick="autoGradeAll()"
+                        class="px-4 py-2 text-sm bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition font-medium">
+                    Aceptar auto-calificaciones
+                </button>
+            </div>
+
+            <!-- Submissions list -->
+            <div id="submissions-list" class="space-y-3">
+                <p class="text-center text-gray-500 py-4">Cargando...</p>
+            </div>
+
+            <!-- Not submitted section -->
+            <div id="not-submitted-section" class="hidden mt-6">
+                <button onclick="document.getElementById('not-submitted-list').classList.toggle('hidden')"
+                        class="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-800 mb-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                    <span id="not-submitted-title">Sin entregar (0)</span>
+                </button>
+                <div id="not-submitted-list" class="hidden space-y-1">
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/js/class-dashboard.js"></script>
 </body>
 </html>

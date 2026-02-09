@@ -333,3 +333,30 @@ class AssignmentStudentView(BaseModel):
 
 class SubmissionCreate(BaseModel):
     drive_url: str
+
+
+class SubmissionWithStudent(SubmissionResponse):
+    student_name: str
+    student_email: str
+    auto_grade: float  # penalty_pct / 100 * max_points
+
+
+class SubmissionGradeRequest(BaseModel):
+    score: float
+    feedback: Optional[str] = None
+
+
+class AssignmentSubmissionsResponse(BaseModel):
+    assignment_id: int
+    assignment_title: str
+    max_points: float
+    category_id: Optional[int] = None
+    due_date: datetime
+    total_enrolled: int
+    submissions: List[SubmissionWithStudent]
+    not_submitted: List[StudentResponse]
+
+
+class AutoGradeResult(BaseModel):
+    graded_count: int
+    skipped_count: int

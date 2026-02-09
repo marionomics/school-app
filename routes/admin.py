@@ -34,6 +34,11 @@ from models.schemas import (
     StudentRosterEntry,
     AssignmentCreate,
     AssignmentResponse,
+    SubmissionResponse,
+    SubmissionWithStudent,
+    SubmissionGradeRequest,
+    AssignmentSubmissionsResponse,
+    AutoGradeResult,
 )
 from app.auth import get_current_teacher
 
@@ -1057,3 +1062,252 @@ async def delete_assignment(
     db.delete(assignment)
     db.commit()
     return {"message": "Reto eliminado"}
+
+
+@router.get("/assignments/{assignment_id}/submissions", response_model=AssignmentSubmissionsResponse)
+async def get_assignment_submissions(
+    assignment_id: int,
+    filter: Optional[str] = None,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Get all submissions for an assignment with student info."""
+    assignment = db.query(Assignment).filter(
+        Assignment.id == assignment_id,
+    ).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Reto no encontrado")
+
+    # Verify teacher owns the class
+    class_ = db.query(Class).filter(
+        Class.id == assignment.class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=403, detail="No tienes permiso")
+
+    # Get all submissions with student info
+    submissions = db.query(Submission).filter(
+        Submission.assignment_id == assignment_id,
+    ).all()
+
+    # Apply filter
+    if filter == "graded":
+        submissions = [s for s in submissions if s.grade is not None]
+    elif filter == "ungraded":
+        submissions = [s for s in submissions if s.grade is None]
+    elif filter == "late":
+        submissions = [s for s in submissions if s.is_late]
+
+    # Build submission responses with student info
+    submission_responses = []
+    submitter_ids = set()
+    for s in submissions:
+        student = db.query(Student).filter(Student.id == s.student_id).first()
+        if not student:
+            continue
+        submitter_ids.add(s.student_id)
+        auto_grade = (s.penalty_pct / 100) * assignment.max_points
+        submission_responses.append(SubmissionWithStudent(
+            id=s.id,
+            assignment_id=s.assignment_id,
+            student_id=s.student_id,
+            text_content=s.text_content,
+            drive_url=s.drive_url,
+            submitted_at=s.submitted_at,
+            is_late=s.is_late,
+            penalty_pct=s.penalty_pct,
+            grade=s.grade,
+            feedback=s.feedback,
+            graded_at=s.graded_at,
+            student_name=student.name,
+            student_email=student.email,
+            auto_grade=auto_grade,
+        ))
+
+    # Build not_submitted list
+    enrolled = db.query(StudentClass).filter(
+        StudentClass.class_id == assignment.class_id,
+    ).all()
+    total_enrolled = len(enrolled)
+
+    not_submitted = []
+    for e in enrolled:
+        if e.student_id not in submitter_ids:
+            student = e.student
+            if student:
+                not_submitted.append(StudentResponse(
+                    id=student.id,
+                    name=student.name,
+                    email=student.email,
+                    role=student.role,
+                    created_at=student.created_at,
+                ))
+
+    return AssignmentSubmissionsResponse(
+        assignment_id=assignment.id,
+        assignment_title=assignment.title,
+        max_points=assignment.max_points,
+        category_id=assignment.category_id,
+        due_date=assignment.due_date,
+        total_enrolled=total_enrolled,
+        submissions=submission_responses,
+        not_submitted=not_submitted,
+    )
+
+
+@router.patch("/submissions/{submission_id}/grade", response_model=SubmissionWithStudent)
+async def grade_submission(
+    submission_id: int,
+    data: SubmissionGradeRequest,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Grade a single submission and upsert the corresponding Grade record."""
+    submission = db.query(Submission).filter(
+        Submission.id == submission_id,
+    ).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Entrega no encontrada")
+
+    assignment = db.query(Assignment).filter(
+        Assignment.id == submission.assignment_id,
+    ).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Reto no encontrado")
+
+    # Verify teacher owns the class
+    class_ = db.query(Class).filter(
+        Class.id == assignment.class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=403, detail="No tienes permiso")
+
+    # Validate score
+    if data.score < 0 or data.score > assignment.max_points:
+        raise HTTPException(
+            status_code=400,
+            detail=f"La calificacion debe estar entre 0 y {assignment.max_points}",
+        )
+
+    # Update submission
+    submission.grade = data.score
+    submission.feedback = data.feedback
+    submission.graded_at = dt.utcnow()
+    submission.graded_by = teacher.id
+
+    # Upsert Grade record
+    existing_grade = db.query(Grade).filter(
+        Grade.student_id == submission.student_id,
+        Grade.class_id == assignment.class_id,
+        Grade.name == assignment.title,
+    ).first()
+
+    if existing_grade:
+        existing_grade.score = data.score
+        existing_grade.max_score = assignment.max_points
+        existing_grade.category_id = assignment.category_id
+    else:
+        grade = Grade(
+            student_id=submission.student_id,
+            class_id=assignment.class_id,
+            category_id=assignment.category_id,
+            name=assignment.title,
+            score=data.score,
+            max_score=assignment.max_points,
+            date=date.today(),
+        )
+        db.add(grade)
+
+    db.commit()
+    db.refresh(submission)
+
+    student = db.query(Student).filter(Student.id == submission.student_id).first()
+    auto_grade = (submission.penalty_pct / 100) * assignment.max_points
+
+    return SubmissionWithStudent(
+        id=submission.id,
+        assignment_id=submission.assignment_id,
+        student_id=submission.student_id,
+        text_content=submission.text_content,
+        drive_url=submission.drive_url,
+        submitted_at=submission.submitted_at,
+        is_late=submission.is_late,
+        penalty_pct=submission.penalty_pct,
+        grade=submission.grade,
+        feedback=submission.feedback,
+        graded_at=submission.graded_at,
+        student_name=student.name,
+        student_email=student.email,
+        auto_grade=auto_grade,
+    )
+
+
+@router.post("/assignments/{assignment_id}/auto-grade", response_model=AutoGradeResult)
+async def auto_grade_assignment(
+    assignment_id: int,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Auto-grade all ungraded submissions using penalty_pct * max_points."""
+    assignment = db.query(Assignment).filter(
+        Assignment.id == assignment_id,
+    ).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Reto no encontrado")
+
+    # Verify teacher owns the class
+    class_ = db.query(Class).filter(
+        Class.id == assignment.class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=403, detail="No tienes permiso")
+
+    # Get ungraded submissions
+    ungraded = db.query(Submission).filter(
+        Submission.assignment_id == assignment_id,
+        Submission.grade.is_(None),
+    ).all()
+
+    graded_count = 0
+    skipped_count = 0
+
+    for s in ungraded:
+        score = (s.penalty_pct / 100) * assignment.max_points
+        s.grade = score
+        s.graded_at = dt.utcnow()
+        s.graded_by = teacher.id
+
+        # Upsert Grade record
+        existing_grade = db.query(Grade).filter(
+            Grade.student_id == s.student_id,
+            Grade.class_id == assignment.class_id,
+            Grade.name == assignment.title,
+        ).first()
+
+        if existing_grade:
+            existing_grade.score = score
+            existing_grade.max_score = assignment.max_points
+            existing_grade.category_id = assignment.category_id
+        else:
+            grade = Grade(
+                student_id=s.student_id,
+                class_id=assignment.class_id,
+                category_id=assignment.category_id,
+                name=assignment.title,
+                score=score,
+                max_score=assignment.max_points,
+                date=date.today(),
+            )
+            db.add(grade)
+
+        graded_count += 1
+
+    db.commit()
+
+    return AutoGradeResult(
+        graded_count=graded_count,
+        skipped_count=skipped_count,
+    )

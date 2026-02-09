@@ -5,6 +5,7 @@ let classId = null;
 let dashboardData = null;
 let studentsData = [];
 let categories = [];
+let currentAssignmentId = null;
 
 // Extraer classId de la URL
 const pathParts = window.location.pathname.split('/');
@@ -1023,7 +1024,7 @@ async function loadAssignments() {
                 : '<span class="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">Activo</span>';
 
             return `
-                <div class="border border-gray-200 rounded-lg p-4">
+                <div class="border border-gray-200 rounded-lg p-4 cursor-pointer hover:border-primary transition" onclick="openSubmissionsModal(${a.id})">
                     <div class="flex flex-col sm:flex-row justify-between gap-3">
                         <div class="flex-1">
                             <div class="flex items-center gap-2 mb-1">
@@ -1045,7 +1046,7 @@ async function loadAssignments() {
                                 <div class="text-lg font-bold text-green-600">${a.graded_count}</div>
                                 <div class="text-xs text-gray-500">Calificados</div>
                             </div>
-                            <button onclick="deleteAssignment(${a.id})"
+                            <button onclick="event.stopPropagation(); deleteAssignment(${a.id})"
                                     class="text-red-400 hover:text-red-600" title="Eliminar">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -1071,6 +1072,168 @@ async function deleteAssignment(id) {
         loadAssignments();
     } catch (error) {
         alert('Error al eliminar: ' + error.message);
+    }
+}
+
+// ==================== Submissions Modal ====================
+
+function openSubmissionsModal(assignmentId) {
+    currentAssignmentId = assignmentId;
+    document.getElementById('submissions-modal').classList.remove('hidden');
+    document.getElementById('submissions-filter').value = '';
+    loadSubmissions(assignmentId);
+}
+
+function closeSubmissionsModal() {
+    document.getElementById('submissions-modal').classList.add('hidden');
+    currentAssignmentId = null;
+    loadAssignments();
+}
+
+async function loadSubmissions(assignmentId, filter) {
+    const container = document.getElementById('submissions-list');
+    container.innerHTML = '<p class="text-center text-gray-500 py-4">Cargando...</p>';
+
+    try {
+        let url = `/admin/assignments/${assignmentId}/submissions`;
+        if (filter) url += `?filter=${filter}`;
+
+        const data = await apiCall(url);
+
+        // Update header
+        document.getElementById('submissions-modal-title').textContent = data.assignment_title;
+        document.getElementById('submissions-modal-subtitle').textContent =
+            `${data.submissions.length} entrega(s) de ${data.total_enrolled} estudiantes | Max: ${data.max_points} pts`;
+
+        if (data.submissions.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-500 py-4">No hay entregas</p>';
+        } else {
+            container.innerHTML = data.submissions.map(s => renderSubmissionRow(s, data.max_points)).join('');
+        }
+
+        // Not submitted section
+        const notSection = document.getElementById('not-submitted-section');
+        const notList = document.getElementById('not-submitted-list');
+        const notTitle = document.getElementById('not-submitted-title');
+
+        if (data.not_submitted.length > 0) {
+            notSection.classList.remove('hidden');
+            notTitle.textContent = `Sin entregar (${data.not_submitted.length})`;
+            notList.innerHTML = data.not_submitted.map(s => `
+                <div class="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                    <span class="text-gray-700">${s.name}</span>
+                    <span class="text-gray-400 text-xs">${s.email}</span>
+                </div>
+            `).join('');
+        } else {
+            notSection.classList.add('hidden');
+        }
+    } catch (error) {
+        container.innerHTML = `<p class="text-center text-red-500 py-4">Error: ${error.message}</p>`;
+    }
+}
+
+function renderSubmissionRow(s, maxPoints) {
+    const isGraded = s.grade !== null && s.grade !== undefined;
+    const gradedBadge = isGraded
+        ? `<span class="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">Calificado: ${s.grade}/${maxPoints}</span>`
+        : `<span class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">Sin calificar</span>`;
+    const lateBadge = s.is_late
+        ? `<span class="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">Tarde (${s.penalty_pct}%)</span>`
+        : '';
+    const driveLink = s.drive_url
+        ? `<a href="${s.drive_url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-xs text-blue-600 hover:underline">Ver entrega</a>`
+        : '';
+
+    const submittedDate = new Date(s.submitted_at).toLocaleString('es-MX', {
+        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+    });
+
+    const buttonLabel = isGraded ? 'Actualizar' : 'Calificar';
+    const buttonColor = isGraded ? 'bg-gray-600 hover:bg-gray-700' : 'bg-primary hover:bg-indigo-700';
+
+    return `
+        <div class="border border-gray-200 rounded-lg p-3" data-submission-id="${s.id}">
+            <div class="flex flex-col sm:flex-row justify-between gap-3">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1 flex-wrap">
+                        <span class="font-medium text-gray-800">${s.student_name}</span>
+                        ${lateBadge}
+                        ${gradedBadge}
+                    </div>
+                    <div class="flex items-center gap-3 text-xs text-gray-500">
+                        <span>Enviado: ${submittedDate}</span>
+                        ${driveLink}
+                    </div>
+                    <div class="text-xs text-gray-400 mt-1">
+                        Auto-calificacion: ${s.auto_grade.toFixed(1)}/${maxPoints}
+                        ${s.feedback ? `<span class="ml-2 text-gray-500">Feedback: ${s.feedback}</span>` : ''}
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="number" id="score-${s.id}" min="0" max="${maxPoints}" step="0.5"
+                           value="${isGraded ? s.grade : s.auto_grade.toFixed(1)}"
+                           class="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary outline-none">
+                    <span class="text-xs text-gray-500">/${maxPoints}</span>
+                    <button onclick="gradeSubmission(${s.id})"
+                            class="px-3 py-1 text-sm text-white rounded ${buttonColor} transition">
+                        ${buttonLabel}
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function filterSubmissions() {
+    const filter = document.getElementById('submissions-filter').value;
+    if (currentAssignmentId) {
+        loadSubmissions(currentAssignmentId, filter || undefined);
+    }
+}
+
+async function gradeSubmission(submissionId) {
+    const scoreInput = document.getElementById(`score-${submissionId}`);
+    const score = parseFloat(scoreInput.value);
+
+    if (isNaN(score)) {
+        alert('Por favor ingresa una calificacion valida.');
+        return;
+    }
+
+    try {
+        await apiCall(`/admin/submissions/${submissionId}/grade`, {
+            method: 'PATCH',
+            body: JSON.stringify({ score })
+        });
+
+        // Refresh submissions
+        const filter = document.getElementById('submissions-filter').value;
+        loadSubmissions(currentAssignmentId, filter || undefined);
+    } catch (error) {
+        alert('Error al calificar: ' + error.message);
+    }
+}
+
+async function autoGradeAll() {
+    if (!currentAssignmentId) return;
+
+    if (!confirm('¿Aceptar las auto-calificaciones para todas las entregas sin calificar? La calificacion se basa en el porcentaje de penalizacion por entrega tardia.')) {
+        return;
+    }
+
+    try {
+        const result = await apiCall(`/admin/assignments/${currentAssignmentId}/auto-grade`, {
+            method: 'POST'
+        });
+
+        alert(`${result.graded_count} entrega(s) calificada(s) automaticamente.`);
+
+        // Refresh submissions
+        const filter = document.getElementById('submissions-filter').value;
+        loadSubmissions(currentAssignmentId, filter || undefined);
+    } catch (error) {
+        alert('Error al auto-calificar: ' + error.message);
     }
 }
 
