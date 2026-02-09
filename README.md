@@ -7,6 +7,7 @@ A FastAPI application for managing student attendance, participation, and grades
 - **Multi-Class Support**: Teachers create classes with unique codes, students join via codes
 - **Class Dashboard**: Comprehensive per-class view with stats, roster, attendance, grades, and participation tabs
 - **Weighted Grading System**: Configurable grade categories with weights, participation points, special bonus points
+- **Assignment System (Retos)**: Create assignments, students submit Google Drive links, teacher grading modal with auto-grade support
 - **Student Preview Mode**: Teachers can preview the student dashboard as any enrolled student via impersonation
 - **Student Dashboard**: View grades breakdown, attendance, submit participation (filtered by class)
 - **Teacher Admin Panel**: Simple class overview with quick stats, click any class to open detailed dashboard
@@ -87,7 +88,8 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 - The remaining 20% comes from participation + special points (no category needed)
 - Teachers can customize categories per class (add, edit, delete, change weights)
 - Each grade is assigned to a category via `category_id`
-- Category averages are weighted and summed
+- Category averages are calculated over graded assignments only (variable count is fine)
+- Student dashboard shows "Tu calificacion se calcula sobre X tareas completadas" with pending/unsubmitted counts
 
 ### Participation Points
 - Students submit participation entries describing their contributions
@@ -151,7 +153,9 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 | GET | `/api/students/me/grades?class_id=X` | Student's grades |
 | GET | `/api/students/me/attendance?class_id=X` | Student's attendance |
 | GET | `/api/students/me/participation/points?class_id=X` | Participation point total |
-| GET | `/api/students/me/grade-calculation/:class_id` | Full grade breakdown with categories |
+| GET | `/api/students/me/grade-calculation/:class_id` | Full grade breakdown with categories and assignment counts |
+| GET | `/api/students/me/assignments?class_id=X` | List assignments with submission status |
+| POST | `/api/students/me/assignments/:id/submit` | Submit assignment (Google Drive link, auto penalty) |
 | POST | `/api/participation` | Submit participation (requires class_id) |
 
 > Student endpoints support teacher impersonation via `X-Impersonate: {student_id}` header.
@@ -175,6 +179,12 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 | POST | `/api/admin/special-points` | Create special points entry |
 | PATCH | `/api/admin/special-points/:id` | Update special points |
 | PATCH | `/api/admin/participation/bulk-approve` | Bulk approve participation |
+| POST | `/api/admin/assignments` | Create assignment (reto) |
+| GET | `/api/admin/assignments?class_id=X` | List assignments with submission counts |
+| DELETE | `/api/admin/assignments/:id` | Delete assignment |
+| GET | `/api/admin/assignments/:id/submissions?filter=` | View submissions with student info |
+| PATCH | `/api/admin/submissions/:id/grade` | Grade a submission (upserts Grade record) |
+| POST | `/api/admin/assignments/:id/auto-grade` | Auto-grade ungraded submissions |
 
 ## Database Migrations
 
@@ -278,7 +288,6 @@ school-app/
 
 ### Planned Features
 
-- **Homework System**: Assignments with due dates, file uploads, grading, and feedback
 - **Lessons/Classroom**: Rich content lessons with video embeds, attachments, and progress tracking
 - **Forum**: Class discussion boards with threaded replies and likes
 

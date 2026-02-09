@@ -303,18 +303,38 @@ function renderGradeBreakdown(calc) {
         html += '<div class="space-y-2">';
         calc.categories.forEach(cat => {
             const gradeCount = cat.grades.length;
+            const totalAssignments = cat.total_assignments || 0;
+            const gradedCount = cat.graded_count || 0;
+            const pendingCount = cat.pending_count || 0;
+
+            // Build assignment context line
+            let assignmentInfo = `${gradeCount} calificacion(es)`;
+            if (totalAssignments > 0) {
+                const parts = [];
+                if (gradedCount > 0) parts.push(`${gradedCount} calificada(s)`);
+                if (pendingCount > 0) parts.push(`${pendingCount} pendiente(s)`);
+                const notSubmitted = totalAssignments - gradedCount - pendingCount;
+                if (notSubmitted > 0) parts.push(`${notSubmitted} sin entregar`);
+                assignmentInfo = parts.join(', ');
+            }
+
             html += `
-                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <div>
-                        <span class="font-medium text-gray-800">${cat.category_name}</span>
-                        <span class="text-xs text-gray-500 ml-2">(${(cat.weight * 100).toFixed(0)}% del total)</span>
-                        <span class="text-xs text-gray-400 ml-2">${gradeCount} calificacion(es)</span>
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="font-medium text-gray-800">${cat.category_name}</span>
+                            <span class="text-xs text-gray-500 ml-2">(${(cat.weight * 100).toFixed(0)}% del total)</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="font-medium ${cat.average >= 70 ? 'text-green-600' : cat.average >= 60 ? 'text-yellow-600' : 'text-red-600'}">
+                                ${cat.average.toFixed(1)}%
+                            </span>
+                            <span class="text-gray-400 text-sm ml-2">&rarr; ${cat.weighted_contribution.toFixed(1)} pts</span>
+                        </div>
                     </div>
-                    <div class="text-right">
-                        <span class="font-medium ${cat.average >= 70 ? 'text-green-600' : cat.average >= 60 ? 'text-yellow-600' : 'text-red-600'}">
-                            ${cat.average.toFixed(1)}%
-                        </span>
-                        <span class="text-gray-400 text-sm ml-2">→ ${cat.weighted_contribution.toFixed(1)} pts</span>
+                    <div class="text-xs text-gray-400 mt-1">
+                        ${assignmentInfo}
+                        ${gradedCount > 0 ? `<span class="ml-1 text-gray-500">&mdash; Tu calificacion se calcula sobre ${gradedCount} tarea(s) completada(s)</span>` : ''}
                     </div>
                 </div>
             `;

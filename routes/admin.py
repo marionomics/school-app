@@ -607,6 +607,26 @@ def _calc_grade(student_id: int, class_id: int, db: Session) -> dict:
         contribution = avg * cat.weight
         weighted_sum += contribution
 
+        # Assignment counts for this category
+        cat_assignments = db.query(Assignment).filter(
+            Assignment.class_id == class_id,
+            Assignment.category_id == cat.id,
+            Assignment.published == True,
+        ).all()
+        total_assignments = len(cat_assignments)
+
+        graded_count = 0
+        pending_count = 0
+        for a in cat_assignments:
+            sub = db.query(Submission).filter(
+                Submission.assignment_id == a.id,
+                Submission.student_id == student_id,
+            ).first()
+            if sub and sub.grade is not None:
+                graded_count += 1
+            elif sub:
+                pending_count += 1
+
         category_breakdowns.append(CategoryGradeBreakdown(
             category_id=cat.id,
             category_name=cat.name,
@@ -618,6 +638,9 @@ def _calc_grade(student_id: int, class_id: int, db: Session) -> dict:
             ) for g in cat_grades],
             average=avg,
             weighted_contribution=contribution,
+            graded_count=graded_count,
+            pending_count=pending_count,
+            total_assignments=total_assignments,
         ))
 
     # Fallback: if no categories, use simple average

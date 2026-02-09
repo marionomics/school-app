@@ -41,7 +41,7 @@ python seed_data.py
 - `static/admin.html` - Teacher admin panel - class overview (Spanish: "Panel del Profesor")
 - `static/js/admin.js` - Admin panel JavaScript (class list, quick stats)
 - `static/class-dashboard.html` - Per-class dashboard with tabs (Spanish)
-- `static/js/class-dashboard.js` - Class dashboard JavaScript (attendance, grades, participation, roster)
+- `static/js/class-dashboard.js` - Class dashboard JavaScript (attendance, grades, participation, roster, assignment grading modal)
 
 ## Multi-Class System
 
@@ -64,7 +64,8 @@ python seed_data.py
   ├── Roster tab: student list with search/filter/sort
   ├── Attendance tab: take attendance by date
   ├── Grades tab: add grades (with category_id), manage categories
-  └── Participation tab: approve/reject submissions, bulk approve
+  ├── Participation tab: approve/reject submissions, bulk approve
+  └── Retos tab: create assignments, click to open submissions modal, grade/auto-grade
 ```
 
 ### Database Models
@@ -124,6 +125,12 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `GET /api/admin/special-points?class_id=X` - Get special points for class
 - `POST /api/admin/special-points` - Create special points entry
 - `PATCH /api/admin/special-points/{id}` - Update special points (opt-in, awarded)
+- `POST /api/admin/assignments` - Create assignment (reto) for a class
+- `GET /api/admin/assignments?class_id=X` - List assignments with submission/graded counts
+- `DELETE /api/admin/assignments/{id}` - Delete assignment
+- `GET /api/admin/assignments/{id}/submissions?filter=` - View submissions with student info, auto-grade, not-submitted list (filter: graded/ungraded/late)
+- `PATCH /api/admin/submissions/{id}/grade` - Grade submission (score, feedback), upserts Grade record
+- `POST /api/admin/assignments/{id}/auto-grade` - Auto-grade all ungraded submissions (penalty_pct/100 * max_points)
 
 ## Authentication
 
@@ -184,6 +191,9 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 - Each category has a weight (decimal, e.g. 0.4 = 40%)
 - Grades are assigned to categories via `category_id`
 - Grade model also has optional `name` field (e.g., "Reto Semana 1")
+- Category average = mean of graded assignments only (variable count — doesn't matter if 4 or 15 assignments exist)
+- Grade-calculation response includes per-category: `graded_count`, `pending_count`, `total_assignments`
+- Student dashboard shows: "Tu calificacion se calcula sobre X tareas completadas"
 
 **Participation Points:**
 - No cap on participation points contribution
@@ -210,6 +220,20 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 - `is_late` is set to `true` when `penalty_pct < 100`
 - `penalty_pct` stored on the `Submission` row for grading reference
 - Student UI shows color-coded penalty badge and clickable "Ver entrega" Drive link
+
+**Teacher Grading Flow:**
+1. Teacher clicks an assignment card in the Retos tab → submissions modal opens
+2. Modal shows all submissions with student name, late badge, auto-grade (`penalty_pct/100 * max_points`), Drive link
+3. Teacher enters score → `PATCH /admin/submissions/{id}/grade` updates `submissions.grade` and upserts `grades` row
+4. "Aceptar auto-calificaciones" button → `POST /admin/assignments/{id}/auto-grade` bulk-grades all ungraded submissions
+5. Grading a submission creates/updates a `grades` row (student_id, class_id, category_id from assignment, name=assignment.title)
+6. Grade appears in student's weighted grade calculation under the assignment's category
+
+**Submissions Modal Features:**
+- Filter dropdown: Todos / Sin calificar / Calificados / Entrega tardia
+- Each row: student name, penalty badge, graded status, submitted date, Drive link, score input, Calificar button
+- Collapsible "Sin entregar" section showing students who haven't submitted
+- Re-grading updates existing Grade record (no duplicates)
 
 ### Student Preview Mode (Impersonation)
 

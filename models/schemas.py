@@ -141,6 +141,9 @@ class CategoryGradeBreakdown(BaseModel):
     grades: List[GradeResponse]
     average: float  # Average percentage for this category
     weighted_contribution: float  # weight * average
+    graded_count: int = 0  # Assignments graded for this student
+    pending_count: int = 0  # Submitted but not yet graded
+    total_assignments: int = 0  # Total published assignments in this category
 
 
 class StudentGradeCalculation(BaseModel):
