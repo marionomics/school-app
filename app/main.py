@@ -32,6 +32,19 @@ def _ensure_columns():
                     "ALTER TABLE grades ADD COLUMN name VARCHAR(200)"
                 ))
 
+    if "submissions" in inspector.get_table_names():
+        existing_cols = {col["name"] for col in inspector.get_columns("submissions")}
+
+        with engine.begin() as conn:
+            if "drive_url" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE submissions ADD COLUMN drive_url VARCHAR(500)"
+                ))
+            if "penalty_pct" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE submissions ADD COLUMN penalty_pct INTEGER DEFAULT 100 NOT NULL"
+                ))
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

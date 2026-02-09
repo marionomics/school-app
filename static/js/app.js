@@ -570,18 +570,50 @@ async function loadAssignments() {
                 }
             }
 
+            // Penalty badge for submitted assignments
+            let penaltyHtml = '';
+            if (a.submission) {
+                const pct = a.submission.penalty_pct ?? 100;
+                let penaltyColor, penaltyLabel;
+                if (pct === 100) {
+                    penaltyColor = 'bg-green-100 text-green-800';
+                    penaltyLabel = 'A tiempo';
+                } else if (pct === 90) {
+                    penaltyColor = 'bg-yellow-100 text-yellow-800';
+                    penaltyLabel = `Penalizacion: ${100 - pct}%`;
+                } else if (pct === 50) {
+                    penaltyColor = 'bg-orange-100 text-orange-800';
+                    penaltyLabel = `Penalizacion: ${100 - pct}%`;
+                } else {
+                    penaltyColor = 'bg-red-100 text-red-800';
+                    penaltyLabel = `Penalizacion: ${100 - pct}%`;
+                }
+                penaltyHtml = `<span class="text-xs px-2 py-0.5 rounded ${penaltyColor}">${penaltyLabel}</span>`;
+            }
+
+            // Drive link for submitted assignments
+            const driveLinkHtml = a.submission?.drive_url ? `
+                <div class="mt-2">
+                    <a href="${a.submission.drive_url}" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800 underline">
+                        Ver entrega
+                    </a>
+                </div>
+            ` : '';
+
             // Submit form (hidden in preview mode or if already submitted)
-            const showSubmit = !a.submission && !previewMode && (a.allow_late || !isPast);
+            const showSubmit = !a.submission && !previewMode;
             const submitHtml = showSubmit ? `
                 <div class="mt-3 pt-3 border-t border-gray-100">
                     <div class="flex gap-2">
-                        <textarea id="submit-text-${a.id}" rows="2" placeholder="Escribe tu respuesta..."
-                                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none resize-none"></textarea>
+                        <input type="url" id="submit-url-${a.id}" placeholder="https://drive.google.com/..."
+                               class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none" />
                         <button onclick="submitAssignment(${a.id})"
                                 class="self-end px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-indigo-700 transition">
                             Enviar
                         </button>
                     </div>
+                    <p class="text-xs text-gray-500 mt-1">Comparte tu archivo de Google Drive y pega el enlace aqui</p>
                 </div>
             ` : '';
 
@@ -608,7 +640,8 @@ async function loadAssignments() {
                         </div>
                     </div>
                     ${feedbackHtml}
-                    ${a.submission?.is_late ? '<div class="mt-1 text-xs text-amber-600">Entregado tarde</div>' : ''}
+                    ${driveLinkHtml}
+                    ${a.submission?.is_late ? `<div class="mt-1 flex items-center gap-2">${penaltyHtml}</div>` : ''}
                     ${submitHtml}
                 </div>
             `;
@@ -620,13 +653,18 @@ async function loadAssignments() {
 }
 
 async function submitAssignment(assignmentId) {
-    const textarea = document.getElementById(`submit-text-${assignmentId}`);
-    const textContent = textarea?.value.trim() || null;
+    const urlInput = document.getElementById(`submit-url-${assignmentId}`);
+    const driveUrl = urlInput?.value.trim();
+
+    if (!driveUrl) {
+        alert('Por favor ingresa un enlace de Google Drive');
+        return;
+    }
 
     try {
         await apiCall(`/students/me/assignments/${assignmentId}/submit`, {
             method: 'POST',
-            body: JSON.stringify({ text_content: textContent })
+            body: JSON.stringify({ drive_url: driveUrl })
         });
 
         loadAssignments();

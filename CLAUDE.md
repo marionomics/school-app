@@ -31,13 +31,13 @@ python seed_data.py
 - `routes/auth.py` - Authentication endpoints (`/api/auth/google`, `/api/auth/logout`)
 - `routes/admin.py` - Teacher admin endpoints (dashboard, roster, attendance, grades, participation, categories)
 - `routes/classes.py` - Class management endpoints (create, join, leave, list)
-- `routes/students.py` - Student endpoints (grades, attendance, grade-calculation with category breakdown)
+- `routes/students.py` - Student endpoints (grades, attendance, grade-calculation, assignments/submissions)
 - `routes/participation.py` - Participation submission (requires class_id)
-- `models/models.py` - SQLAlchemy ORM models (Student, Class, StudentClass, Attendance, Participation, Grade, GradeCategory, SpecialPoints)
+- `models/models.py` - SQLAlchemy ORM models (Student, Class, StudentClass, Attendance, Participation, Grade, GradeCategory, SpecialPoints, Assignment, Submission)
 - `models/schemas.py` - Pydantic request/response schemas
 - `models/database.py` - Database connection and session management
 - `static/index.html` - Student dashboard frontend (Spanish: "Portal del Estudiante")
-- `static/js/app.js` - Student dashboard JavaScript (class enrollment, switching)
+- `static/js/app.js` - Student dashboard JavaScript (class enrollment, switching, Drive link submissions)
 - `static/admin.html` - Teacher admin panel - class overview (Spanish: "Panel del Profesor")
 - `static/js/admin.js` - Admin panel JavaScript (class list, quick stats)
 - `static/class-dashboard.html` - Per-class dashboard with tabs (Spanish)
@@ -74,6 +74,8 @@ python seed_data.py
 - `Grade` - Has `category_id` FK to `grade_categories`, `name` field, and legacy `category` string
 - `GradeCategory` - Weighted categories per class (name, weight as decimal e.g. 0.4)
 - `SpecialPoints` - Optional bonus points per student (english, notebook)
+- `Assignment` - Homework/retos per class (title, description, due_date, max_points, allow_late, published)
+- `Submission` - Student submissions (drive_url, penalty_pct, is_late, grade, feedback)
 
 ### Code Generation
 Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X")
@@ -101,6 +103,8 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `GET /api/students/me/attendance?class_id=X` - Student's attendance (optional class filter)
 - `GET /api/students/me/participation/points?class_id=X` - Total approved participation points
 - `GET /api/students/me/grade-calculation/{class_id}` - Full grade breakdown with categories, participation, special points
+- `GET /api/students/me/assignments?class_id=X` - List assignments with submission status
+- `POST /api/students/me/assignments/{id}/submit` - Submit assignment (Google Drive link, auto penalty)
 - `POST /api/participation` - Submit participation entry (requires class_id)
 
 ### Admin Endpoints (Teacher only)
@@ -160,6 +164,8 @@ Uses Google OAuth with Google Identity Services (client-side Sign-In button).
 - `grades` - Scored assignments (category_id, name, score, max_score, class_id)
 - `grade_categories` - Weighted grade categories per class (name, weight)
 - `special_points` - Optional bonus points per student (english, notebook)
+- `assignments` - Homework/retos (class_id, category_id, title, description, due_date, max_points, allow_late, published)
+- `submissions` - Student submissions (assignment_id, student_id, drive_url, penalty_pct, is_late, grade, feedback)
 
 ### Grading System
 
@@ -188,6 +194,23 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 - Students opt-in, teacher awards at end of semester
 - TODO: Add `awarded_at` and `awarded_by` columns for audit trail
 
+### Assignment Submissions (Retos)
+
+**Submission method:** Students submit a Google Drive link (shared from their @alumnos.ujed.mx account).
+
+**Lateness Penalty (`penalty_pct`):**
+| Timing | penalty_pct |
+|---|---|
+| On time | 100 |
+| 0-24h late | 90 |
+| 24h-1 week late | 50 |
+| >1 week late | 10 |
+
+- All submissions are always accepted (no hard rejection for lateness)
+- `is_late` is set to `true` when `penalty_pct < 100`
+- `penalty_pct` stored on the `Submission` row for grading reference
+- Student UI shows color-coded penalty badge and clickable "Ver entrega" Drive link
+
 ### Student Preview Mode (Impersonation)
 
 Teachers can preview the student dashboard for any of their classes:
@@ -208,21 +231,7 @@ Teachers can preview the student dashboard for any of their classes:
 
 ## Planned Features (Schema Design)
 
-### 1. Homework System
-```
-assignments
-├── id, class_id, category_id, title, description
-├── due_date, max_points, file_required, allow_late, published
-└── created_at, updated_at
-
-submissions
-├── id, assignment_id, student_id
-├── file_url, text_content, submitted_at, is_late
-├── grade, feedback, graded_at, graded_by
-└── UNIQUE(assignment_id, student_id)
-```
-
-### 2. Lessons/Classroom
+### 1. Lessons/Classroom
 ```
 lessons
 ├── id, class_id, title, content_html, video_url
@@ -237,7 +246,7 @@ lesson_progress
 └── UNIQUE(lesson_id, student_id)
 ```
 
-### 3. Forum
+### 2. Forum
 ```
 forum_posts
 ├── id, class_id, author_id, title, content
@@ -263,7 +272,7 @@ forum_likes
 - Database file (`school.db`) is gitignored
 - Run `seed_data.py` to populate test data (creates teacher, 3 students, sample class, enrollments, and sample records)
 - `class_id` is nullable in attendance/participation/grades for backward compatibility
-- **Auto-migration on startup**: `Base.metadata.create_all()` always runs (creates missing tables), plus `_ensure_columns()` adds missing columns (`category_id`, `name`) to existing `grades` table
+- **Auto-migration on startup**: `Base.metadata.create_all()` always runs (creates missing tables), plus `_ensure_columns()` adds missing columns (`category_id`, `name` to `grades` table; `drive_url`, `penalty_pct` to `submissions` table)
 
 ## Railway Deployment
 

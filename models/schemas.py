@@ -286,8 +286,10 @@ class SubmissionResponse(BaseModel):
     assignment_id: int
     student_id: int
     text_content: Optional[str] = None
+    drive_url: Optional[str] = None
     submitted_at: datetime
     is_late: bool
+    penalty_pct: int = 100
     grade: Optional[float] = None
     feedback: Optional[str] = None
     graded_at: Optional[datetime] = None
@@ -330,4 +332,4 @@ class AssignmentStudentView(BaseModel):
 
 
 class SubmissionCreate(BaseModel):
-    text_content: Optional[str] = None
+    drive_url: str

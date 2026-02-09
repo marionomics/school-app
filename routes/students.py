@@ -207,8 +207,10 @@ async def get_student_assignments(
                 assignment_id=submission.assignment_id,
                 student_id=submission.student_id,
                 text_content=submission.text_content,
+                drive_url=submission.drive_url,
                 submitted_at=submission.submitted_at,
                 is_late=submission.is_late,
+                penalty_pct=submission.penalty_pct,
                 grade=submission.grade,
                 feedback=submission.feedback,
                 graded_at=submission.graded_at,
@@ -260,17 +262,28 @@ async def submit_assignment(
     if existing:
         raise HTTPException(status_code=400, detail="Ya enviaste este reto")
 
-    from datetime import datetime as _dt
-    is_late = _dt.utcnow() > assignment.due_date
+    from datetime import datetime as _dt, timedelta
 
-    if is_late and not assignment.allow_late:
-        raise HTTPException(status_code=400, detail="La fecha limite ha pasado y no se permiten entregas tardias")
+    now = _dt.utcnow()
+    delta = now - assignment.due_date
+
+    if delta.total_seconds() <= 0:
+        penalty_pct = 100
+    elif delta <= timedelta(hours=24):
+        penalty_pct = 90
+    elif delta <= timedelta(weeks=1):
+        penalty_pct = 50
+    else:
+        penalty_pct = 10
+
+    is_late = penalty_pct < 100
 
     submission = Submission(
         assignment_id=assignment_id,
         student_id=current_student.id,
-        text_content=data.text_content,
+        drive_url=data.drive_url,
         is_late=is_late,
+        penalty_pct=penalty_pct,
     )
     db.add(submission)
     db.commit()
@@ -281,8 +294,10 @@ async def submit_assignment(
         assignment_id=submission.assignment_id,
         student_id=submission.student_id,
         text_content=submission.text_content,
+        drive_url=submission.drive_url,
         submitted_at=submission.submitted_at,
         is_late=submission.is_late,
+        penalty_pct=submission.penalty_pct,
         grade=submission.grade,
         feedback=submission.feedback,
         graded_at=submission.graded_at,
