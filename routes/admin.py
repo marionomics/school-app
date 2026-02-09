@@ -1220,6 +1220,13 @@ async def grade_submission(
     submission.graded_at = dt.utcnow()
     submission.graded_by = teacher.id
 
+    # Resolve category name from assignment's category_id
+    category_name = "Retos de la Semana"
+    if assignment.category_id:
+        cat = db.query(GradeCategory).filter(GradeCategory.id == assignment.category_id).first()
+        if cat:
+            category_name = cat.name
+
     # Upsert Grade record
     existing_grade = db.query(Grade).filter(
         Grade.student_id == submission.student_id,
@@ -1231,11 +1238,13 @@ async def grade_submission(
         existing_grade.score = data.score
         existing_grade.max_score = assignment.max_points
         existing_grade.category_id = assignment.category_id
+        existing_grade.category = category_name
     else:
         grade = Grade(
             student_id=submission.student_id,
             class_id=assignment.class_id,
             category_id=assignment.category_id,
+            category=category_name,
             name=assignment.title,
             score=data.score,
             max_score=assignment.max_points,
@@ -1288,6 +1297,13 @@ async def auto_grade_assignment(
     if not class_:
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
+    # Resolve category name from assignment's category_id
+    category_name = "Retos de la Semana"
+    if assignment.category_id:
+        cat = db.query(GradeCategory).filter(GradeCategory.id == assignment.category_id).first()
+        if cat:
+            category_name = cat.name
+
     # Get ungraded submissions
     ungraded = db.query(Submission).filter(
         Submission.assignment_id == assignment_id,
@@ -1314,11 +1330,13 @@ async def auto_grade_assignment(
             existing_grade.score = score
             existing_grade.max_score = assignment.max_points
             existing_grade.category_id = assignment.category_id
+            existing_grade.category = category_name
         else:
             grade = Grade(
                 student_id=s.student_id,
                 class_id=assignment.class_id,
                 category_id=assignment.category_id,
+                category=category_name,
                 name=assignment.title,
                 score=score,
                 max_score=assignment.max_points,
