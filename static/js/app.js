@@ -466,6 +466,19 @@ function renderGradeBreakdown(calc) {
         html += '</div>';
     }
 
+    // Absence penalty
+    if (calc.absence_count > 0) {
+        html += `
+            <div class="flex justify-between items-center p-3 bg-red-50 rounded-lg mt-3">
+                <div>
+                    <span class="font-medium text-red-800">Faltas injustificadas</span>
+                    <span class="text-xs text-red-600 ml-2">(${calc.absence_count} falta(s) × -1 punto)</span>
+                </div>
+                <span class="font-medium text-red-800">-${calc.absence_penalty.toFixed(1)} pts</span>
+            </div>
+        `;
+    }
+
     // Total
     html += `
         <div class="flex justify-between items-center p-3 bg-primary/10 rounded-lg mt-4 border-t-2 border-primary">
@@ -587,7 +600,7 @@ function renderAttendance(attendance) {
 
     if (attendance.length === 0) {
         tbody.innerHTML = `
-            <tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">Sin registros de asistencia</td></tr>
+            <tr><td colspan="4" class="px-6 py-4 text-center text-gray-500">Sin registros de asistencia</td></tr>
         `;
         return;
     }
@@ -610,6 +623,30 @@ function renderAttendance(attendance) {
         const colorClass = statusColors[record.status] || 'bg-gray-100 text-gray-800';
         const statusName = statusNames[record.status] || record.status;
 
+        // Justification column
+        let justificationHtml = '-';
+        const canJustify = (record.status === 'absent' || record.status === 'late') && record.justification_status !== 'approved';
+
+        if (record.justification_status === 'approved') {
+            justificationHtml = '<span class="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">Aprobada</span>';
+        } else if (record.justification_status === 'pending') {
+            justificationHtml = `
+                <span class="text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700">En revision</span>
+                ${record.has_justification_file ? `<button onclick="viewJustificationFile(${record.id})" class="text-xs text-indigo-600 hover:underline ml-1">Ver archivo</button>` : ''}
+            `;
+        } else if (record.justification_status === 'rejected') {
+            justificationHtml = `
+                <span class="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">Rechazada</span>
+                ${!previewMode ? `<button onclick="showJustificationUpload(${record.id})" class="text-xs text-indigo-600 hover:underline ml-1">Re-enviar</button>` : ''}
+            `;
+        } else if (canJustify && !previewMode) {
+            justificationHtml = `
+                <button onclick="showJustificationUpload(${record.id})" class="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition">
+                    Justificar
+                </button>
+            `;
+        }
+
         return `
             <tr class="hover:bg-gray-50">
                 <td class="px-6 py-4 text-gray-700">${formatDate(record.date)}</td>
@@ -619,6 +656,10 @@ function renderAttendance(attendance) {
                     </span>
                 </td>
                 <td class="px-6 py-4 text-gray-500 text-sm">${record.notes || '-'}</td>
+                <td class="px-6 py-4">
+                    ${justificationHtml}
+                    <div id="justify-upload-${record.id}" class="hidden mt-2"></div>
+                </td>
             </tr>
         `;
     }).join('');
@@ -860,6 +901,96 @@ async function deleteSubmission(submissionId) {
         loadAssignments();
     } catch (error) {
         alert('Error al eliminar entrega: ' + error.message);
+    }
+}
+
+// Justification functions
+function showJustificationUpload(attendanceId) {
+    const container = document.getElementById(`justify-upload-${attendanceId}`);
+    if (!container) return;
+
+    if (!container.classList.contains('hidden')) {
+        container.classList.add('hidden');
+        return;
+    }
+
+    container.classList.remove('hidden');
+    container.innerHTML = `
+        <div class="flex items-center gap-2">
+            <label class="flex-1 flex items-center gap-2 px-3 py-2 border border-gray-300 border-dashed rounded-lg text-xs text-gray-500 cursor-pointer hover:bg-gray-50">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                <span>Subir justificante (PDF, imagen)</span>
+                <input type="file" id="justify-file-${attendanceId}" class="hidden"
+                       accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                       onchange="handleJustificationFileSelect(${attendanceId}, this)" />
+            </label>
+        </div>
+        <p id="justify-file-info-${attendanceId}" class="text-xs text-gray-500 mt-1 hidden"></p>
+        <button id="justify-upload-btn-${attendanceId}" onclick="uploadJustification(${attendanceId})"
+                class="hidden mt-1 px-3 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 transition">
+            Enviar justificante
+        </button>
+        <div id="justify-progress-${attendanceId}" class="hidden mt-1 w-full bg-gray-200 rounded-full h-1.5">
+            <div id="justify-progress-fill-${attendanceId}" class="bg-indigo-600 h-1.5 rounded-full transition-all" style="width: 0%"></div>
+        </div>
+    `;
+}
+
+function handleJustificationFileSelect(attendanceId, input) {
+    const infoEl = document.getElementById(`justify-file-info-${attendanceId}`);
+    const btn = document.getElementById(`justify-upload-btn-${attendanceId}`);
+    if (input.files.length > 0) {
+        const file = input.files[0];
+        infoEl.textContent = `${file.name} (${formatFileSize(file.size)})`;
+        infoEl.classList.remove('hidden');
+        btn.classList.remove('hidden');
+    } else {
+        infoEl.classList.add('hidden');
+        btn.classList.add('hidden');
+    }
+}
+
+async function uploadJustification(attendanceId) {
+    const fileInput = document.getElementById(`justify-file-${attendanceId}`);
+    const file = fileInput?.files[0];
+    if (!file) {
+        alert('Selecciona un archivo primero');
+        return;
+    }
+
+    const progressBar = document.getElementById(`justify-progress-${attendanceId}`);
+    const progressFill = document.getElementById(`justify-progress-fill-${attendanceId}`);
+    const btn = document.getElementById(`justify-upload-btn-${attendanceId}`);
+
+    progressBar.classList.remove('hidden');
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        await apiUpload(`/students/me/attendance/${attendanceId}/justify`, formData, (pct) => {
+            progressFill.style.width = pct + '%';
+        });
+        // Reload attendance table
+        loadAttendance();
+    } catch (error) {
+        alert('Error al enviar justificante: ' + error.message);
+    } finally {
+        progressBar.classList.add('hidden');
+        progressFill.style.width = '0%';
+        btn.disabled = false;
+        btn.textContent = 'Enviar justificante';
+    }
+}
+
+async function viewJustificationFile(attendanceId) {
+    try {
+        const data = await apiCall(`/students/attendance/${attendanceId}/justification-file`);
+        window.open(data.download_url, '_blank');
+    } catch (error) {
+        alert('Error al abrir archivo: ' + error.message);
     }
 }
 

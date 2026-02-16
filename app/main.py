@@ -62,6 +62,40 @@ def _ensure_columns():
                 ))
 
 
+    if "attendances" in inspector.get_table_names():
+        existing_cols = {col["name"] for col in inspector.get_columns("attendances")}
+
+        with engine.begin() as conn:
+            if "justification_file_key" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE attendances ADD COLUMN justification_file_key VARCHAR(500)"
+                ))
+            if "justification_file_name" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE attendances ADD COLUMN justification_file_name VARCHAR(300)"
+                ))
+            if "justification_text" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE attendances ADD COLUMN justification_text TEXT"
+                ))
+            if "justification_status" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE attendances ADD COLUMN justification_status VARCHAR(20)"
+                ))
+            if "justification_submitted_at" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE attendances ADD COLUMN justification_submitted_at DATETIME"
+                ))
+            if "justification_reviewed_at" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE attendances ADD COLUMN justification_reviewed_at DATETIME"
+                ))
+            if "justification_reviewed_by" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE attendances ADD COLUMN justification_reviewed_by INTEGER REFERENCES students(id)"
+                ))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # create_all() is safe to call always: checkfirst=True (default) only

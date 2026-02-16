@@ -36,6 +36,11 @@ class AttendanceResponse(BaseModel):
     date: date_type
     status: str
     notes: Optional[str] = None
+    justification_status: Optional[str] = None
+    justification_text: Optional[str] = None
+    justification_file_name: Optional[str] = None
+    justification_submitted_at: Optional[datetime] = None
+    has_justification_file: bool = False
 
     class Config:
         from_attributes = True
@@ -155,6 +160,8 @@ class StudentGradeCalculation(BaseModel):
     participation_contribution: float  # 0.1 * approved points
     special_points: List[SpecialPointsResponse]
     special_points_total: float
+    absence_count: int = 0  # total unjustified absences
+    absence_penalty: float = 0.0  # -1 per unjustified absence
     final_grade: float  # Sum of all contributions
 
 
@@ -367,3 +374,13 @@ class AssignmentSubmissionsResponse(BaseModel):
 class AutoGradeResult(BaseModel):
     graded_count: int
     skipped_count: int
+
+
+# Justification schemas
+class JustificationReviewRequest(BaseModel):
+    status: str  # approved, rejected
+
+
+class AttendanceWithStudent(AttendanceResponse):
+    student_name: str
+    student_email: str

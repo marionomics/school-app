@@ -98,6 +98,8 @@ function showTab(tabName) {
         loadParticipation();
     } else if (tabName === 'assignments') {
         loadAssignments();
+    } else if (tabName === 'justifications') {
+        loadJustifications();
     }
 }
 
@@ -169,6 +171,21 @@ function updateDashboardUI() {
 
     // Update pending count in overview
     document.getElementById('pending-count').textContent = `${stats.pending_participation} pendientes`;
+
+    // Update pending justifications
+    const pendingJust = stats.pending_justifications || 0;
+    const justCountEl = document.getElementById('pending-justifications-count');
+    if (justCountEl) justCountEl.textContent = `${pendingJust} pendientes`;
+
+    const justBadge = document.getElementById('justification-badge');
+    if (justBadge) {
+        if (pendingJust > 0) {
+            justBadge.textContent = pendingJust;
+            justBadge.classList.remove('hidden');
+        } else {
+            justBadge.classList.add('hidden');
+        }
+    }
 
     // Update overview tab
     renderStudentsAtRisk();
@@ -1242,6 +1259,123 @@ async function autoGradeAll() {
         loadSubmissions(currentAssignmentId, filter || undefined);
     } catch (error) {
         alert('Error al auto-calificar: ' + error.message);
+    }
+}
+
+// ==================== Justifications Tab ====================
+
+async function loadJustifications() {
+    const container = document.getElementById('justifications-list');
+    const filter = document.getElementById('justification-filter').value;
+    container.innerHTML = '<p class="text-center text-gray-500 py-4">Cargando...</p>';
+
+    try {
+        let url = `/admin/justifications?class_id=${classId}`;
+        if (filter) url += `&status_filter=${filter}`;
+
+        const justifications = await apiCall(url);
+
+        if (justifications.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-500 py-4">No hay justificaciones para mostrar</p>';
+            return;
+        }
+
+        const statusNames = {
+            pending: 'Pendiente',
+            approved: 'Aprobada',
+            rejected: 'Rechazada'
+        };
+
+        const statusColors = {
+            pending: 'bg-yellow-100 text-yellow-800',
+            approved: 'bg-green-100 text-green-800',
+            rejected: 'bg-red-100 text-red-800'
+        };
+
+        const attStatusNames = {
+            absent: 'Ausente',
+            late: 'Tarde',
+            excused: 'Justificado'
+        };
+
+        container.innerHTML = justifications.map(j => {
+            const statusColor = statusColors[j.justification_status] || 'bg-gray-100 text-gray-800';
+            const statusName = statusNames[j.justification_status] || j.justification_status;
+            const attStatus = attStatusNames[j.status] || j.status;
+            const submittedDate = j.justification_submitted_at
+                ? new Date(j.justification_submitted_at).toLocaleString('es-MX', {
+                    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                })
+                : '';
+
+            const fileBtn = j.has_justification_file
+                ? `<button onclick="viewJustificationFileAdmin(${j.id})" class="text-xs text-blue-600 hover:underline">
+                    Ver archivo (${j.justification_file_name || 'archivo'})
+                   </button>`
+                : '';
+
+            const actionBtns = j.justification_status === 'pending'
+                ? `<div class="flex items-center gap-2">
+                        <button onclick="reviewJustification(${j.id}, 'approved')"
+                                class="px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200">
+                            Aprobar
+                        </button>
+                        <button onclick="reviewJustification(${j.id}, 'rejected')"
+                                class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200">
+                            Rechazar
+                        </button>
+                   </div>`
+                : '';
+
+            return `
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <div class="flex flex-col sm:flex-row justify-between gap-3">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                <span class="font-medium text-gray-800">${j.student_name}</span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColor}">
+                                    ${statusName}
+                                </span>
+                                <span class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+                                    ${attStatus} - ${formatDate(j.date)}
+                                </span>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                <span>Enviado: ${submittedDate}</span>
+                            </div>
+                            ${j.justification_text ? `<p class="text-sm text-gray-600 mt-1">${j.justification_text}</p>` : ''}
+                            <div class="mt-1">${fileBtn}</div>
+                        </div>
+                        ${actionBtns}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        container.innerHTML = `<p class="text-center text-red-500 py-4">Error al cargar: ${error.message}</p>`;
+    }
+}
+
+async function reviewJustification(attendanceId, status) {
+    try {
+        await apiCall(`/admin/justifications/${attendanceId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status })
+        });
+
+        loadJustifications();
+        loadDashboard();
+    } catch (error) {
+        alert('Error al revisar justificacion: ' + error.message);
+    }
+}
+
+async function viewJustificationFileAdmin(attendanceId) {
+    try {
+        const data = await apiCall(`/students/attendance/${attendanceId}/justification-file`);
+        window.open(data.download_url, '_blank');
+    } catch (error) {
+        alert('Error al abrir archivo: ' + error.message);
     }
 }
 

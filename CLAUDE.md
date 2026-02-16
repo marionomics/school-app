@@ -43,7 +43,7 @@ python seed_data.py
 - `static/admin.html` - Teacher admin panel - class overview (Spanish: "Panel del Profesor")
 - `static/js/admin.js` - Admin panel JavaScript (class list, quick stats)
 - `static/class-dashboard.html` - Per-class dashboard with tabs (Spanish)
-- `static/js/class-dashboard.js` - Class dashboard JavaScript (attendance, grades, participation, roster, assignment grading modal, file viewer)
+- `static/js/class-dashboard.js` - Class dashboard JavaScript (attendance, grades, participation, roster, assignment grading modal, file viewer, justification review)
 
 ## Multi-Class System
 
@@ -67,13 +67,15 @@ python seed_data.py
   ├── Attendance tab: take attendance by date
   ├── Grades tab: add grades (with category_id), manage categories
   ├── Participation tab: approve/reject submissions, bulk approve
-  └── Retos tab: create assignments, click to open submissions modal, grade/auto-grade
+  ├── Retos tab: create assignments, click to open submissions modal, grade/auto-grade
+  └── Justificaciones tab: review/approve/reject student absence justifications
 ```
 
 ### Database Models
 - `Class` - id, name, code (unique), teacher_id, created_at
 - `StudentClass` - Junction table (student_id, class_id, joined_at)
-- `Attendance`, `Participation` - Have nullable `class_id` for backward compatibility
+- `Attendance` - Daily attendance with justification support (justification_file_key, justification_status: null/pending/approved/rejected, justification_reviewed_by). Has nullable `class_id` for backward compatibility
+- `Participation` - Has nullable `class_id` for backward compatibility
 - `Grade` - Has `category_id` FK to `grade_categories`, `name` field, and legacy `category` string
 - `GradeCategory` - Weighted categories per class (name, weight as decimal e.g. 0.4)
 - `SpecialPoints` - Optional bonus points per student (english, notebook)
@@ -105,11 +107,14 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `GET /api/students/me/grades?class_id=X` - Student's grades (optional class filter)
 - `GET /api/students/me/attendance?class_id=X` - Student's attendance (optional class filter)
 - `GET /api/students/me/participation/points?class_id=X` - Total approved participation points
-- `GET /api/students/me/grade-calculation/{class_id}` - Full grade breakdown with categories, participation, special points
+- `GET /api/students/me/grade-calculation/{class_id}` - Full grade breakdown with categories, participation, special points, absence penalty
 - `GET /api/students/me/assignments?class_id=X` - List assignments with submission status
 - `POST /api/students/me/assignments/{id}/submit` - Submit assignment (Google Drive link, auto penalty)
 - `POST /api/students/me/assignments/{id}/upload` - Upload file for assignment (multipart/form-data, R2 storage, allows re-upload)
 - `GET /api/students/submissions/{id}/file` - Get presigned download URL for submission file (owner or class teacher)
+- `DELETE /api/students/submissions/{id}` - Delete ungraded submission (soft-reset, allows re-submit)
+- `POST /api/students/me/attendance/{id}/justify` - Upload justification for absence/late (multipart, R2 storage)
+- `GET /api/students/attendance/{id}/justification-file` - Get presigned URL for justification file (owner or class teacher)
 - `POST /api/participation` - Submit participation entry (requires class_id)
 
 ### Admin Endpoints (Teacher only)
@@ -135,6 +140,8 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `GET /api/admin/assignments/{id}/submissions?filter=` - View submissions with student info, auto-grade, not-submitted list (filter: graded/ungraded/late)
 - `PATCH /api/admin/submissions/{id}/grade` - Grade submission (score, feedback), upserts Grade record
 - `POST /api/admin/assignments/{id}/auto-grade` - Auto-grade all ungraded submissions (penalty_pct/100 * max_points)
+- `GET /api/admin/justifications?class_id=X&status_filter=` - List justifications (default: pending)
+- `PATCH /api/admin/justifications/{id}` - Approve/reject justification (approved → status becomes "excused")
 
 ## Authentication
 
@@ -170,7 +177,7 @@ Uses Google OAuth with Google Identity Services (client-side Sign-In button).
 - `students` - Student records (includes `role`: student/teacher)
 - `classes` - Class records (name, code, teacher_id)
 - `student_classes` - Student-class enrollments (many-to-many)
-- `attendances` - Daily attendance (status: present/absent/late/excused, class_id)
+- `attendances` - Daily attendance (status: present/absent/late/excused, class_id, justification_file_key, justification_status, justification_reviewed_by)
 - `participations` - Class participation entries with points and approval status (class_id)
 - `grades` - Scored assignments (category_id, name, score, max_score, class_id)
 - `grade_categories` - Weighted grade categories per class (name, weight)
@@ -182,7 +189,7 @@ Uses Google OAuth with Google Identity Services (client-side Sign-In button).
 
 **Grade Calculation Formula:**
 ```
-Final Grade = Σ(Category Weight × Category Average) + (Participation Points × 0.1) + Special Points
+Final Grade = Σ(Category Weight × Category Average) + (Participation Points × 0.1) + Special Points - Unjustified Absences
 ```
 
 **Default Categories** (auto-created with new classes):
@@ -207,6 +214,15 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 - Two categories: "english" and "notebook" (0.5 pts each)
 - Students opt-in, teacher awards at end of semester
 - TODO: Add `awarded_at` and `awarded_by` columns for audit trail
+
+**Absence Penalty:**
+- Each unjustified absence (status = "absent") subtracts 1 point from final grade
+- Students can upload justification documents (PDF, images) via R2
+- Justification workflow: student submits → status = "pending" → teacher approves/rejects
+- Approved justification changes attendance status to "excused" (no longer penalized)
+- Rejected justifications can be re-submitted
+- Grade-calculation response includes `absence_count` and `absence_penalty`
+- R2 key format: `justifications/{student_id}_{attendance_id}_{timestamp}.{ext}`
 
 ### Assignment Submissions (Retos)
 
@@ -311,7 +327,7 @@ forum_likes
 - Database file (`school.db`) is gitignored
 - Run `seed_data.py` to populate test data (creates teacher, 3 students, sample class, enrollments, and sample records)
 - `class_id` is nullable in attendance/participation/grades for backward compatibility
-- **Auto-migration on startup**: `Base.metadata.create_all()` always runs (creates missing tables), plus `_ensure_columns()` adds missing columns (`category_id`, `name` to `grades` table; `drive_url`, `penalty_pct`, `file_key`, `file_name`, `file_size` to `submissions` table)
+- **Auto-migration on startup**: `Base.metadata.create_all()` always runs (creates missing tables), plus `_ensure_columns()` adds missing columns (`category_id`, `name` to `grades` table; `drive_url`, `penalty_pct`, `file_key`, `file_name`, `file_size`, `resubmit_count` to `submissions` table; `justification_file_key`, `justification_file_name`, `justification_text`, `justification_status`, `justification_submitted_at`, `justification_reviewed_at`, `justification_reviewed_by` to `attendances` table)
 
 ## Railway Deployment
 

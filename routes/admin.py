@@ -39,6 +39,8 @@ from models.schemas import (
     SubmissionGradeRequest,
     AssignmentSubmissionsResponse,
     AutoGradeResult,
+    JustificationReviewRequest,
+    AttendanceWithStudent,
 )
 from app.auth import get_current_teacher
 
@@ -181,7 +183,124 @@ async def get_attendance(
                 detail="Formato de fecha invalido. Usa YYYY-MM-DD.",
             )
 
-    return query.order_by(Attendance.date.desc()).all()
+    records = query.order_by(Attendance.date.desc()).all()
+    return [
+        AttendanceResponse(
+            id=att.id,
+            student_id=att.student_id,
+            date=att.date,
+            status=att.status,
+            notes=att.notes,
+            justification_status=att.justification_status,
+            justification_text=att.justification_text,
+            justification_file_name=att.justification_file_name,
+            justification_submitted_at=att.justification_submitted_at,
+            has_justification_file=bool(att.justification_file_key),
+        )
+        for att in records
+    ]
+
+
+@router.get("/justifications", response_model=List[AttendanceWithStudent])
+async def get_pending_justifications(
+    class_id: int,
+    status_filter: Optional[str] = None,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Get attendance records with pending (or filtered) justifications for a class."""
+    class_ = db.query(Class).filter(
+        Class.id == class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=404, detail="Clase no encontrada")
+
+    query = db.query(Attendance).join(Student, Attendance.student_id == Student.id).filter(
+        Attendance.class_id == class_id,
+        Attendance.justification_status.isnot(None),
+    )
+
+    if status_filter:
+        query = query.filter(Attendance.justification_status == status_filter)
+    else:
+        query = query.filter(Attendance.justification_status == "pending")
+
+    records = query.order_by(Attendance.date.desc()).all()
+
+    results = []
+    for att in records:
+        student = att.student
+        results.append(AttendanceWithStudent(
+            id=att.id,
+            student_id=att.student_id,
+            date=att.date,
+            status=att.status,
+            notes=att.notes,
+            justification_status=att.justification_status,
+            justification_text=att.justification_text,
+            justification_file_name=att.justification_file_name,
+            justification_submitted_at=att.justification_submitted_at,
+            has_justification_file=bool(att.justification_file_key),
+            student_name=student.name,
+            student_email=student.email,
+        ))
+
+    return results
+
+
+@router.patch("/justifications/{attendance_id}")
+async def review_justification(
+    attendance_id: int,
+    data: JustificationReviewRequest,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Approve or reject a justification."""
+    attendance = db.query(Attendance).filter(Attendance.id == attendance_id).first()
+    if not attendance:
+        raise HTTPException(status_code=404, detail="Registro no encontrado")
+
+    # Verify teacher owns the class
+    class_ = db.query(Class).filter(
+        Class.id == attendance.class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=403, detail="No tienes permiso")
+
+    if attendance.justification_status is None:
+        raise HTTPException(status_code=400, detail="No hay justificacion enviada")
+
+    if data.status not in ("approved", "rejected"):
+        raise HTTPException(status_code=400, detail="Estado debe ser 'approved' o 'rejected'")
+
+    attendance.justification_status = data.status
+    attendance.justification_reviewed_at = dt.utcnow()
+    attendance.justification_reviewed_by = teacher.id
+
+    # If approved, change attendance status to excused
+    if data.status == "approved":
+        attendance.status = "excused"
+
+    db.commit()
+    db.refresh(attendance)
+
+    student = attendance.student
+    return AttendanceWithStudent(
+        id=attendance.id,
+        student_id=attendance.student_id,
+        date=attendance.date,
+        status=attendance.status,
+        notes=attendance.notes,
+        justification_status=attendance.justification_status,
+        justification_text=attendance.justification_text,
+        justification_file_name=attendance.justification_file_name,
+        justification_submitted_at=attendance.justification_submitted_at,
+        has_justification_file=bool(attendance.justification_file_key),
+        student_name=student.name,
+        student_email=student.email,
+    )
 
 
 @router.post("/grades", response_model=GradeResponse)
@@ -665,7 +784,16 @@ def _calc_grade(student_id: int, class_id: int, db: Session) -> dict:
     ).all()
     sp_total = sum(sp.points_value for sp in sp_records if sp.opted_in and sp.awarded)
 
-    final = weighted_sum + part_contribution + sp_total
+    # Absence penalty: -1 per unjustified absence
+    unjustified_absences = db.query(func.count(Attendance.id)).filter(
+        Attendance.student_id == student_id,
+        Attendance.class_id == class_id,
+        Attendance.status == "absent",
+        # Exclude absences with approved justification (those get status=excused)
+    ).scalar() or 0
+    absence_penalty = float(unjustified_absences)
+
+    final = weighted_sum + part_contribution + sp_total - absence_penalty
 
     # Simple average for display (without weights)
     valid_all = [g for g in all_grades if g.max_score and g.max_score > 0]
@@ -678,6 +806,8 @@ def _calc_grade(student_id: int, class_id: int, db: Session) -> dict:
         "special_points": sp_records,
         "special_points_total": sp_total,
         "category_breakdowns": category_breakdowns,
+        "absence_count": unjustified_absences,
+        "absence_penalty": absence_penalty,
         "final_grade": final,
     }
 
@@ -776,6 +906,12 @@ async def get_class_dashboard(
         pending_participation = db.query(func.count(Participation.id)).filter(
             Participation.class_id == class_id,
             Participation.approved == "pending",
+        ).scalar() or 0
+
+        # 3b. Pending justifications
+        pending_justifications = db.query(func.count(Attendance.id)).filter(
+            Attendance.class_id == class_id,
+            Attendance.justification_status == "pending",
         ).scalar() or 0
 
         # 4. Build student rows — one at a time, simple queries
@@ -936,6 +1072,7 @@ async def get_class_dashboard(
                 "pending_participation": pending_participation,
                 "students_at_risk": at_risk,
                 "top_performers": top,
+                "pending_justifications": pending_justifications,
                 "categories": cat_responses,
             },
             "students": students_data,

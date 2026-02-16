@@ -130,6 +130,11 @@
                             class="tab-btn border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
                         Retos
                     </button>
+                    <button onclick="showTab('justifications')" id="tab-justifications"
+                            class="tab-btn border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap relative">
+                        Justificaciones
+                        <span id="justification-badge" class="hidden absolute -top-1 -right-2 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">0</span>
+                    </button>
                 </nav>
             </div>
         </div>
@@ -154,6 +159,10 @@
                             <button onclick="showTab('participation')" class="w-full text-left px-4 py-3 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition">
                                 <span class="font-medium">Revisar Participaciones</span>
                                 <span class="text-sm block text-purple-600" id="pending-count">-- pendientes</span>
+                            </button>
+                            <button onclick="showTab('justifications')" class="w-full text-left px-4 py-3 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition">
+                                <span class="font-medium">Justificaciones</span>
+                                <span class="text-sm block text-amber-600" id="pending-justifications-count">-- pendientes</span>
                             </button>
                         </div>
                     </div>
@@ -374,6 +383,26 @@
                     </div>
 
                     <div id="participation-list" class="space-y-4">
+                        <p class="text-center text-gray-500 py-4">Cargando...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Justifications Tab -->
+            <div id="panel-justifications" class="tab-panel hidden">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <h2 class="text-lg font-semibold text-gray-800">Justificaciones de Asistencia</h2>
+                        <select id="justification-filter" onchange="loadJustifications()"
+                                class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                            <option value="pending" selected>Pendientes</option>
+                            <option value="approved">Aprobadas</option>
+                            <option value="rejected">Rechazadas</option>
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
+
+                    <div id="justifications-list" class="space-y-4">
                         <p class="text-center text-gray-500 py-4">Cargando...</p>
                     </div>
                 </div>

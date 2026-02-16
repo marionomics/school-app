@@ -11,6 +11,7 @@ from models.schemas import (
     StudentResponse, AttendanceResponse, GradeResponse, ParticipationResponse,
     CategoryGradeBreakdown, SpecialPointsResponse,
     AssignmentStudentView, SubmissionCreate, SubmissionResponse,
+    AttendanceWithStudent,
 )
 from app.auth import get_current_student, get_student_or_impersonated, get_current_teacher
 
@@ -34,6 +35,22 @@ def _calculate_penalty(due_date) -> tuple[int, bool]:
         penalty_pct = 10
 
     return penalty_pct, penalty_pct < 100
+
+
+def _attendance_response(att) -> AttendanceResponse:
+    """Build an AttendanceResponse from an Attendance ORM object."""
+    return AttendanceResponse(
+        id=att.id,
+        student_id=att.student_id,
+        date=att.date,
+        status=att.status,
+        notes=att.notes,
+        justification_status=att.justification_status,
+        justification_text=att.justification_text,
+        justification_file_name=att.justification_file_name,
+        justification_submitted_at=att.justification_submitted_at,
+        has_justification_file=bool(att.justification_file_key),
+    )
 
 
 def _submission_response(submission) -> SubmissionResponse:
@@ -90,7 +107,8 @@ async def get_student_attendance(
     )
     if class_id:
         query = query.filter(Attendance.class_id == class_id)
-    return query.all()
+    records = query.all()
+    return [_attendance_response(r) for r in records]
 
 
 @router.get("/me/participation", response_model=List[ParticipationResponse])
@@ -229,7 +247,15 @@ async def get_student_grade_calculation(
         points_value=sp.points_value, created_at=sp.created_at,
     ) for sp in sp_records]
 
-    final_grade = weighted_sum + part_contribution + sp_total
+    # Absence penalty: -1 per unjustified absence
+    unjustified_absences = db.query(func.count(Attendance.id)).filter(
+        Attendance.student_id == current_student.id,
+        Attendance.class_id == class_id,
+        Attendance.status == "absent",
+    ).scalar() or 0
+    absence_penalty = float(unjustified_absences)
+
+    final_grade = weighted_sum + part_contribution + sp_total - absence_penalty
 
     return {
         "student_id": current_student.id,
@@ -240,6 +266,8 @@ async def get_student_grade_calculation(
         "participation_contribution": part_contribution,
         "special_points": [sp.model_dump() for sp in sp_responses],
         "special_points_total": sp_total,
+        "absence_count": unjustified_absences,
+        "absence_penalty": absence_penalty,
         "final_grade": final_grade,
     }
 
@@ -496,3 +524,96 @@ async def delete_submission(
     db.commit()
 
     return {"message": "Entrega eliminada"}
+
+
+@router.post("/me/attendance/{attendance_id}/justify")
+async def submit_justification(
+    attendance_id: int,
+    file: UploadFile = File(...),
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    """Submit a justification document for an absence."""
+    from app.storage import is_r2_configured, validate_file, upload_file, delete_file
+
+    if not is_r2_configured():
+        raise HTTPException(status_code=501, detail="Subida de archivos no configurada")
+
+    attendance = db.query(Attendance).filter(
+        Attendance.id == attendance_id,
+        Attendance.student_id == current_student.id,
+    ).first()
+    if not attendance:
+        raise HTTPException(status_code=404, detail="Registro de asistencia no encontrado")
+
+    if attendance.status not in ("absent", "late"):
+        raise HTTPException(status_code=400, detail="Solo puedes justificar faltas o retardos")
+
+    if attendance.justification_status == "approved":
+        raise HTTPException(status_code=400, detail="Esta justificacion ya fue aprobada")
+
+    # Read and validate file
+    file_bytes = await file.read()
+    error = validate_file(file.filename, len(file_bytes))
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    # Generate R2 key
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "bin"
+    timestamp = int(_dt.utcnow().timestamp())
+    file_key = f"justifications/{current_student.id}_{attendance_id}_{timestamp}.{ext}"
+
+    # Upload to R2
+    upload_file(file_bytes, file_key, file.content_type or "application/octet-stream")
+
+    # Delete old file if re-submitting
+    if attendance.justification_file_key:
+        delete_file(attendance.justification_file_key)
+
+    attendance.justification_file_key = file_key
+    attendance.justification_file_name = file.filename
+    attendance.justification_status = "pending"
+    attendance.justification_submitted_at = _dt.utcnow()
+    attendance.justification_reviewed_at = None
+    attendance.justification_reviewed_by = None
+
+    db.commit()
+    db.refresh(attendance)
+
+    return _attendance_response(attendance)
+
+
+@router.get("/attendance/{attendance_id}/justification-file")
+async def download_justification_file(
+    attendance_id: int,
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    """Get a presigned download URL for a justification file."""
+    from app.storage import is_r2_configured, generate_presigned_url
+
+    if not is_r2_configured():
+        raise HTTPException(status_code=501, detail="Subida de archivos no configurada")
+
+    attendance = db.query(Attendance).filter(Attendance.id == attendance_id).first()
+    if not attendance:
+        raise HTTPException(status_code=404, detail="Registro no encontrado")
+
+    if not attendance.justification_file_key:
+        raise HTTPException(status_code=404, detail="No hay archivo de justificacion")
+
+    # Auth: owner or teacher of the class
+    is_owner = attendance.student_id == current_student.id
+    is_teacher = False
+    if attendance.class_id:
+        class_ = db.query(Class).filter(
+            Class.id == attendance.class_id,
+            Class.teacher_id == current_student.id,
+        ).first()
+        is_teacher = class_ is not None
+
+    if not is_owner and not is_teacher:
+        raise HTTPException(status_code=403, detail="No tienes permiso para ver este archivo")
+
+    download_url = generate_presigned_url(attendance.justification_file_key)
+    return {"download_url": download_url, "file_name": attendance.justification_file_name}

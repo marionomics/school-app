@@ -9,6 +9,7 @@ A FastAPI application for managing student attendance, participation, and grades
 - **Weighted Grading System**: Configurable grade categories with weights, participation points, special bonus points
 - **Assignment System (Retos)**: Create assignments, students submit Google Drive links or upload files (via Cloudflare R2), teacher grading modal with auto-grade support
 - **File Uploads**: Optional Cloudflare R2 integration for direct file submissions (PDF, DOCX, ZIP, images, max 10MB) with upload progress and presigned download URLs
+- **Attendance Justifications**: Students upload justification documents (PDF, images) for absences/lates; teachers approve/reject; approved justifications change status to "excused" and remove the -1 point grade penalty
 - **Student Preview Mode**: Teachers can preview the student dashboard as any enrolled student via impersonation
 - **Student Dashboard**: View grades breakdown, attendance, submit participation (filtered by class)
 - **Teacher Admin Panel**: Simple class overview with quick stats, click any class to open detailed dashboard
@@ -82,8 +83,10 @@ A FastAPI application for managing student attendance, participation, and grades
 The app uses a weighted grading formula:
 
 ```
-Final Grade = Σ(Category Weight × Category Average) + (Participation Points × 0.1) + Special Points
+Final Grade = Σ(Category Weight × Category Average) + (Participation Points × 0.1) + Special Points - Unjustified Absences
 ```
+
+Each unjustified absence (status = "absent") subtracts 1 point from the final grade. Students can upload justification documents; if the teacher approves, the absence becomes "excused" and the penalty is removed.
 
 ### Grade Categories
 - New classes auto-create default categories: "Retos de la Semana" (40%) and "Exámenes y Proyectos" (40%)
@@ -164,6 +167,9 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 | POST | `/api/students/me/assignments/:id/submit` | Submit assignment (Google Drive link, auto penalty) |
 | POST | `/api/students/me/assignments/:id/upload` | Upload file for assignment (multipart, R2 storage) |
 | GET | `/api/students/submissions/:id/file` | Get presigned download URL for submission file |
+| DELETE | `/api/students/submissions/:id` | Delete ungraded submission (allows re-submit) |
+| POST | `/api/students/me/attendance/:id/justify` | Upload justification for absence (multipart, R2) |
+| GET | `/api/students/attendance/:id/justification-file` | Get presigned URL for justification file |
 | POST | `/api/participation` | Submit participation (requires class_id) |
 
 > Student endpoints support teacher impersonation via `X-Impersonate: {student_id}` header.
@@ -193,6 +199,8 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 | GET | `/api/admin/assignments/:id/submissions?filter=` | View submissions with student info |
 | PATCH | `/api/admin/submissions/:id/grade` | Grade a submission (upserts Grade record) |
 | POST | `/api/admin/assignments/:id/auto-grade` | Auto-grade ungraded submissions |
+| GET | `/api/admin/justifications?class_id=X` | List pending justifications |
+| PATCH | `/api/admin/justifications/:id` | Approve/reject justification |
 
 ## Database Migrations
 

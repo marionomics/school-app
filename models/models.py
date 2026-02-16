@@ -36,9 +36,19 @@ class Attendance(Base):
     status = Column(String(20), nullable=False)  # present, absent, late, excused
     notes = Column(Text, nullable=True)
 
+    # Justification fields
+    justification_file_key = Column(String(500), nullable=True)
+    justification_file_name = Column(String(300), nullable=True)
+    justification_text = Column(Text, nullable=True)
+    justification_status = Column(String(20), nullable=True)  # null, pending, approved, rejected
+    justification_submitted_at = Column(DateTime, nullable=True)
+    justification_reviewed_at = Column(DateTime, nullable=True)
+    justification_reviewed_by = Column(Integer, ForeignKey("students.id"), nullable=True)
+
     # Relationships
     student = relationship("Student", back_populates="attendances")
     class_ = relationship("Class", back_populates="attendances")
+    reviewer = relationship("Student", foreign_keys=[justification_reviewed_by])
 
 
 class Participation(Base):
