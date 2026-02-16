@@ -44,6 +44,18 @@ def _ensure_columns():
                 conn.execute(text(
                     "ALTER TABLE submissions ADD COLUMN penalty_pct INTEGER DEFAULT 100 NOT NULL"
                 ))
+            if "file_key" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE submissions ADD COLUMN file_key VARCHAR(500)"
+                ))
+            if "file_name" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE submissions ADD COLUMN file_name VARCHAR(300)"
+                ))
+            if "file_size" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE submissions ADD COLUMN file_size INTEGER"
+                ))
 
 
 @asynccontextmanager
@@ -107,6 +119,8 @@ async def class_dashboard_page(class_id: int):
 @app.get("/api/config")
 async def get_config():
     """Return frontend configuration including Google Client ID."""
+    from app.storage import is_r2_configured
     return {
         "google_client_id": os.getenv("GOOGLE_CLIENT_ID", ""),
+        "file_uploads_enabled": is_r2_configured(),
     }

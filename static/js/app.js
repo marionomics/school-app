@@ -6,6 +6,7 @@ let enrolledClasses = [];
 let selectedClassId = localStorage.getItem('selectedClassId') ? parseInt(localStorage.getItem('selectedClassId')) : null;
 let previewMode = false;
 let previewStudentId = null;
+let fileUploadsEnabled = false;
 
 // Helpers de API
 const API_BASE = '/api';
@@ -35,6 +36,101 @@ async function apiCall(endpoint, options = {}) {
     }
 
     return response.json();
+}
+
+function apiUpload(endpoint, formData, onProgress) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${API_BASE}${endpoint}`);
+
+        if (authToken) {
+            xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
+        }
+        if (previewMode && previewStudentId) {
+            xhr.setRequestHeader('X-Impersonate', previewStudentId.toString());
+        }
+
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable && onProgress) {
+                onProgress(Math.round((e.loaded / e.total) * 100));
+            }
+        });
+
+        xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                resolve(JSON.parse(xhr.responseText));
+            } else {
+                const err = JSON.parse(xhr.responseText || '{}');
+                reject(new Error(err.detail || `Error: ${xhr.status}`));
+            }
+        });
+
+        xhr.addEventListener('error', () => reject(new Error('Error de red')));
+        xhr.send(formData);
+    });
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+async function viewSubmissionFile(submissionId) {
+    try {
+        const data = await apiCall(`/students/submissions/${submissionId}/file`);
+        window.open(data.download_url, '_blank');
+    } catch (error) {
+        alert('Error al abrir archivo: ' + error.message);
+    }
+}
+
+async function uploadAssignmentFile(assignmentId) {
+    const fileInput = document.getElementById(`file-input-${assignmentId}`);
+    const file = fileInput?.files[0];
+    if (!file) {
+        alert('Selecciona un archivo primero');
+        return;
+    }
+
+    const progressBar = document.getElementById(`upload-progress-${assignmentId}`);
+    const progressFill = document.getElementById(`upload-progress-fill-${assignmentId}`);
+    const uploadBtn = document.getElementById(`upload-btn-${assignmentId}`);
+
+    progressBar.classList.remove('hidden');
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'Subiendo...';
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        await apiUpload(`/students/me/assignments/${assignmentId}/upload`, formData, (pct) => {
+            progressFill.style.width = pct + '%';
+        });
+        loadAssignments();
+    } catch (error) {
+        alert('Error al subir archivo: ' + error.message);
+    } finally {
+        progressBar.classList.add('hidden');
+        progressFill.style.width = '0%';
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = 'Subir';
+    }
+}
+
+function handleFileSelect(assignmentId, input) {
+    const infoEl = document.getElementById(`file-info-${assignmentId}`);
+    const uploadBtn = document.getElementById(`upload-btn-${assignmentId}`);
+    if (input.files.length > 0) {
+        const file = input.files[0];
+        infoEl.textContent = `${file.name} (${formatFileSize(file.size)})`;
+        infoEl.classList.remove('hidden');
+        uploadBtn.classList.remove('hidden');
+    } else {
+        infoEl.classList.add('hidden');
+        uploadBtn.classList.add('hidden');
+    }
 }
 
 // Funciones de Google OAuth
@@ -616,15 +712,29 @@ async function loadAssignments() {
                 <div class="mt-2">
                     <a href="${a.submission.drive_url}" target="_blank" rel="noopener noreferrer"
                        class="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800 underline">
-                        Ver entrega
+                        Ver entrega (Drive)
                     </a>
                 </div>
             ` : '';
 
-            // Submit form (hidden in preview mode or if already submitted)
-            const showSubmit = !a.submission && !previewMode;
-            const submitHtml = showSubmit ? `
+            // File link for submitted assignments
+            const fileLinkHtml = a.submission?.has_file ? `
+                <div class="mt-2">
+                    <button onclick="viewSubmissionFile(${a.submission.id})"
+                            class="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800 underline">
+                        Ver archivo (${a.submission.file_name || 'archivo'}, ${formatFileSize(a.submission.file_size || 0)})
+                    </button>
+                </div>
+            ` : '';
+
+            // Submit form (hidden in preview mode or if already submitted via drive link)
+            const hasSubmission = !!a.submission;
+            const canSubmitDrive = !hasSubmission && !previewMode;
+            const canUploadFile = fileUploadsEnabled && !previewMode && (!hasSubmission || (hasSubmission && a.submission.has_file));
+
+            const submitHtml = canSubmitDrive || canUploadFile ? `
                 <div class="mt-3 pt-3 border-t border-gray-100">
+                    ${canSubmitDrive ? `
                     <div class="flex gap-2">
                         <input type="url" id="submit-url-${a.id}" placeholder="https://drive.google.com/..."
                                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none" />
@@ -634,6 +744,29 @@ async function loadAssignments() {
                         </button>
                     </div>
                     <p class="text-xs text-gray-500 mt-1">Comparte tu archivo de Google Drive y pega el enlace aqui</p>
+                    ` : ''}
+                    ${fileUploadsEnabled && !previewMode ? `
+                    <div class="${canSubmitDrive ? 'mt-3 pt-3 border-t border-gray-100' : ''}">
+                        <div class="flex items-center gap-2">
+                            <label class="flex-1 flex items-center gap-2 px-3 py-2 border border-gray-300 border-dashed rounded-lg text-sm text-gray-500 cursor-pointer hover:bg-gray-50">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                                <span>${hasSubmission && a.submission.has_file ? 'Reemplazar archivo' : 'Subir archivo'}</span>
+                                <input type="file" id="file-input-${a.id}" class="hidden"
+                                       accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.png,.jpg,.jpeg,.gif,.webp,.svg"
+                                       onchange="handleFileSelect(${a.id}, this)" />
+                            </label>
+                            <button id="upload-btn-${a.id}" onclick="uploadAssignmentFile(${a.id})"
+                                    class="hidden px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-indigo-700 transition">
+                                Subir
+                            </button>
+                        </div>
+                        <p id="file-info-${a.id}" class="text-xs text-gray-500 mt-1 hidden"></p>
+                        <div id="upload-progress-${a.id}" class="hidden mt-2 w-full bg-gray-200 rounded-full h-2">
+                            <div id="upload-progress-fill-${a.id}" class="bg-primary h-2 rounded-full transition-all" style="width: 0%"></div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">PDF, DOCX, ZIP, imagenes. Max 10 MB</p>
+                    </div>
+                    ` : ''}
                 </div>
             ` : '';
 
@@ -661,6 +794,7 @@ async function loadAssignments() {
                     </div>
                     ${feedbackHtml}
                     ${driveLinkHtml}
+                    ${fileLinkHtml}
                     ${a.submission?.is_late ? `<div class="mt-1 flex items-center gap-2">${penaltyHtml}</div>` : ''}
                     ${submitHtml}
                 </div>
@@ -742,6 +876,7 @@ async function init() {
     try {
         const config = await fetch('/api/config').then(r => r.json());
         googleClientId = config.google_client_id;
+        fileUploadsEnabled = config.file_uploads_enabled || false;
     } catch (error) {
         console.error('Error al obtener configuracion:', error);
     }

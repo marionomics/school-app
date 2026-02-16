@@ -10,6 +10,7 @@ A FastAPI teaching application for managing student attendance, participation, a
 
 - **Backend:** FastAPI, SQLAlchemy ORM, Pydantic
 - **Database:** SQLite (dev) / PostgreSQL (production)
+- **Storage:** Cloudflare R2 (S3-compatible, optional — enables file uploads)
 - **Frontend:** Vanilla JS with Tailwind CSS (CDN), Spanish UI
 - **Auth:** Google OAuth (Google Identity Services)
 - **Deployment:** Railway
@@ -28,20 +29,21 @@ python seed_data.py
 
 - `app/main.py` - FastAPI app entry point, routes registration, serves static pages
 - `app/auth.py` - Google OAuth token verification and session management
+- `app/storage.py` - Cloudflare R2 (S3-compatible) storage helpers (upload, presign, validate, delete)
 - `routes/auth.py` - Authentication endpoints (`/api/auth/google`, `/api/auth/logout`)
 - `routes/admin.py` - Teacher admin endpoints (dashboard, roster, attendance, grades, participation, categories)
 - `routes/classes.py` - Class management endpoints (create, join, leave, list)
-- `routes/students.py` - Student endpoints (grades, attendance, grade-calculation, assignments/submissions)
+- `routes/students.py` - Student endpoints (grades, attendance, grade-calculation, assignments/submissions, file upload/download)
 - `routes/participation.py` - Participation submission (requires class_id)
 - `models/models.py` - SQLAlchemy ORM models (Student, Class, StudentClass, Attendance, Participation, Grade, GradeCategory, SpecialPoints, Assignment, Submission)
 - `models/schemas.py` - Pydantic request/response schemas
 - `models/database.py` - Database connection and session management
 - `static/index.html` - Student dashboard frontend (Spanish: "Portal del Estudiante")
-- `static/js/app.js` - Student dashboard JavaScript (class enrollment, switching, Drive link submissions)
+- `static/js/app.js` - Student dashboard JavaScript (class enrollment, switching, Drive link submissions, file uploads)
 - `static/admin.html` - Teacher admin panel - class overview (Spanish: "Panel del Profesor")
 - `static/js/admin.js` - Admin panel JavaScript (class list, quick stats)
 - `static/class-dashboard.html` - Per-class dashboard with tabs (Spanish)
-- `static/js/class-dashboard.js` - Class dashboard JavaScript (attendance, grades, participation, roster, assignment grading modal)
+- `static/js/class-dashboard.js` - Class dashboard JavaScript (attendance, grades, participation, roster, assignment grading modal, file viewer)
 
 ## Multi-Class System
 
@@ -76,7 +78,7 @@ python seed_data.py
 - `GradeCategory` - Weighted categories per class (name, weight as decimal e.g. 0.4)
 - `SpecialPoints` - Optional bonus points per student (english, notebook)
 - `Assignment` - Homework/retos per class (title, description, due_date, max_points, allow_late, published)
-- `Submission` - Student submissions (drive_url, penalty_pct, is_late, grade, feedback)
+- `Submission` - Student submissions (drive_url, file_key, file_name, file_size, penalty_pct, is_late, grade, feedback)
 
 ### Code Generation
 Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X")
@@ -85,7 +87,7 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 
 ### Public
 - `GET /api/health` - Health check
-- `GET /api/config` - Frontend configuration (Google Client ID)
+- `GET /api/config` - Frontend configuration (Google Client ID, file_uploads_enabled)
 - `POST /api/auth/google` - Authenticate with Google ID token
 - `POST /api/auth/logout` - Invalidate session
 
@@ -106,6 +108,8 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `GET /api/students/me/grade-calculation/{class_id}` - Full grade breakdown with categories, participation, special points
 - `GET /api/students/me/assignments?class_id=X` - List assignments with submission status
 - `POST /api/students/me/assignments/{id}/submit` - Submit assignment (Google Drive link, auto penalty)
+- `POST /api/students/me/assignments/{id}/upload` - Upload file for assignment (multipart/form-data, R2 storage, allows re-upload)
+- `GET /api/students/submissions/{id}/file` - Get presigned download URL for submission file (owner or class teacher)
 - `POST /api/participation` - Submit participation entry (requires class_id)
 
 ### Admin Endpoints (Teacher only)
@@ -172,7 +176,7 @@ Uses Google OAuth with Google Identity Services (client-side Sign-In button).
 - `grade_categories` - Weighted grade categories per class (name, weight)
 - `special_points` - Optional bonus points per student (english, notebook)
 - `assignments` - Homework/retos (class_id, category_id, title, description, due_date, max_points, allow_late, published)
-- `submissions` - Student submissions (assignment_id, student_id, drive_url, penalty_pct, is_late, grade, feedback)
+- `submissions` - Student submissions (assignment_id, student_id, drive_url, file_key, file_name, file_size, penalty_pct, is_late, grade, feedback)
 
 ### Grading System
 
@@ -206,7 +210,7 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 
 ### Assignment Submissions (Retos)
 
-**Submission method:** Students submit a Google Drive link (shared from their @alumnos.ujed.mx account).
+**Submission methods:** Students can either submit a Google Drive link (shared from their @alumnos.ujed.mx account) or upload a file directly via Cloudflare R2 (PDF, DOCX, ZIP, images, max 10MB). Both methods coexist — a submission can have a Drive link, an uploaded file, or both.
 
 **Lateness Penalty (`penalty_pct`):**
 | Timing | penalty_pct |
@@ -219,11 +223,11 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 - All submissions are always accepted (no hard rejection for lateness)
 - `is_late` is set to `true` when `penalty_pct < 100`
 - `penalty_pct` stored on the `Submission` row for grading reference
-- Student UI shows color-coded penalty badge and clickable "Ver entrega" Drive link
+- Student UI shows color-coded penalty badge and clickable "Ver entrega" Drive link or "Ver archivo" file link
 
 **Teacher Grading Flow:**
 1. Teacher clicks an assignment card in the Retos tab → submissions modal opens
-2. Modal shows all submissions with student name, late badge, auto-grade (`penalty_pct/100 * max_points`), Drive link
+2. Modal shows all submissions with student name, late badge, auto-grade (`penalty_pct/100 * max_points`), Drive link, file link
 3. Teacher enters score → `PATCH /admin/submissions/{id}/grade` updates `submissions.grade` and upserts `grades` row
 4. "Aceptar auto-calificaciones" button → `POST /admin/assignments/{id}/auto-grade` bulk-grades all ungraded submissions
 5. Grading a submission creates/updates a `grades` row (student_id, class_id, category_id from assignment, name=assignment.title)
@@ -231,9 +235,20 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 
 **Submissions Modal Features:**
 - Filter dropdown: Todos / Sin calificar / Calificados / Entrega tardia
-- Each row: student name, penalty badge, graded status, submitted date, Drive link, score input, Calificar button
+- Each row: student name, penalty badge, graded status, submitted date, Drive link, file link (presigned URL), score input, Calificar button
 - Collapsible "Sin entregar" section showing students who haven't submitted
 - Re-grading updates existing Grade record (no duplicates)
+
+**File Upload (R2):**
+- Requires `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_BUCKET_NAME` env vars
+- If R2 not configured, `/api/config` returns `file_uploads_enabled: false` and upload UI is hidden
+- `app/storage.py` provides: `is_r2_configured()`, `get_s3_client()`, `validate_file()`, `upload_file()`, `generate_presigned_url()`, `delete_file()`
+- Allowed file types: PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, CSV, ZIP, RAR, 7Z, PNG, JPG, JPEG, GIF, WEBP, SVG
+- Max file size: 10 MB
+- R2 object key format: `submissions/{student_id}_{assignment_id}_{timestamp}.{ext}`
+- File upload allows re-submission (old R2 file is deleted), unlike Drive URL which rejects duplicates
+- `file_key` is never exposed in API responses — only `has_file` boolean; download goes through presigned URL endpoint
+- Frontend uses XHR (not fetch) for upload progress events via `apiUpload()` helper
 
 ### Student Preview Mode (Impersonation)
 
@@ -296,7 +311,7 @@ forum_likes
 - Database file (`school.db`) is gitignored
 - Run `seed_data.py` to populate test data (creates teacher, 3 students, sample class, enrollments, and sample records)
 - `class_id` is nullable in attendance/participation/grades for backward compatibility
-- **Auto-migration on startup**: `Base.metadata.create_all()` always runs (creates missing tables), plus `_ensure_columns()` adds missing columns (`category_id`, `name` to `grades` table; `drive_url`, `penalty_pct` to `submissions` table)
+- **Auto-migration on startup**: `Base.metadata.create_all()` always runs (creates missing tables), plus `_ensure_columns()` adds missing columns (`category_id`, `name` to `grades` table; `drive_url`, `penalty_pct`, `file_key`, `file_name`, `file_size` to `submissions` table)
 
 ## Railway Deployment
 
@@ -309,5 +324,9 @@ forum_likes
    - `TEACHER_EMAIL` - Your teacher email
    - `ALLOWED_ORIGINS` - Your Railway domain (e.g., `https://your-app.up.railway.app`)
    - `SECRET_KEY` - Random secret string
+   - `R2_ACCESS_KEY_ID` - (Optional) Cloudflare R2 access key for file uploads
+   - `R2_SECRET_ACCESS_KEY` - (Optional) Cloudflare R2 secret key
+   - `R2_ENDPOINT` - (Optional) R2 endpoint URL
+   - `R2_BUCKET_NAME` - (Optional) R2 bucket name
 5. Add your Railway domain to Google OAuth authorized origins
 6. Deploy!

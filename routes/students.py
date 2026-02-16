@@ -1,21 +1,59 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
+from datetime import datetime as _dt, timedelta
 import logging
 
 from models.database import get_db
-from models.models import Student, Attendance, Grade, Participation, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission
+from models.models import Student, Attendance, Grade, Participation, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission, Class
 from models.schemas import (
     StudentResponse, AttendanceResponse, GradeResponse, ParticipationResponse,
     CategoryGradeBreakdown, SpecialPointsResponse,
     AssignmentStudentView, SubmissionCreate, SubmissionResponse,
 )
-from app.auth import get_current_student, get_student_or_impersonated
+from app.auth import get_current_student, get_student_or_impersonated, get_current_teacher
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/students", tags=["students"])
+
+
+def _calculate_penalty(due_date) -> tuple[int, bool]:
+    """Calculate penalty_pct and is_late based on due_date vs now."""
+    now = _dt.utcnow()
+    delta = now - due_date
+
+    if delta.total_seconds() <= 0:
+        penalty_pct = 100
+    elif delta <= timedelta(hours=24):
+        penalty_pct = 90
+    elif delta <= timedelta(weeks=1):
+        penalty_pct = 50
+    else:
+        penalty_pct = 10
+
+    return penalty_pct, penalty_pct < 100
+
+
+def _submission_response(submission) -> SubmissionResponse:
+    """Build a SubmissionResponse from a Submission ORM object."""
+    return SubmissionResponse(
+        id=submission.id,
+        assignment_id=submission.assignment_id,
+        student_id=submission.student_id,
+        text_content=submission.text_content,
+        drive_url=submission.drive_url,
+        submitted_at=submission.submitted_at,
+        is_late=submission.is_late,
+        penalty_pct=submission.penalty_pct,
+        grade=submission.grade,
+        feedback=submission.feedback,
+        graded_at=submission.graded_at,
+        file_name=submission.file_name,
+        file_size=submission.file_size,
+        has_file=bool(submission.file_key),
+    )
 
 
 @router.get("/me", response_model=StudentResponse)
@@ -225,19 +263,7 @@ async def get_student_assignments(
 
         sub_response = None
         if submission:
-            sub_response = SubmissionResponse(
-                id=submission.id,
-                assignment_id=submission.assignment_id,
-                student_id=submission.student_id,
-                text_content=submission.text_content,
-                drive_url=submission.drive_url,
-                submitted_at=submission.submitted_at,
-                is_late=submission.is_late,
-                penalty_pct=submission.penalty_pct,
-                grade=submission.grade,
-                feedback=submission.feedback,
-                graded_at=submission.graded_at,
-            )
+            sub_response = _submission_response(submission)
 
         results.append(AssignmentStudentView(
             id=a.id,
@@ -285,21 +311,7 @@ async def submit_assignment(
     if existing:
         raise HTTPException(status_code=400, detail="Ya enviaste este reto")
 
-    from datetime import datetime as _dt, timedelta
-
-    now = _dt.utcnow()
-    delta = now - assignment.due_date
-
-    if delta.total_seconds() <= 0:
-        penalty_pct = 100
-    elif delta <= timedelta(hours=24):
-        penalty_pct = 90
-    elif delta <= timedelta(weeks=1):
-        penalty_pct = 50
-    else:
-        penalty_pct = 10
-
-    is_late = penalty_pct < 100
+    penalty_pct, is_late = _calculate_penalty(assignment.due_date)
 
     submission = Submission(
         assignment_id=assignment_id,
@@ -312,16 +324,120 @@ async def submit_assignment(
     db.commit()
     db.refresh(submission)
 
-    return SubmissionResponse(
-        id=submission.id,
-        assignment_id=submission.assignment_id,
-        student_id=submission.student_id,
-        text_content=submission.text_content,
-        drive_url=submission.drive_url,
-        submitted_at=submission.submitted_at,
-        is_late=submission.is_late,
-        penalty_pct=submission.penalty_pct,
-        grade=submission.grade,
-        feedback=submission.feedback,
-        graded_at=submission.graded_at,
-    )
+    return _submission_response(submission)
+
+
+@router.post("/me/assignments/{assignment_id}/upload", response_model=SubmissionResponse)
+async def upload_assignment_file(
+    assignment_id: int,
+    file: UploadFile = File(...),
+    current_student: Student = Depends(get_student_or_impersonated),
+    db: Session = Depends(get_db),
+):
+    """Upload a file for an assignment submission. Allows re-upload."""
+    from app.storage import is_r2_configured, validate_file, upload_file, delete_file
+
+    if not is_r2_configured():
+        raise HTTPException(status_code=501, detail="Subida de archivos no configurada")
+
+    assignment = db.query(Assignment).filter(
+        Assignment.id == assignment_id,
+        Assignment.published == True,
+    ).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Reto no encontrado")
+
+    # Verify student is enrolled
+    enrollment = db.query(StudentClass).filter(
+        StudentClass.student_id == current_student.id,
+        StudentClass.class_id == assignment.class_id,
+    ).first()
+    if not enrollment:
+        raise HTTPException(status_code=403, detail="No estas inscrito en esta clase")
+
+    # Read and validate file
+    file_bytes = await file.read()
+    error = validate_file(file.filename, len(file_bytes))
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    # Generate R2 key
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "bin"
+    timestamp = int(_dt.utcnow().timestamp())
+    file_key = f"submissions/{current_student.id}_{assignment_id}_{timestamp}.{ext}"
+
+    penalty_pct, is_late = _calculate_penalty(assignment.due_date)
+
+    # Check for existing submission (allow re-upload)
+    existing = db.query(Submission).filter(
+        Submission.assignment_id == assignment_id,
+        Submission.student_id == current_student.id,
+    ).first()
+
+    # Upload to R2
+    upload_file(file_bytes, file_key, file.content_type or "application/octet-stream")
+
+    if existing:
+        # Delete old file if it had one
+        if existing.file_key:
+            delete_file(existing.file_key)
+        existing.file_key = file_key
+        existing.file_name = file.filename
+        existing.file_size = len(file_bytes)
+        existing.is_late = is_late
+        existing.penalty_pct = penalty_pct
+        existing.submitted_at = _dt.utcnow()
+        db.commit()
+        db.refresh(existing)
+        return _submission_response(existing)
+    else:
+        submission = Submission(
+            assignment_id=assignment_id,
+            student_id=current_student.id,
+            file_key=file_key,
+            file_name=file.filename,
+            file_size=len(file_bytes),
+            is_late=is_late,
+            penalty_pct=penalty_pct,
+        )
+        db.add(submission)
+        db.commit()
+        db.refresh(submission)
+        return _submission_response(submission)
+
+
+@router.get("/submissions/{submission_id}/file")
+async def download_submission_file(
+    submission_id: int,
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    """Get a presigned download URL for a submission file."""
+    from app.storage import is_r2_configured, generate_presigned_url
+
+    if not is_r2_configured():
+        raise HTTPException(status_code=501, detail="Subida de archivos no configurada")
+
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Entrega no encontrada")
+
+    if not submission.file_key:
+        raise HTTPException(status_code=404, detail="Esta entrega no tiene archivo")
+
+    # Auth: owner or teacher of the class
+    assignment = db.query(Assignment).filter(Assignment.id == submission.assignment_id).first()
+    is_owner = submission.student_id == current_student.id
+    is_teacher = False
+    if assignment:
+        class_ = db.query(Class).filter(
+            Class.id == assignment.class_id,
+            Class.teacher_id == current_student.id,
+        ).first()
+        is_teacher = class_ is not None
+
+    if not is_owner and not is_teacher:
+        raise HTTPException(status_code=403, detail="No tienes permiso para ver este archivo")
+
+    download_url = generate_presigned_url(submission.file_key)
+    return {"download_url": download_url, "file_name": submission.file_name}

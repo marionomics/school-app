@@ -1146,6 +1146,9 @@ async def get_assignment_submissions(
             student_name=student.name,
             student_email=student.email,
             auto_grade=auto_grade,
+            file_name=s.file_name,
+            file_size=s.file_size,
+            has_file=bool(s.file_key),
         ))
 
     # Build not_submitted list
@@ -1273,6 +1276,9 @@ async def grade_submission(
         student_name=student.name,
         student_email=student.email,
         auto_grade=auto_grade,
+        file_name=submission.file_name,
+        file_size=submission.file_size,
+        has_file=bool(submission.file_key),
     )
 
 

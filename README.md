@@ -7,7 +7,8 @@ A FastAPI application for managing student attendance, participation, and grades
 - **Multi-Class Support**: Teachers create classes with unique codes, students join via codes
 - **Class Dashboard**: Comprehensive per-class view with stats, roster, attendance, grades, and participation tabs
 - **Weighted Grading System**: Configurable grade categories with weights, participation points, special bonus points
-- **Assignment System (Retos)**: Create assignments, students submit Google Drive links, teacher grading modal with auto-grade support
+- **Assignment System (Retos)**: Create assignments, students submit Google Drive links or upload files (via Cloudflare R2), teacher grading modal with auto-grade support
+- **File Uploads**: Optional Cloudflare R2 integration for direct file submissions (PDF, DOCX, ZIP, images, max 10MB) with upload progress and presigned download URLs
 - **Student Preview Mode**: Teachers can preview the student dashboard as any enrolled student via impersonation
 - **Student Dashboard**: View grades breakdown, attendance, submit participation (filtered by class)
 - **Teacher Admin Panel**: Simple class overview with quick stats, click any class to open detailed dashboard
@@ -20,6 +21,7 @@ A FastAPI application for managing student attendance, participation, and grades
 
 - **Backend**: FastAPI, SQLAlchemy, Pydantic
 - **Database**: SQLite (dev) / PostgreSQL (production)
+- **Storage**: Cloudflare R2 (S3-compatible, optional for file uploads)
 - **Frontend**: Vanilla JS, Tailwind CSS (CDN)
 - **Auth**: Google OAuth 2.0
 - **Deployment**: Railway
@@ -124,6 +126,10 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 | `TEACHER_EMAIL` | Email that gets admin access |
 | `ALLOWED_ORIGINS` | CORS allowed origins (comma-separated) |
 | `SECRET_KEY` | Application secret key |
+| `R2_ACCESS_KEY_ID` | Cloudflare R2 access key (optional, enables file uploads) |
+| `R2_SECRET_ACCESS_KEY` | Cloudflare R2 secret key |
+| `R2_ENDPOINT` | R2 endpoint URL (e.g., `https://<account_id>.r2.cloudflarestorage.com`) |
+| `R2_BUCKET_NAME` | R2 bucket name |
 
 ## API Endpoints
 
@@ -156,6 +162,8 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 | GET | `/api/students/me/grade-calculation/:class_id` | Full grade breakdown with categories and assignment counts |
 | GET | `/api/students/me/assignments?class_id=X` | List assignments with submission status |
 | POST | `/api/students/me/assignments/:id/submit` | Submit assignment (Google Drive link, auto penalty) |
+| POST | `/api/students/me/assignments/:id/upload` | Upload file for assignment (multipart, R2 storage) |
+| GET | `/api/students/submissions/:id/file` | Get presigned download URL for submission file |
 | POST | `/api/participation` | Submit participation (requires class_id) |
 
 > Student endpoints support teacher impersonation via `X-Impersonate: {student_id}` header.
@@ -251,7 +259,8 @@ alembic downgrade <revision_id>
 school-app/
 ├── app/
 │   ├── main.py           # FastAPI app, CORS, routes
-│   └── auth.py           # Google OAuth, session management
+│   ├── auth.py           # Google OAuth, session management
+│   └── storage.py        # Cloudflare R2 storage helpers
 ├── models/
 │   ├── database.py       # SQLAlchemy setup (SQLite/PostgreSQL)
 │   ├── models.py         # ORM models (Student, Class, Attendance, etc.)

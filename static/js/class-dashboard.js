@@ -1142,7 +1142,10 @@ function renderSubmissionRow(s, maxPoints) {
         ? `<span class="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">Tarde (${s.penalty_pct}%)</span>`
         : '';
     const driveLink = s.drive_url
-        ? `<a href="${s.drive_url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-xs text-blue-600 hover:underline">Ver entrega</a>`
+        ? `<a href="${s.drive_url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-xs text-blue-600 hover:underline">Ver entrega (Drive)</a>`
+        : '';
+    const fileLink = s.has_file
+        ? `<button onclick="event.stopPropagation(); viewSubmissionFileAdmin(${s.id})" class="text-xs text-blue-600 hover:underline">Ver archivo (${s.file_name || 'archivo'}${s.file_size ? ', ' + formatFileSizeAdmin(s.file_size) : ''})</button>`
         : '';
 
     const submittedDate = new Date(s.submitted_at).toLocaleString('es-MX', {
@@ -1164,6 +1167,7 @@ function renderSubmissionRow(s, maxPoints) {
                     <div class="flex items-center gap-3 text-xs text-gray-500">
                         <span>Enviado: ${submittedDate}</span>
                         ${driveLink}
+                        ${fileLink}
                     </div>
                     <div class="text-xs text-gray-400 mt-1">
                         Auto-calificacion: ${s.auto_grade.toFixed(1)}/${maxPoints}
@@ -1234,6 +1238,23 @@ async function autoGradeAll() {
         loadSubmissions(currentAssignmentId, filter || undefined);
     } catch (error) {
         alert('Error al auto-calificar: ' + error.message);
+    }
+}
+
+// ==================== File Helpers ====================
+
+function formatFileSizeAdmin(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+async function viewSubmissionFileAdmin(submissionId) {
+    try {
+        const data = await apiCall(`/students/submissions/${submissionId}/file`);
+        window.open(data.download_url, '_blank');
+    } catch (error) {
+        alert('Error al abrir archivo: ' + error.message);
     }
 }
 

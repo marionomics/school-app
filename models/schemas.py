@@ -296,6 +296,9 @@ class SubmissionResponse(BaseModel):
     grade: Optional[float] = None
     feedback: Optional[str] = None
     graded_at: Optional[datetime] = None
+    file_name: Optional[str] = None
+    file_size: Optional[int] = None
+    has_file: bool = False
 
     class Config:
         from_attributes = True
