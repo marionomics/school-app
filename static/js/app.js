@@ -707,34 +707,67 @@ async function loadAssignments() {
                 penaltyHtml = `<span class="text-xs px-2 py-0.5 rounded ${penaltyColor}">${penaltyLabel}</span>`;
             }
 
-            // Drive link for submitted assignments
-            const driveLinkHtml = a.submission?.drive_url ? `
-                <div class="mt-2">
-                    <a href="${a.submission.drive_url}" target="_blank" rel="noopener noreferrer"
-                       class="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800 underline">
-                        Ver entrega (Drive)
-                    </a>
-                </div>
-            ` : '';
-
-            // File link for submitted assignments
-            const fileLinkHtml = a.submission?.has_file ? `
-                <div class="mt-2">
-                    <button onclick="viewSubmissionFile(${a.submission.id})"
-                            class="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800 underline">
-                        Ver archivo (${a.submission.file_name || 'archivo'}, ${formatFileSize(a.submission.file_size || 0)})
-                    </button>
-                </div>
-            ` : '';
-
-            // Submit form (hidden in preview mode or if already submitted via drive link)
             const hasSubmission = !!a.submission;
-            const canSubmitDrive = !hasSubmission && !previewMode;
-            const canUploadFile = fileUploadsEnabled && !previewMode && (!hasSubmission || (hasSubmission && a.submission.has_file));
+            const isGraded = a.submission?.grade !== null && a.submission?.grade !== undefined;
 
-            const submitHtml = canSubmitDrive || canUploadFile ? `
+            // Submission details block (when submitted)
+            let submissionDetailsHtml = '';
+            if (hasSubmission) {
+                const submittedDate = new Date(a.submission.submitted_at).toLocaleString('es-MX', {
+                    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+
+                const fileInfoLine = a.submission.has_file
+                    ? `<div class="flex items-center gap-1">
+                            <span class="font-medium">Archivo:</span>
+                            <button onclick="viewSubmissionFile(${a.submission.id})"
+                                    class="text-indigo-600 hover:text-indigo-800 underline">
+                                ${a.submission.file_name || 'archivo'} (${formatFileSize(a.submission.file_size || 0)})
+                            </button>
+                       </div>`
+                    : '';
+
+                const driveLine = a.submission.drive_url
+                    ? `<div class="flex items-center gap-1">
+                            <span class="font-medium">Enlace:</span>
+                            <a href="${a.submission.drive_url}" target="_blank" rel="noopener noreferrer"
+                               class="text-indigo-600 hover:text-indigo-800 underline">Google Drive</a>
+                       </div>`
+                    : '';
+
+                const canDelete = !isGraded && !previewMode;
+
+                submissionDetailsHtml = `
+                    <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                        <div class="flex justify-between items-start gap-3">
+                            <div class="space-y-1 text-gray-600">
+                                ${fileInfoLine}
+                                ${driveLine}
+                                <div>Entregado: ${submittedDate}</div>
+                                ${a.submission.is_late ? `<div>${penaltyHtml}</div>` : ''}
+                            </div>
+                            ${canDelete ? `
+                            <button onclick="deleteSubmission(${a.submission.id})"
+                                    class="shrink-0 text-xs px-3 py-1.5 bg-red-100 text-red-700 rounded hover:bg-red-200 transition">
+                                Eliminar Entrega
+                            </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Feedback display
+            const feedbackHtml = a.submission?.feedback ? `
+                <div class="mt-2 p-2 bg-blue-50 rounded text-sm text-blue-800">
+                    <span class="font-medium">Retroalimentacion:</span> ${a.submission.feedback}
+                </div>
+            ` : '';
+
+            // Submit form (only when no submission)
+            const canSubmit = !hasSubmission && !previewMode;
+            const submitHtml = canSubmit ? `
                 <div class="mt-3 pt-3 border-t border-gray-100">
-                    ${canSubmitDrive ? `
                     <div class="flex gap-2">
                         <input type="url" id="submit-url-${a.id}" placeholder="https://drive.google.com/..."
                                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none" />
@@ -744,13 +777,12 @@ async function loadAssignments() {
                         </button>
                     </div>
                     <p class="text-xs text-gray-500 mt-1">Comparte tu archivo de Google Drive y pega el enlace aqui</p>
-                    ` : ''}
-                    ${fileUploadsEnabled && !previewMode ? `
-                    <div class="${canSubmitDrive ? 'mt-3 pt-3 border-t border-gray-100' : ''}">
+                    ${fileUploadsEnabled ? `
+                    <div class="mt-3 pt-3 border-t border-gray-100">
                         <div class="flex items-center gap-2">
                             <label class="flex-1 flex items-center gap-2 px-3 py-2 border border-gray-300 border-dashed rounded-lg text-sm text-gray-500 cursor-pointer hover:bg-gray-50">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                                <span>${hasSubmission && a.submission.has_file ? 'Reemplazar archivo' : 'Subir archivo'}</span>
+                                <span>Subir archivo</span>
                                 <input type="file" id="file-input-${a.id}" class="hidden"
                                        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.png,.jpg,.jpeg,.gif,.webp,.svg"
                                        onchange="handleFileSelect(${a.id}, this)" />
@@ -770,13 +802,6 @@ async function loadAssignments() {
                 </div>
             ` : '';
 
-            // Feedback display
-            const feedbackHtml = a.submission?.feedback ? `
-                <div class="mt-2 p-2 bg-blue-50 rounded text-sm text-blue-800">
-                    <span class="font-medium">Retroalimentacion:</span> ${a.submission.feedback}
-                </div>
-            ` : '';
-
             return `
                 <div class="border border-gray-200 rounded-lg p-4">
                     <div class="flex flex-col sm:flex-row justify-between gap-2">
@@ -793,9 +818,7 @@ async function loadAssignments() {
                         </div>
                     </div>
                     ${feedbackHtml}
-                    ${driveLinkHtml}
-                    ${fileLinkHtml}
-                    ${a.submission?.is_late ? `<div class="mt-1 flex items-center gap-2">${penaltyHtml}</div>` : ''}
+                    ${submissionDetailsHtml}
                     ${submitHtml}
                 </div>
             `;
@@ -824,6 +847,19 @@ async function submitAssignment(assignmentId) {
         loadAssignments();
     } catch (error) {
         alert('Error al enviar reto: ' + error.message);
+    }
+}
+
+async function deleteSubmission(submissionId) {
+    if (!confirm('¿Estas seguro que quieres eliminar tu entrega?\n\nNo podras recuperar el archivo. Tendras que volver a subirlo.')) {
+        return;
+    }
+
+    try {
+        await apiCall(`/students/submissions/${submissionId}`, { method: 'DELETE' });
+        loadAssignments();
+    } catch (error) {
+        alert('Error al eliminar entrega: ' + error.message);
     }
 }
 

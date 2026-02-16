@@ -1141,6 +1141,9 @@ function renderSubmissionRow(s, maxPoints) {
     const lateBadge = s.is_late
         ? `<span class="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">Tarde (${s.penalty_pct}%)</span>`
         : '';
+    const resubmitBadge = (s.resubmit_count || 0) > 0
+        ? `<span class="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700">Re-entregado${s.resubmit_count > 1 ? ' (' + s.resubmit_count + 'x)' : ''}</span>`
+        : '';
     const driveLink = s.drive_url
         ? `<a href="${s.drive_url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-xs text-blue-600 hover:underline">Ver entrega (Drive)</a>`
         : '';
@@ -1162,6 +1165,7 @@ function renderSubmissionRow(s, maxPoints) {
                     <div class="flex items-center gap-2 mb-1 flex-wrap">
                         <span class="font-medium text-gray-800">${s.student_name}</span>
                         ${lateBadge}
+                        ${resubmitBadge}
                         ${gradedBadge}
                     </div>
                     <div class="flex items-center gap-3 text-xs text-gray-500">

@@ -186,6 +186,7 @@ class Submission(Base):
     submitted_at = Column(DateTime, default=datetime.utcnow)
     is_late = Column(Boolean, nullable=False, default=False)
     penalty_pct = Column(Integer, nullable=False, default=100)
+    resubmit_count = Column(Integer, nullable=False, default=0)
     grade = Column(Float, nullable=True)
     feedback = Column(Text, nullable=True)
     graded_at = Column(DateTime, nullable=True)

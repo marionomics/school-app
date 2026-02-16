@@ -299,6 +299,7 @@ class SubmissionResponse(BaseModel):
     file_name: Optional[str] = None
     file_size: Optional[int] = None
     has_file: bool = False
+    resubmit_count: int = 0
 
     class Config:
         from_attributes = True

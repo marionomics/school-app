@@ -621,6 +621,7 @@ def _calc_grade(student_id: int, class_id: int, db: Session) -> dict:
             sub = db.query(Submission).filter(
                 Submission.assignment_id == a.id,
                 Submission.student_id == student_id,
+                Submission.submitted_at.isnot(None),
             ).first()
             if sub and sub.grade is not None:
                 graded_count += 1
@@ -1037,9 +1038,11 @@ async def list_assignments(
     for a in assignments:
         sub_count = db.query(func.count(Submission.id)).filter(
             Submission.assignment_id == a.id,
+            Submission.submitted_at.isnot(None),
         ).scalar() or 0
         graded_count = db.query(func.count(Submission.id)).filter(
             Submission.assignment_id == a.id,
+            Submission.submitted_at.isnot(None),
             Submission.grade.isnot(None),
         ).scalar() or 0
 
@@ -1109,9 +1112,10 @@ async def get_assignment_submissions(
     if not class_:
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
-    # Get all submissions with student info
+    # Get all active submissions with student info (exclude cleared/deleted)
     submissions = db.query(Submission).filter(
         Submission.assignment_id == assignment_id,
+        Submission.submitted_at.isnot(None),
     ).all()
 
     # Apply filter
@@ -1149,6 +1153,7 @@ async def get_assignment_submissions(
             file_name=s.file_name,
             file_size=s.file_size,
             has_file=bool(s.file_key),
+            resubmit_count=s.resubmit_count or 0,
         ))
 
     # Build not_submitted list
@@ -1279,6 +1284,7 @@ async def grade_submission(
         file_name=submission.file_name,
         file_size=submission.file_size,
         has_file=bool(submission.file_key),
+        resubmit_count=submission.resubmit_count or 0,
     )
 
 

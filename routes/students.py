@@ -53,6 +53,7 @@ def _submission_response(submission) -> SubmissionResponse:
         file_name=submission.file_name,
         file_size=submission.file_size,
         has_file=bool(submission.file_key),
+        resubmit_count=submission.resubmit_count or 0,
     )
 
 
@@ -178,6 +179,7 @@ async def get_student_grade_calculation(
             sub = db.query(Submission).filter(
                 Submission.assignment_id == a.id,
                 Submission.student_id == current_student.id,
+                Submission.submitted_at.isnot(None),
             ).first()
             if sub and sub.grade is not None:
                 graded_count += 1
@@ -259,6 +261,7 @@ async def get_student_assignments(
         submission = db.query(Submission).filter(
             Submission.assignment_id == a.id,
             Submission.student_id == current_student.id,
+            Submission.submitted_at.isnot(None),
         ).first()
 
         sub_response = None
@@ -308,10 +311,20 @@ async def submit_assignment(
         Submission.assignment_id == assignment_id,
         Submission.student_id == current_student.id,
     ).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Ya enviaste este reto")
 
     penalty_pct, is_late = _calculate_penalty(assignment.due_date)
+
+    if existing:
+        if existing.submitted_at is not None:
+            raise HTTPException(status_code=400, detail="Ya enviaste este reto")
+        # Re-submission: update the cleared row
+        existing.drive_url = data.drive_url
+        existing.submitted_at = _dt.utcnow()
+        existing.is_late = is_late
+        existing.penalty_pct = penalty_pct
+        db.commit()
+        db.refresh(existing)
+        return _submission_response(existing)
 
     submission = Submission(
         assignment_id=assignment_id,
@@ -368,7 +381,7 @@ async def upload_assignment_file(
 
     penalty_pct, is_late = _calculate_penalty(assignment.due_date)
 
-    # Check for existing submission (allow re-upload)
+    # Check for existing submission (allow re-upload / re-submission after delete)
     existing = db.query(Submission).filter(
         Submission.assignment_id == assignment_id,
         Submission.student_id == current_student.id,
@@ -441,3 +454,45 @@ async def download_submission_file(
 
     download_url = generate_presigned_url(submission.file_key)
     return {"download_url": download_url, "file_name": submission.file_name}
+
+
+@router.delete("/submissions/{submission_id}")
+async def delete_submission(
+    submission_id: int,
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    """Delete (clear) a submission. Only allowed if not yet graded."""
+    submission = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Entrega no encontrada")
+
+    if submission.student_id != current_student.id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para eliminar esta entrega")
+
+    if submission.submitted_at is None:
+        raise HTTPException(status_code=400, detail="Esta entrega ya fue eliminada")
+
+    if submission.grade is not None:
+        raise HTTPException(status_code=400, detail="No puedes eliminar una entrega ya calificada")
+
+    # Delete R2 file if present
+    if submission.file_key:
+        from app.storage import is_r2_configured, delete_file
+        if is_r2_configured():
+            delete_file(submission.file_key)
+
+    # Clear content but keep the row for resubmit tracking
+    submission.drive_url = None
+    submission.file_key = None
+    submission.file_name = None
+    submission.file_size = None
+    submission.text_content = None
+    submission.is_late = False
+    submission.penalty_pct = 100
+    submission.submitted_at = None
+    submission.resubmit_count = (submission.resubmit_count or 0) + 1
+
+    db.commit()
+
+    return {"message": "Entrega eliminada"}

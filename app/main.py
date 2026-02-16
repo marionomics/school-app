@@ -56,6 +56,10 @@ def _ensure_columns():
                 conn.execute(text(
                     "ALTER TABLE submissions ADD COLUMN file_size INTEGER"
                 ))
+            if "resubmit_count" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE submissions ADD COLUMN resubmit_count INTEGER DEFAULT 0 NOT NULL"
+                ))
 
 
 @asynccontextmanager
