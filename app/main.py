@@ -84,11 +84,11 @@ def _ensure_columns():
                 ))
             if "justification_submitted_at" not in existing_cols:
                 conn.execute(text(
-                    "ALTER TABLE attendances ADD COLUMN justification_submitted_at DATETIME"
+                    "ALTER TABLE attendances ADD COLUMN justification_submitted_at TIMESTAMP"
                 ))
             if "justification_reviewed_at" not in existing_cols:
                 conn.execute(text(
-                    "ALTER TABLE attendances ADD COLUMN justification_reviewed_at DATETIME"
+                    "ALTER TABLE attendances ADD COLUMN justification_reviewed_at TIMESTAMP"
                 ))
             if "justification_reviewed_by" not in existing_cols:
                 conn.execute(text(
