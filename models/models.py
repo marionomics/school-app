@@ -17,7 +17,7 @@ class Student(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
-    attendances = relationship("Attendance", back_populates="student", cascade="all, delete-orphan")
+    attendances = relationship("Attendance", back_populates="student", cascade="all, delete-orphan", foreign_keys="[Attendance.student_id]")
     participations = relationship("Participation", back_populates="student", cascade="all, delete-orphan")
     grades = relationship("Grade", back_populates="student", cascade="all, delete-orphan")
     taught_classes = relationship("Class", back_populates="teacher", cascade="all, delete-orphan")
@@ -46,7 +46,7 @@ class Attendance(Base):
     justification_reviewed_by = Column(Integer, ForeignKey("students.id"), nullable=True)
 
     # Relationships
-    student = relationship("Student", back_populates="attendances")
+    student = relationship("Student", back_populates="attendances", foreign_keys=[student_id])
     class_ = relationship("Class", back_populates="attendances")
     reviewer = relationship("Student", foreign_keys=[justification_reviewed_by])
 
