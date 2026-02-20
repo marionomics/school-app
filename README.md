@@ -7,7 +7,7 @@ A FastAPI application for managing student attendance, participation, and grades
 - **Multi-Class Support**: Teachers create classes with unique codes, students join via codes
 - **Class Dashboard**: Comprehensive per-class view with stats, roster, attendance, grades, and participation tabs
 - **Weighted Grading System**: Configurable grade categories with weights, participation points, special bonus points
-- **Assignment System (Retos)**: Create assignments, students submit Google Drive links or upload files (via Cloudflare R2), teacher grading modal with auto-grade support
+- **Assignment System (Retos)**: Create assignments with category selection, students submit Google Drive links or upload files (via Cloudflare R2), teacher grading modal with auto-grade support
 - **File Uploads**: Optional Cloudflare R2 integration for direct file submissions (PDF, DOCX, ZIP, images, max 10MB) with upload progress and presigned download URLs
 - **Attendance Justifications**: Students upload justification documents (PDF, images) for absences/lates; teachers approve/reject; approved justifications change status to "excused" and remove the -1 point grade penalty
 - **Student Preview Mode**: Teachers can preview the student dashboard as any enrolled student via impersonation
@@ -93,6 +93,7 @@ Each unjustified absence (status = "absent") subtracts 1 point from the final gr
 - The remaining 20% comes from participation + special points (no category needed)
 - Teachers can customize categories per class (add, edit, delete, change weights)
 - Each grade is assigned to a category via `category_id`
+- Assignments created from the Retos tab include a category selector; grades inherit the assignment's category automatically
 - Grades without a `category_id` (legacy data) are grouped into a "Sin categoría" bucket using remaining weight
 - Category averages are calculated over graded assignments only (variable count is fine)
 - Student dashboard shows "Tu calificacion se calcula sobre X tareas completadas" with pending/unsubmitted counts

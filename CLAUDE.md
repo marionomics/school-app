@@ -67,7 +67,7 @@ python seed_data.py
   ├── Attendance tab: take attendance by date
   ├── Grades tab: add grades (with category_id), manage categories
   ├── Participation tab: approve/reject submissions, bulk approve
-  ├── Retos tab: create assignments, click to open submissions modal, grade/auto-grade
+  ├── Retos tab: create assignments (with category selector), click to open submissions modal, grade/auto-grade
   └── Justificaciones tab: review/approve/reject student absence justifications
 ```
 
@@ -134,7 +134,7 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `GET /api/admin/special-points?class_id=X` - Get special points for class
 - `POST /api/admin/special-points` - Create special points entry
 - `PATCH /api/admin/special-points/{id}` - Update special points (opt-in, awarded)
-- `POST /api/admin/assignments` - Create assignment (reto) for a class
+- `POST /api/admin/assignments` - Create assignment (reto) for a class (accepts optional `category_id`; auto-picks first category if omitted)
 - `GET /api/admin/assignments?class_id=X` - List assignments with submission/graded counts
 - `DELETE /api/admin/assignments/{id}` - Delete assignment
 - `GET /api/admin/assignments/{id}/submissions?filter=` - View submissions with student info, auto-grade, not-submitted list (filter: graded/ungraded/late)
@@ -241,6 +241,13 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 - `is_late` is set to `true` when `penalty_pct < 100`
 - `penalty_pct` stored on the `Submission` row for grading reference
 - Student UI shows color-coded penalty badge and clickable "Ver entrega" Drive link or "Ver archivo" file link
+
+**Assignment Creation:**
+- Teacher clicks "Nuevo Reto" in the Retos tab → form with title, description, category dropdown, due date, max points
+- Category dropdown is populated from `grade_categories` for this class (e.g., "Retos de la Semana (40%)")
+- Frontend sends `category_id` in the payload; backend validates it belongs to the class
+- If `category_id` is omitted, backend auto-picks the first category for the class
+- Assignment is saved with the correct `category_id` FK, ensuring grades inherit it
 
 **Teacher Grading Flow:**
 1. Teacher clicks an assignment card in the Retos tab → submissions modal opens

@@ -960,8 +960,13 @@ function toggleAssignmentForm() {
     const container = document.getElementById('assignment-form-container');
     container.classList.toggle('hidden');
 
-    // Pre-fill due date with next Sunday 23:59
+    // Populate category dropdown
     if (!container.classList.contains('hidden')) {
+        const catSelect = document.getElementById('assignment-category');
+        catSelect.innerHTML = categories.map(c =>
+            `<option value="${c.id}">${c.name} (${(c.weight * 100).toFixed(0)}%)</option>`
+        ).join('');
+
         const dueDateInput = document.getElementById('assignment-due-date');
         if (!dueDateInput.value) {
             const today = new Date();
@@ -983,6 +988,7 @@ document.getElementById('assignment-form').addEventListener('submit', async (e) 
     const description = document.getElementById('assignment-description').value.trim() || null;
     const dueDateInput = document.getElementById('assignment-due-date').value;
     const maxPoints = parseFloat(document.getElementById('assignment-max-points').value) || 100;
+    const categoryId = parseInt(document.getElementById('assignment-category').value) || null;
 
     if (!title) {
         alert('Por favor ingresa un titulo.');
@@ -994,6 +1000,7 @@ document.getElementById('assignment-form').addEventListener('submit', async (e) 
         title,
         description,
         max_points: maxPoints,
+        category_id: categoryId,
     };
 
     if (dueDateInput) {

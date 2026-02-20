@@ -1130,14 +1130,23 @@ async def create_assignment(
     if not class_:
         raise HTTPException(status_code=404, detail="Clase no encontrada")
 
-    # Auto-find "Retos de la Semana" category
-    category_id = None
-    retos_cat = db.query(GradeCategory).filter(
-        GradeCategory.class_id == data.class_id,
-        GradeCategory.name == "Retos de la Semana",
-    ).first()
-    if retos_cat:
-        category_id = retos_cat.id
+    # Use provided category_id, or auto-find first category for this class
+    category_id = data.category_id
+    if category_id:
+        # Verify category belongs to this class
+        cat = db.query(GradeCategory).filter(
+            GradeCategory.id == category_id,
+            GradeCategory.class_id == data.class_id,
+        ).first()
+        if not cat:
+            raise HTTPException(status_code=404, detail="Categoría no encontrada en esta clase")
+    else:
+        # Auto-find: first category for this class (typically "Retos de la Semana")
+        first_cat = db.query(GradeCategory).filter(
+            GradeCategory.class_id == data.class_id,
+        ).first()
+        if first_cat:
+            category_id = first_cat.id
 
     # Default due_date: next Sunday 23:59
     due_date = data.due_date
@@ -1391,13 +1400,13 @@ async def grade_submission(
     submission.graded_by = teacher.id
 
     # Resolve category name from assignment's category_id
-    category_name = "Retos de la Semana"
+    category_name = None
     if assignment.category_id:
         cat = db.query(GradeCategory).filter(GradeCategory.id == assignment.category_id).first()
         if cat:
             category_name = cat.name
 
-    # Upsert Grade record
+    # Upsert Grade record (match by student + class + assignment title)
     existing_grade = db.query(Grade).filter(
         Grade.student_id == submission.student_id,
         Grade.class_id == assignment.class_id,
@@ -1472,7 +1481,7 @@ async def auto_grade_assignment(
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
     # Resolve category name from assignment's category_id
-    category_name = "Retos de la Semana"
+    category_name = None
     if assignment.category_id:
         cat = db.query(GradeCategory).filter(GradeCategory.id == assignment.category_id).first()
         if cat:

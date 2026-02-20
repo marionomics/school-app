@@ -289,6 +289,7 @@ class AssignmentCreate(BaseModel):
     description: Optional[str] = None
     due_date: Optional[datetime] = None
     max_points: Optional[float] = 100
+    category_id: Optional[int] = None
 
 
 class SubmissionResponse(BaseModel):
