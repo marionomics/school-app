@@ -11,15 +11,28 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: '#4f46e5',
-                        secondary: '#7c3aed'
+                        primary: '#EA8251',
+                        secondary: '#9C4927',
+                        cream: '#F2F0E4',
+                        dark: '#1F2020'
                     }
                 }
             }
         }
     </script>
+    <style>
+        .bg-primary-5 { background-color: rgba(234,130,81,0.05); }
+        .bg-primary-10 { background-color: rgba(234,130,81,0.1); }
+        .bg-primary-20 { background-color: rgba(234,130,81,0.2); }
+        .border-primary-30 { border-color: rgba(234,130,81,0.3); }
+        .text-cream-70 { color: rgba(242,240,228,0.7); }
+        .hover\:bg-primary-5:hover { background-color: rgba(234,130,81,0.05); }
+        .hover\:bg-primary-10:hover { background-color: rgba(234,130,81,0.1); }
+        .hover\:bg-primary-20:hover { background-color: rgba(234,130,81,0.2); }
+        .hover\:border-primary-30:hover { border-color: rgba(234,130,81,0.3); }
+    </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-cream min-h-screen">
     <!-- Sección de Login -->
     <div id="login-section" class="min-h-screen flex items-center justify-center">
         <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full mx-4">
@@ -46,7 +59,7 @@
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none uppercase">
                 </div>
                 <button type="submit"
-                        class="w-full bg-primary hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg transition duration-200">
+                        class="w-full bg-primary hover:bg-secondary text-white font-medium py-2 px-6 rounded-lg transition duration-200">
                     Unirse a Clase
                 </button>
             </form>
@@ -69,7 +82,7 @@
     <!-- Sección del Dashboard -->
     <div id="dashboard-section" class="hidden">
         <!-- Preview Mode Banner -->
-        <div id="preview-banner" class="hidden bg-purple-600 text-white">
+        <div id="preview-banner" class="hidden bg-dark text-white">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
@@ -78,10 +91,10 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                         </svg>
                         <span class="font-medium">Modo de Vista Previa</span>
-                        <span class="text-purple-200">- Viendo como estudiante de <span id="preview-class-name"></span></span>
+                        <span class="text-cream-70">- Viendo como estudiante de <span id="preview-class-name"></span></span>
                     </div>
                     <button onclick="exitPreviewMode()"
-                            class="flex items-center gap-2 px-4 py-1.5 bg-white text-purple-700 rounded-lg font-medium hover:bg-purple-50 transition">
+                            class="flex items-center gap-2 px-4 py-1.5 bg-white text-secondary rounded-lg font-medium hover:bg-primary-5 transition">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
@@ -148,8 +161,8 @@
                             <p class="text-sm text-gray-500">Puntos de Participacion</p>
                             <p id="total-participation" class="text-3xl font-bold text-gray-800">--</p>
                         </div>
-                        <div class="bg-purple-100 p-3 rounded-full">
-                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="bg-primary-10 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
                             </svg>
                         </div>
@@ -209,7 +222,7 @@
                             </select>
                         </div>
                         <button type="submit"
-                                class="mt-6 bg-primary hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg transition duration-200">
+                                class="mt-6 bg-primary hover:bg-secondary text-white font-medium py-2 px-6 rounded-lg transition duration-200">
                             Enviar
                         </button>
                     </div>

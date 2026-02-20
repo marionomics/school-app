@@ -188,7 +188,7 @@ function renderClasses() {
                 </svg>
                 <p class="text-gray-500 mb-4">No tienes clases creadas aun</p>
                 <button onclick="openCreateClassModal()"
-                        class="bg-primary hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg transition">
+                        class="bg-primary hover:bg-secondary text-white font-medium py-2 px-6 rounded-lg transition">
                     Crear tu primera clase
                 </button>
             </div>
@@ -197,7 +197,7 @@ function renderClasses() {
     }
 
     container.innerHTML = classes.map(c => `
-        <div class="border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-primary/30 transition cursor-pointer group"
+        <div class="border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-primary-30 transition cursor-pointer group"
              onclick="openClassDashboard(${c.id})">
             <div class="flex flex-col sm:flex-row justify-between gap-4">
                 <div class="flex-1">
@@ -310,13 +310,13 @@ function openStudentViewModal() {
 
     listContainer.innerHTML = classes.map(c => `
         <button onclick="openStudentView(${c.id})"
-                class="w-full text-left p-3 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition group">
+                class="w-full text-left p-3 border border-gray-200 rounded-lg hover:border-primary-30 hover:bg-primary-5 transition group">
             <div class="flex items-center justify-between">
                 <div>
-                    <div class="font-medium text-gray-800 group-hover:text-purple-700">${c.name}</div>
+                    <div class="font-medium text-gray-800 group-hover:text-secondary">${c.name}</div>
                     <div class="text-sm text-gray-500">${c.student_count || 0} estudiante${c.student_count !== 1 ? 's' : ''}</div>
                 </div>
-                <svg class="w-5 h-5 text-gray-400 group-hover:text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-gray-400 group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                 </svg>
             </div>

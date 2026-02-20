@@ -6,7 +6,7 @@ import os
 from datetime import date, timedelta
 from dotenv import load_dotenv
 from models.database import SessionLocal, engine, Base
-from models.models import Student, Attendance, Participation, Grade, Class, StudentClass
+from models.models import Student, Attendance, Participation, Grade, Class, StudentClass, GradeCategory
 
 load_dotenv()
 
@@ -64,6 +64,14 @@ try:
             db.add(enrollment)
         db.commit()
 
+        # Create default grade categories
+        retos_cat = GradeCategory(class_id=sample_class.id, name="Retos de la Semana", weight=0.4)
+        exams_cat = GradeCategory(class_id=sample_class.id, name="Exámenes y Proyectos", weight=0.4)
+        db.add_all([retos_cat, exams_cat])
+        db.commit()
+        db.refresh(retos_cat)
+        db.refresh(exams_cat)
+
     # Create attendance records for Alice (with class_id if class exists)
     today = date.today()
     attendance_records = [
@@ -78,13 +86,15 @@ try:
     ]
     db.add_all(attendance_records)
 
-    # Create grades for Alice (with class_id if class exists)
+    # Create grades for Alice (with class_id and category_id if class exists)
+    retos_id = retos_cat.id if sample_class else None
+    exams_id = exams_cat.id if sample_class else None
     grades = [
-        Grade(student_id=alice.id, class_id=sample_class.id if sample_class else None, category="homework", score=18, max_score=20, date=today - timedelta(days=14)),
-        Grade(student_id=alice.id, class_id=sample_class.id if sample_class else None, category="quiz", score=8, max_score=10, date=today - timedelta(days=10)),
-        Grade(student_id=alice.id, class_id=sample_class.id if sample_class else None, category="homework", score=19, max_score=20, date=today - timedelta(days=7)),
-        Grade(student_id=alice.id, class_id=sample_class.id if sample_class else None, category="exam", score=85, max_score=100, date=today - timedelta(days=3)),
-        Grade(student_id=alice.id, class_id=sample_class.id if sample_class else None, category="project", score=45, max_score=50, date=today - timedelta(days=1)),
+        Grade(student_id=alice.id, class_id=sample_class.id if sample_class else None, category_id=retos_id, category="homework", name="Reto Semana 1", score=18, max_score=20, date=today - timedelta(days=14)),
+        Grade(student_id=alice.id, class_id=sample_class.id if sample_class else None, category_id=retos_id, category="homework", name="Reto Semana 2", score=19, max_score=20, date=today - timedelta(days=7)),
+        Grade(student_id=alice.id, class_id=sample_class.id if sample_class else None, category_id=retos_id, category="quiz", name="Quiz 1", score=8, max_score=10, date=today - timedelta(days=10)),
+        Grade(student_id=alice.id, class_id=sample_class.id if sample_class else None, category_id=exams_id, category="exam", name="Examen Parcial 1", score=85, max_score=100, date=today - timedelta(days=3)),
+        Grade(student_id=alice.id, class_id=sample_class.id if sample_class else None, category_id=exams_id, category="project", name="Proyecto Final", score=45, max_score=50, date=today - timedelta(days=1)),
     ]
     db.add_all(grades)
 

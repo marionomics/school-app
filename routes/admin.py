@@ -763,8 +763,33 @@ def _calc_grade(student_id: int, class_id: int, db: Session) -> dict:
             total_assignments=total_assignments,
         ))
 
-    # Fallback: if no categories, use simple average
-    if not categories:
+    # Collect uncategorized grades (category_id is None)
+    uncategorized = [g for g in all_grades if g.category_id is None]
+    if uncategorized:
+        valid_uncat = [g for g in uncategorized if g.max_score and g.max_score > 0]
+        uncat_avg = (sum((g.score / g.max_score) * 100 for g in valid_uncat) / len(valid_uncat)) if valid_uncat else 0.0
+        remaining_weight = max(0, 1.0 - sum(c.weight for c in categories)) if categories else 1.0
+        uncat_contribution = uncat_avg * remaining_weight if remaining_weight > 0 else 0.0
+        weighted_sum += uncat_contribution
+
+        category_breakdowns.append(CategoryGradeBreakdown(
+            category_id=None,
+            category_name="Sin categoría",
+            weight=remaining_weight,
+            grades=[GradeResponse(
+                id=g.id, student_id=g.student_id, category_id=g.category_id,
+                category=g.category, name=g.name, score=g.score,
+                max_score=g.max_score, date=g.date,
+            ) for g in uncategorized],
+            average=uncat_avg,
+            weighted_contribution=uncat_contribution,
+            graded_count=len(valid_uncat),
+            pending_count=0,
+            total_assignments=0,
+        ))
+
+    # Fallback: if no categories and no uncategorized grades
+    if not categories and not uncategorized:
         valid = [g for g in all_grades if g.max_score and g.max_score > 0]
         weighted_sum = (sum((g.score / g.max_score) * 100 for g in valid) / len(valid)) if valid else 0.0
 

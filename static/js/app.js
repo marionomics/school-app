@@ -308,7 +308,7 @@ function renderEnrolledClassesList() {
                 <span class="text-gray-400 text-xs ml-2">${c.class_code}</span>
             </div>
             <button onclick="goToClass(${c.class_id})"
-                    class="px-3 py-1 text-sm bg-primary text-white rounded hover:bg-indigo-700">
+                    class="px-3 py-1 text-sm bg-primary text-white rounded hover:bg-secondary">
                 Ir
             </button>
         </div>
@@ -440,12 +440,12 @@ function renderGradeBreakdown(calc) {
 
     // Participation contribution
     html += `
-        <div class="flex justify-between items-center p-3 bg-purple-50 rounded-lg mt-3">
+        <div class="flex justify-between items-center p-3 bg-primary-5 rounded-lg mt-3">
             <div>
-                <span class="font-medium text-purple-800">Participacion</span>
-                <span class="text-xs text-purple-600 ml-2">(${calc.participation_points} pts aprobados × 0.1)</span>
+                <span class="font-medium text-secondary">Participacion</span>
+                <span class="text-xs text-primary ml-2">(${calc.participation_points} pts aprobados × 0.1)</span>
             </div>
-            <span class="font-medium text-purple-800">+${calc.participation_contribution.toFixed(1)} pts</span>
+            <span class="font-medium text-secondary">+${calc.participation_contribution.toFixed(1)} pts</span>
         </div>
     `;
 
@@ -481,7 +481,7 @@ function renderGradeBreakdown(calc) {
 
     // Total
     html += `
-        <div class="flex justify-between items-center p-3 bg-primary/10 rounded-lg mt-4 border-t-2 border-primary">
+        <div class="flex justify-between items-center p-3 bg-primary-10 rounded-lg mt-4 border-t-2 border-primary">
             <span class="font-bold text-gray-800">Calificacion Final</span>
             <span class="text-2xl font-bold ${calc.final_grade >= 70 ? 'text-green-600' : calc.final_grade >= 60 ? 'text-yellow-600' : 'text-red-600'}">
                 ${calc.final_grade.toFixed(1)}
@@ -632,16 +632,16 @@ function renderAttendance(attendance) {
         } else if (record.justification_status === 'pending') {
             justificationHtml = `
                 <span class="text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700">En revision</span>
-                ${record.has_justification_file ? `<button onclick="viewJustificationFile(${record.id})" class="text-xs text-indigo-600 hover:underline ml-1">Ver archivo</button>` : ''}
+                ${record.has_justification_file ? `<button onclick="viewJustificationFile(${record.id})" class="text-xs text-primary hover:underline ml-1">Ver archivo</button>` : ''}
             `;
         } else if (record.justification_status === 'rejected') {
             justificationHtml = `
                 <span class="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">Rechazada</span>
-                ${!previewMode ? `<button onclick="showJustificationUpload(${record.id})" class="text-xs text-indigo-600 hover:underline ml-1">Re-enviar</button>` : ''}
+                ${!previewMode ? `<button onclick="showJustificationUpload(${record.id})" class="text-xs text-primary hover:underline ml-1">Re-enviar</button>` : ''}
             `;
         } else if (canJustify && !previewMode) {
             justificationHtml = `
-                <button onclick="showJustificationUpload(${record.id})" class="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition">
+                <button onclick="showJustificationUpload(${record.id})" class="text-xs px-2 py-1 bg-primary-10 text-secondary rounded hover:bg-primary-20 transition">
                     Justificar
                 </button>
             `;
@@ -762,7 +762,7 @@ async function loadAssignments() {
                     ? `<div class="flex items-center gap-1">
                             <span class="font-medium">Archivo:</span>
                             <button onclick="viewSubmissionFile(${a.submission.id})"
-                                    class="text-indigo-600 hover:text-indigo-800 underline">
+                                    class="text-primary hover:text-secondary underline">
                                 ${a.submission.file_name || 'archivo'} (${formatFileSize(a.submission.file_size || 0)})
                             </button>
                        </div>`
@@ -772,7 +772,7 @@ async function loadAssignments() {
                     ? `<div class="flex items-center gap-1">
                             <span class="font-medium">Enlace:</span>
                             <a href="${a.submission.drive_url}" target="_blank" rel="noopener noreferrer"
-                               class="text-indigo-600 hover:text-indigo-800 underline">Google Drive</a>
+                               class="text-primary hover:text-secondary underline">Google Drive</a>
                        </div>`
                     : '';
 
@@ -813,7 +813,7 @@ async function loadAssignments() {
                         <input type="url" id="submit-url-${a.id}" placeholder="https://drive.google.com/..."
                                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none" />
                         <button onclick="submitAssignment(${a.id})"
-                                class="self-end px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-indigo-700 transition">
+                                class="self-end px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-secondary transition">
                             Enviar
                         </button>
                     </div>
@@ -829,7 +829,7 @@ async function loadAssignments() {
                                        onchange="handleFileSelect(${a.id}, this)" />
                             </label>
                             <button id="upload-btn-${a.id}" onclick="uploadAssignmentFile(${a.id})"
-                                    class="hidden px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-indigo-700 transition">
+                                    class="hidden px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-secondary transition">
                                 Subir
                             </button>
                         </div>
@@ -927,11 +927,11 @@ function showJustificationUpload(attendanceId) {
         </div>
         <p id="justify-file-info-${attendanceId}" class="text-xs text-gray-500 mt-1 hidden"></p>
         <button id="justify-upload-btn-${attendanceId}" onclick="uploadJustification(${attendanceId})"
-                class="hidden mt-1 px-3 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 transition">
+                class="hidden mt-1 px-3 py-1 text-xs bg-primary text-white rounded hover:bg-secondary transition">
             Enviar justificante
         </button>
         <div id="justify-progress-${attendanceId}" class="hidden mt-1 w-full bg-gray-200 rounded-full h-1.5">
-            <div id="justify-progress-fill-${attendanceId}" class="bg-indigo-600 h-1.5 rounded-full transition-all" style="width: 0%"></div>
+            <div id="justify-progress-fill-${attendanceId}" class="bg-primary h-1.5 rounded-full transition-all" style="width: 0%"></div>
         </div>
     `;
 }

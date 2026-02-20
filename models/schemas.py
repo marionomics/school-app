@@ -140,7 +140,7 @@ class SpecialPointsUpdate(BaseModel):
 
 # Grade calculation schemas
 class CategoryGradeBreakdown(BaseModel):
-    category_id: int
+    category_id: Optional[int] = None
     category_name: str
     weight: float
     grades: List[GradeResponse]

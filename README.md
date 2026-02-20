@@ -23,7 +23,7 @@ A FastAPI application for managing student attendance, participation, and grades
 - **Backend**: FastAPI, SQLAlchemy, Pydantic
 - **Database**: SQLite (dev) / PostgreSQL (production)
 - **Storage**: Cloudflare R2 (S3-compatible, optional for file uploads)
-- **Frontend**: Vanilla JS, Tailwind CSS (CDN)
+- **Frontend**: Vanilla JS, Tailwind CSS (CDN), warm cream/orange palette
 - **Auth**: Google OAuth 2.0
 - **Deployment**: Railway
 
@@ -93,6 +93,7 @@ Each unjustified absence (status = "absent") subtracts 1 point from the final gr
 - The remaining 20% comes from participation + special points (no category needed)
 - Teachers can customize categories per class (add, edit, delete, change weights)
 - Each grade is assigned to a category via `category_id`
+- Grades without a `category_id` (legacy data) are grouped into a "Sin categoría" bucket using remaining weight
 - Category averages are calculated over graded assignments only (variable count is fine)
 - Student dashboard shows "Tu calificacion se calcula sobre X tareas completadas" with pending/unsubmitted counts
 

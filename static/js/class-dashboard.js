@@ -316,7 +316,7 @@ function renderRosterTable() {
                     <div class="text-xs text-gray-400">${s.attendance_present}/${s.attendance_total}</div>
                 </td>
                 <td class="px-4 py-3 text-center">
-                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-10 text-secondary">
                         ${s.participation_points} pts
                     </span>
                     ${s.participation_pending > 0 ? `<div class="text-xs text-yellow-600">${s.participation_pending} pendiente(s)</div>` : ''}
@@ -330,7 +330,7 @@ function renderRosterTable() {
                     ${s.last_activity ? formatDate(s.last_activity.split('T')[0]) : '-'}
                 </td>
                 <td class="px-4 py-3 text-center">
-                    <button onclick="openStudentModal(${s.id})" class="text-primary hover:text-indigo-700 text-sm font-medium">
+                    <button onclick="openStudentModal(${s.id})" class="text-primary hover:text-secondary text-sm font-medium">
                         Ver detalle
                     </button>
                 </td>
@@ -526,7 +526,7 @@ function renderGradeCategoriesList() {
         <div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
             <div class="flex items-center gap-3">
                 <span class="font-medium text-gray-800">${cat.name}</span>
-                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-10 text-primary">
                     ${(cat.weight * 100).toFixed(0)}%
                 </span>
             </div>
@@ -835,7 +835,7 @@ async function openStudentModal(studentId) {
                     <div class="text-xs text-gray-500">Puntos Participacion</div>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-3">
-                    <div class="text-2xl font-bold text-purple-600">${student.attendance_rate.toFixed(0)}%</div>
+                    <div class="text-2xl font-bold text-primary">${student.attendance_rate.toFixed(0)}%</div>
                     <div class="text-xs text-gray-500">Asistencia</div>
                 </div>
             </div>
@@ -1173,7 +1173,7 @@ function renderSubmissionRow(s, maxPoints) {
     });
 
     const buttonLabel = isGraded ? 'Actualizar' : 'Calificar';
-    const buttonColor = isGraded ? 'bg-gray-600 hover:bg-gray-700' : 'bg-primary hover:bg-indigo-700';
+    const buttonColor = isGraded ? 'bg-gray-600 hover:bg-gray-700' : 'bg-primary hover:bg-secondary';
 
     return `
         <div class="border border-gray-200 rounded-lg p-3" data-submission-id="${s.id}">

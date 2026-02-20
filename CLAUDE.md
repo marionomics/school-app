@@ -11,7 +11,7 @@ A FastAPI teaching application for managing student attendance, participation, a
 - **Backend:** FastAPI, SQLAlchemy ORM, Pydantic
 - **Database:** SQLite (dev) / PostgreSQL (production)
 - **Storage:** Cloudflare R2 (S3-compatible, optional — enables file uploads)
-- **Frontend:** Vanilla JS with Tailwind CSS (CDN), Spanish UI
+- **Frontend:** Vanilla JS with Tailwind CSS (CDN), Spanish UI, custom warm palette (#F2F0E4 cream, #1F2020 dark, #EA8251 orange, #9C4927 rust)
 - **Auth:** Google OAuth (Google Identity Services)
 - **Deployment:** Railway
 
@@ -205,6 +205,7 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 - Category average = mean of graded assignments only (variable count — doesn't matter if 4 or 15 assignments exist)
 - Grade-calculation response includes per-category: `graded_count`, `pending_count`, `total_assignments`
 - Student dashboard shows: "Tu calificacion se calcula sobre X tareas completadas"
+- **Uncategorized grades fallback**: Grades with `category_id = NULL` (legacy/manual entries) are grouped into a "Sin categoría" bucket in grade-calculation. They get the remaining weight after defined categories (e.g., if categories sum to 0.8, uncategorized gets 0.2). This ensures legacy grades are never silently dropped.
 
 **Participation Points:**
 - No cap on participation points contribution
@@ -322,7 +323,8 @@ forum_likes
 
 ## Development Notes
 
-- Frontend uses Tailwind CSS via CDN (no build step)
+- Frontend uses Tailwind CSS via CDN (no build step) with custom color palette defined in each HTML file's `<script>` (Tailwind config) and `<style>` blocks (opacity variants like `.bg-primary-5`, `.bg-primary-10`, `.hover\:bg-primary-5:hover` etc.)
+- **Theme colors**: `primary: #EA8251` (orange), `secondary: #9C4927` (rust), `cream: #F2F0E4` (background), `dark: #1F2020` (near-black). Body uses `bg-cream`. Buttons use `bg-primary hover:bg-secondary`. Opacity variants defined as plain CSS classes (Tailwind CDN doesn't support `/opacity` syntax with custom colors).
 - Frontend is fully translated to Spanish (UI labels, messages, date formatting uses es-MX locale)
 - Database file (`school.db`) is gitignored
 - Run `seed_data.py` to populate test data (creates teacher, 3 students, sample class, enrollments, and sample records)

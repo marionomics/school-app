@@ -11,21 +11,31 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: '#4f46e5',
-                        secondary: '#7c3aed'
+                        primary: '#EA8251',
+                        secondary: '#9C4927',
+                        cream: '#F2F0E4',
+                        dark: '#1F2020'
                     }
                 }
             }
         }
     </script>
     <style>
-        .tab-active { border-color: #4f46e5; color: #4f46e5; }
+        .bg-primary-5 { background-color: rgba(234,130,81,0.05); }
+        .bg-primary-10 { background-color: rgba(234,130,81,0.1); }
+        .bg-primary-20 { background-color: rgba(234,130,81,0.2); }
+        .border-primary-30 { border-color: rgba(234,130,81,0.3); }
+        .hover\:bg-primary-5:hover { background-color: rgba(234,130,81,0.05); }
+        .hover\:bg-primary-10:hover { background-color: rgba(234,130,81,0.1); }
+        .hover\:bg-primary-20:hover { background-color: rgba(234,130,81,0.2); }
+        .hover\:border-primary-30:hover { border-color: rgba(234,130,81,0.3); }
+        .tab-active { border-color: #EA8251; color: #EA8251; }
         .status-good { background-color: #dcfce7; color: #166534; }
         .status-warning { background-color: #fef9c3; color: #854d0e; }
         .status-at_risk { background-color: #fee2e2; color: #991b1b; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-cream min-h-screen">
     <!-- Loading State -->
     <div id="loading-section" class="min-h-screen flex items-center justify-center">
         <div class="text-center">
@@ -39,7 +49,7 @@
         <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full mx-4 text-center">
             <h1 class="text-2xl font-bold text-gray-800 mb-4">Acceso Requerido</h1>
             <p class="text-gray-500 mb-6">Debes iniciar sesion como profesor para ver este dashboard.</p>
-            <a href="/admin" class="inline-block bg-primary hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg transition">
+            <a href="/admin" class="inline-block bg-primary hover:bg-secondary text-white font-medium py-2 px-6 rounded-lg transition">
                 Ir a Panel de Admin
             </a>
         </div>
@@ -93,7 +103,7 @@
                 </div>
                 <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
                     <p class="text-sm text-gray-500">Top Performers</p>
-                    <p id="stat-top" class="text-2xl font-bold text-purple-600">--</p>
+                    <p id="stat-top" class="text-2xl font-bold text-primary">--</p>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
                     <p class="text-sm text-gray-500">Pendientes</p>
@@ -156,9 +166,9 @@
                                 <span class="font-medium">Agregar Calificacion</span>
                                 <span class="text-sm block text-green-600">Registrar nueva calificacion</span>
                             </button>
-                            <button onclick="showTab('participation')" class="w-full text-left px-4 py-3 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition">
+                            <button onclick="showTab('participation')" class="w-full text-left px-4 py-3 bg-primary-5 text-secondary rounded-lg hover:bg-primary-10 transition">
                                 <span class="font-medium">Revisar Participaciones</span>
-                                <span class="text-sm block text-purple-600" id="pending-count">-- pendientes</span>
+                                <span class="text-sm block text-primary" id="pending-count">-- pendientes</span>
                             </button>
                             <button onclick="showTab('justifications')" class="w-full text-left px-4 py-3 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition">
                                 <span class="font-medium">Justificaciones</span>
@@ -282,7 +292,7 @@
 
                     <div class="mt-6 flex justify-end">
                         <button onclick="saveAttendance()"
-                                class="bg-primary hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg transition">
+                                class="bg-primary hover:bg-secondary text-white font-medium py-2 px-6 rounded-lg transition">
                             Guardar Asistencia
                         </button>
                     </div>
@@ -331,7 +341,7 @@
                                 </div>
                             </div>
                             <button type="submit"
-                                    class="w-full bg-primary hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg transition">
+                                    class="w-full bg-primary hover:bg-secondary text-white font-medium py-2 px-6 rounded-lg transition">
                                 Agregar Calificacion
                             </button>
                         </form>
@@ -414,7 +424,7 @@
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                         <h2 class="text-lg font-semibold text-gray-800">Retos</h2>
                         <button onclick="toggleAssignmentForm()" id="btn-new-assignment"
-                                class="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-indigo-700 transition font-medium">
+                                class="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-secondary transition font-medium">
                             + Nuevo Reto
                         </button>
                     </div>
@@ -451,7 +461,7 @@
                                     Cancelar
                                 </button>
                                 <button type="submit"
-                                        class="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-indigo-700 transition">
+                                        class="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-secondary transition">
                                     Crear Reto
                                 </button>
                             </div>
