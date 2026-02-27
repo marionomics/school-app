@@ -41,6 +41,7 @@ from models.schemas import (
     AutoGradeResult,
     JustificationReviewRequest,
     AttendanceWithStudent,
+    ClassSettingsUpdate,
 )
 from app.auth import get_current_teacher
 
@@ -704,7 +705,12 @@ def _calc_grade(student_id: int, class_id: int, db: Session) -> dict:
     """Calculate grade using category weights, participation, and special points.
 
     Formula: Σ(category_avg × weight) + (participation × 0.1) + special_points
+    In 'percentage' mode, final grade is capped at 100.
     """
+    # Get class for grading mode
+    class_ = db.query(Class).filter(Class.id == class_id).first()
+    grading_mode = (class_.grading_mode if class_ and class_.grading_mode else None) or 'points'
+
     # Get categories for this class
     categories = db.query(GradeCategory).filter(
         GradeCategory.class_id == class_id
@@ -818,7 +824,10 @@ def _calc_grade(student_id: int, class_id: int, db: Session) -> dict:
     ).scalar() or 0
     absence_penalty = float(unjustified_absences)
 
+    max_base_grade = sum(c.weight for c in categories) * 100
     final = weighted_sum + part_contribution + sp_total - absence_penalty
+    if grading_mode == 'percentage':
+        final = min(100.0, final)
 
     # Simple average for display (without weights)
     valid_all = [g for g in all_grades if g.max_score and g.max_score > 0]
@@ -834,6 +843,8 @@ def _calc_grade(student_id: int, class_id: int, db: Session) -> dict:
         "absence_count": unjustified_absences,
         "absence_penalty": absence_penalty,
         "final_grade": final,
+        "grading_mode": grading_mode,
+        "max_base_grade": max_base_grade,
     }
 
 
@@ -1099,6 +1110,7 @@ async def get_class_dashboard(
                 "top_performers": top,
                 "pending_justifications": pending_justifications,
                 "categories": cat_responses,
+                "grading_mode": class_.grading_mode or 'points',
             },
             "students": students_data,
             "recent_activity": recent,
@@ -1112,6 +1124,33 @@ async def get_class_dashboard(
             status_code=500,
             detail=f"Error al cargar dashboard: {type(e).__name__}: {str(e)}",
         )
+
+
+# ==================== Class Settings ====================
+
+@router.patch("/classes/{class_id}/settings")
+async def update_class_settings(
+    class_id: int,
+    data: ClassSettingsUpdate,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Update class settings (e.g., grading_mode)."""
+    class_ = db.query(Class).filter(
+        Class.id == class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=404, detail="Clase no encontrada")
+
+    if data.grading_mode not in ('points', 'percentage'):
+        raise HTTPException(status_code=400, detail="Modo invalido. Use 'points' o 'percentage'")
+
+    class_.grading_mode = data.grading_mode
+    db.commit()
+    db.refresh(class_)
+
+    return {"grading_mode": class_.grading_mode}
 
 
 # ==================== Assignments ====================
@@ -1400,7 +1439,7 @@ async def grade_submission(
     submission.graded_by = teacher.id
 
     # Resolve category name from assignment's category_id
-    category_name = None
+    category_name = "Retos de la Semana"
     if assignment.category_id:
         cat = db.query(GradeCategory).filter(GradeCategory.id == assignment.category_id).first()
         if cat:
@@ -1481,7 +1520,7 @@ async def auto_grade_assignment(
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
     # Resolve category name from assignment's category_id
-    category_name = None
+    category_name = "Retos de la Semana"
     if assignment.category_id:
         cat = db.query(GradeCategory).filter(GradeCategory.id == assignment.category_id).first()
         if cat:

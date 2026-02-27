@@ -162,6 +162,10 @@ async def get_student_grade_calculation(
     if not enrollment:
         raise HTTPException(status_code=404, detail="No estas inscrito en esta clase")
 
+    # Grading mode
+    class_ = db.query(Class).filter(Class.id == class_id).first()
+    grading_mode = (class_.grading_mode if class_ and class_.grading_mode else None) or 'points'
+
     # Categories
     categories = db.query(GradeCategory).filter(
         GradeCategory.class_id == class_id
@@ -281,7 +285,10 @@ async def get_student_grade_calculation(
     ).scalar() or 0
     absence_penalty = float(unjustified_absences)
 
+    max_base_grade = sum(cat.weight for cat in categories) * 100
     final_grade = weighted_sum + part_contribution + sp_total - absence_penalty
+    if grading_mode == 'percentage':
+        final_grade = min(100.0, final_grade)
 
     return {
         "student_id": current_student.id,
@@ -295,6 +302,8 @@ async def get_student_grade_calculation(
         "absence_count": unjustified_absences,
         "absence_penalty": absence_penalty,
         "final_grade": final_grade,
+        "grading_mode": grading_mode,
+        "max_base_grade": max_base_grade,
     }
 
 

@@ -220,9 +220,14 @@ class ClassResponse(BaseModel):
     teacher_id: int
     created_at: datetime
     student_count: Optional[int] = 0
+    grading_mode: str = 'points'
 
     class Config:
         from_attributes = True
+
+
+class ClassSettingsUpdate(BaseModel):
+    grading_mode: str  # 'points' or 'percentage'
 
 
 class JoinClassRequest(BaseModel):

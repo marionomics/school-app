@@ -62,6 +62,14 @@ def _ensure_columns():
                 ))
 
 
+    if "classes" in inspector.get_table_names():
+        existing_cols = {col["name"] for col in inspector.get_columns("classes")}
+        with engine.begin() as conn:
+            if "grading_mode" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE classes ADD COLUMN grading_mode VARCHAR(20) DEFAULT 'points'"
+                ))
+
     if "attendances" in inspector.get_table_names():
         existing_cols = {col["name"] for col in inspector.get_columns("attendances")}
 

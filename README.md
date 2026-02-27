@@ -6,7 +6,7 @@ A FastAPI application for managing student attendance, participation, and grades
 
 - **Multi-Class Support**: Teachers create classes with unique codes, students join via codes
 - **Class Dashboard**: Comprehensive per-class view with stats, roster, attendance, grades, and participation tabs
-- **Weighted Grading System**: Configurable grade categories with weights, participation points, special bonus points
+- **Flexible Grading System**: Configurable grade categories with weights; per-class grading mode — "Puntos" (uncapped, extras stack freely) or "Porcentajes" (capped at 100)
 - **Assignment System (Retos)**: Create assignments with category selection, students submit Google Drive links or upload files (via Cloudflare R2), teacher grading modal with auto-grade support
 - **File Uploads**: Optional Cloudflare R2 integration for direct file submissions (PDF, DOCX, ZIP, images, max 10MB) with upload progress and presigned download URLs
 - **Attendance Justifications**: Students upload justification documents (PDF, images) for absences/lates; teachers approve/reject; approved justifications change status to "excused" and remove the -1 point grade penalty
@@ -87,6 +87,17 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 ```
 
 Each unjustified absence (status = "absent") subtracts 1 point from the final grade. Students can upload justification documents; if the teacher approves, the absence becomes "excused" and the penalty is removed.
+
+### Grading Modes
+
+Each class has a `grading_mode` setting (configurable in the Grades tab under Categories):
+
+| Mode | Behavior |
+|------|----------|
+| **Puntos** (default) | Final grade is uncapped — participation and special points stack above the category base. Category weights don't need to sum to 100%. |
+| **Porcentajes** | Final grade is capped at 100. Category weights should sum to 100% (a warning is shown otherwise). |
+
+The default mode is `points`, which matches UJED's system where categories total 80 pts and extras (participation, special points) can push the grade above 80.
 
 ### Grade Categories
 - New classes auto-create default categories: "Retos de la Semana" (40%) and "Exámenes y Proyectos" (40%)
@@ -203,6 +214,7 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 | POST | `/api/admin/assignments/:id/auto-grade` | Auto-grade ungraded submissions |
 | GET | `/api/admin/justifications?class_id=X` | List pending justifications |
 | PATCH | `/api/admin/justifications/:id` | Approve/reject justification |
+| PATCH | `/api/admin/classes/:id/settings` | Update class settings (grading_mode) |
 
 ## Database Migrations
 

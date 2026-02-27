@@ -5,6 +5,7 @@ let classId = null;
 let dashboardData = null;
 let studentsData = [];
 let categories = [];
+let classGradingMode = 'points';
 let currentAssignmentId = null;
 
 // Extraer classId de la URL
@@ -134,6 +135,7 @@ async function loadDashboard() {
         dashboardData = await apiCall(url);
         studentsData = dashboardData.students;
         categories = dashboardData.stats.categories;
+        classGradingMode = dashboardData.stats.grading_mode || 'points';
 
         updateDashboardUI();
     } catch (error) {
@@ -264,7 +266,7 @@ function renderCategoriesOverview() {
     }
 
     const totalWeight = categories.reduce((sum, c) => sum + c.weight, 0);
-    const weightWarning = Math.abs(totalWeight - 1) > 0.001;
+    const weightWarning = classGradingMode === 'percentage' && Math.abs(totalWeight - 1) > 0.001;
 
     container.innerHTML = categories.map(c => `
         <div class="bg-gray-50 rounded-lg p-3">
@@ -521,6 +523,28 @@ function renderGradeCategoriesList() {
     }
 
     const totalWeight = categories.reduce((sum, c) => sum + c.weight, 0);
+    const weightWarning = classGradingMode === 'percentage' && Math.abs(totalWeight - 1) > 0.001;
+
+    const weightNote = weightWarning
+        ? `<p class="text-yellow-600 text-sm mt-2">Los pesos suman ${(totalWeight * 100).toFixed(0)}%. Deben sumar 100% para calcular correctamente.</p>`
+        : classGradingMode === 'points'
+            ? `<p class="text-gray-400 text-xs mt-2">Modo puntos: los pesos no necesitan sumar 100%</p>`
+            : '';
+
+    const toggle = `
+        <div class="flex gap-4 mt-4 pt-3 border-t border-gray-100">
+            <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-700">
+                <input type="radio" name="grading_mode" value="points" ${classGradingMode === 'points' ? 'checked' : ''}
+                       onchange="saveGradingMode('points')" class="text-primary">
+                Puntos (sin límite)
+            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-700">
+                <input type="radio" name="grading_mode" value="percentage" ${classGradingMode === 'percentage' ? 'checked' : ''}
+                       onchange="saveGradingMode('percentage')" class="text-primary">
+                Porcentajes (cap 100%)
+            </label>
+        </div>
+    `;
 
     container.innerHTML = categories.map(cat => `
         <div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
@@ -545,11 +569,22 @@ function renderGradeCategoriesList() {
                 </button>
             </div>
         </div>
-    `).join('') + (Math.abs(totalWeight - 1) > 0.001 ? `
-        <p class="text-yellow-600 text-sm mt-2">
-            Los pesos suman ${(totalWeight * 100).toFixed(0)}%. Deben sumar 100% para calcular correctamente.
-        </p>
-    ` : '');
+    `).join('') + weightNote + toggle;
+}
+
+
+async function saveGradingMode(mode) {
+    try {
+        await apiCall(`/admin/classes/${classId}/settings`, {
+            method: 'PATCH',
+            body: JSON.stringify({ grading_mode: mode }),
+        });
+        classGradingMode = mode;
+        renderCategoriesOverview();
+        renderGradeCategoriesList();
+    } catch (err) {
+        alert('Error al guardar el modo de calificacion: ' + err.message);
+    }
 }
 
 document.getElementById('grade-form').addEventListener('submit', async (e) => {

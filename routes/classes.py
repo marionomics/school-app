@@ -10,6 +10,7 @@ from models.models import Student, Class, StudentClass, GradeCategory
 from models.schemas import (
     ClassCreate,
     ClassResponse,
+    ClassSettingsUpdate,
     JoinClassRequest,
     StudentClassResponse,
     ClassWithStudents,
@@ -59,6 +60,7 @@ async def create_class(
         teacher_id=new_class.teacher_id,
         created_at=new_class.created_at,
         student_count=0,
+        grading_mode=new_class.grading_mode or 'points',
     )
 
 
@@ -82,6 +84,7 @@ async def list_teaching_classes(
             teacher_id=c.teacher_id,
             created_at=c.created_at,
             student_count=student_count,
+            grading_mode=c.grading_mode or 'points',
         ))
 
     return result
@@ -122,6 +125,7 @@ async def get_class_details(
         teacher_id=class_.teacher_id,
         created_at=class_.created_at,
         student_count=len(students),
+        grading_mode=class_.grading_mode or 'points',
         students=students,
     )
 

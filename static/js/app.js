@@ -480,9 +480,15 @@ function renderGradeBreakdown(calc) {
     }
 
     // Total
+    const gradingMode = calc.grading_mode || 'points';
+    const finalLabel = gradingMode === 'points' ? 'Calificacion Final (sin límite)' : 'Calificacion Final';
+    const maxBase = calc.max_base_grade != null ? calc.max_base_grade : null;
+    const baseNote = gradingMode === 'points' && maxBase != null
+        ? `<span class="text-xs font-normal text-gray-500 ml-1">(base: ${maxBase.toFixed(0)} pts)</span>`
+        : '';
     html += `
         <div class="flex justify-between items-center p-3 bg-primary-10 rounded-lg mt-4 border-t-2 border-primary">
-            <span class="font-bold text-gray-800">Calificacion Final</span>
+            <span class="font-bold text-gray-800">${finalLabel}${baseNote}</span>
             <span class="text-2xl font-bold ${calc.final_grade >= 70 ? 'text-green-600' : calc.final_grade >= 60 ? 'text-yellow-600' : 'text-red-600'}">
                 ${calc.final_grade.toFixed(1)}
             </span>

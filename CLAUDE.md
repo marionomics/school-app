@@ -72,7 +72,7 @@ python seed_data.py
 ```
 
 ### Database Models
-- `Class` - id, name, code (unique), teacher_id, created_at
+- `Class` - id, name, code (unique), teacher_id, created_at, grading_mode ('points'|'percentage', default 'points')
 - `StudentClass` - Junction table (student_id, class_id, joined_at)
 - `Attendance` - Daily attendance with justification support (justification_file_key, justification_status: null/pending/approved/rejected, justification_reviewed_by). Has nullable `class_id` for backward compatibility
 - `Participation` - Has nullable `class_id` for backward compatibility
@@ -142,6 +142,7 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `POST /api/admin/assignments/{id}/auto-grade` - Auto-grade all ungraded submissions (penalty_pct/100 * max_points)
 - `GET /api/admin/justifications?class_id=X&status_filter=` - List justifications (default: pending)
 - `PATCH /api/admin/justifications/{id}` - Approve/reject justification (approved → status becomes "excused")
+- `PATCH /api/admin/classes/{id}/settings` - Update class settings (grading_mode: 'points'|'percentage')
 
 ## Authentication
 
@@ -175,7 +176,7 @@ Uses Google OAuth with Google Identity Services (client-side Sign-In button).
 
 ### Current Tables
 - `students` - Student records (includes `role`: student/teacher)
-- `classes` - Class records (name, code, teacher_id)
+- `classes` - Class records (name, code, teacher_id, grading_mode)
 - `student_classes` - Student-class enrollments (many-to-many)
 - `attendances` - Daily attendance (status: present/absent/late/excused, class_id, justification_file_key, justification_status, justification_reviewed_by)
 - `participations` - Class participation entries with points and approval status (class_id)
@@ -191,6 +192,12 @@ Uses Google OAuth with Google Identity Services (client-side Sign-In button).
 ```
 Final Grade = Σ(Category Weight × Category Average) + (Participation Points × 0.1) + Special Points - Unjustified Absences
 ```
+
+**Grading Mode** (`classes.grading_mode`):
+- `'points'` (default) — Final grade is **uncapped**. Category weights don't need to sum to 100%. Extras (participation, special points) stack freely above the weighted base. No weight-sum warning shown in UI.
+- `'percentage'` — Final grade is **capped at 100**. UI warns if category weights don't sum to 100%.
+- Grade-calculation responses include `grading_mode` and `max_base_grade` (= sum of category weights × 100).
+- The Grades tab → Categories section shows a radio toggle to switch modes per class.
 
 **Default Categories** (auto-created with new classes):
 - "Retos de la Semana" — 40%
@@ -336,7 +343,7 @@ forum_likes
 - Database file (`school.db`) is gitignored
 - Run `seed_data.py` to populate test data (creates teacher, 3 students, sample class, enrollments, and sample records)
 - `class_id` is nullable in attendance/participation/grades for backward compatibility
-- **Auto-migration on startup**: `Base.metadata.create_all()` always runs (creates missing tables), plus `_ensure_columns()` adds missing columns (`category_id`, `name` to `grades` table; `drive_url`, `penalty_pct`, `file_key`, `file_name`, `file_size`, `resubmit_count` to `submissions` table; `justification_file_key`, `justification_file_name`, `justification_text`, `justification_status`, `justification_submitted_at`, `justification_reviewed_at`, `justification_reviewed_by` to `attendances` table)
+- **Auto-migration on startup**: `Base.metadata.create_all()` always runs (creates missing tables), plus `_ensure_columns()` adds missing columns (`category_id`, `name` to `grades` table; `drive_url`, `penalty_pct`, `file_key`, `file_name`, `file_size`, `resubmit_count` to `submissions` table; `justification_file_key`, `justification_file_name`, `justification_text`, `justification_status`, `justification_submitted_at`, `justification_reviewed_at`, `justification_reviewed_by` to `attendances` table; `grading_mode` to `classes` table)
 
 ## Railway Deployment
 
