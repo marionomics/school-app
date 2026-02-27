@@ -1438,12 +1438,22 @@ async def grade_submission(
     submission.graded_at = dt.utcnow()
     submission.graded_by = teacher.id
 
-    # Resolve category name from assignment's category_id
-    category_name = "Retos de la Semana"
-    if assignment.category_id:
-        cat = db.query(GradeCategory).filter(GradeCategory.id == assignment.category_id).first()
+    # Resolve category from assignment, falling back to first class category
+    resolved_category_id = assignment.category_id
+    category_name = None
+    if resolved_category_id:
+        cat = db.query(GradeCategory).filter(GradeCategory.id == resolved_category_id).first()
         if cat:
             category_name = cat.name
+    if not resolved_category_id:
+        first_cat = db.query(GradeCategory).filter(
+            GradeCategory.class_id == assignment.class_id
+        ).first()
+        if first_cat:
+            resolved_category_id = first_cat.id
+            category_name = first_cat.name
+    if not category_name:
+        category_name = "Retos de la Semana"
 
     # Upsert Grade record (match by student + class + assignment title)
     existing_grade = db.query(Grade).filter(
@@ -1455,13 +1465,13 @@ async def grade_submission(
     if existing_grade:
         existing_grade.score = data.score
         existing_grade.max_score = assignment.max_points
-        existing_grade.category_id = assignment.category_id
+        existing_grade.category_id = resolved_category_id
         existing_grade.category = category_name
     else:
         grade = Grade(
             student_id=submission.student_id,
             class_id=assignment.class_id,
-            category_id=assignment.category_id,
+            category_id=resolved_category_id,
             category=category_name,
             name=assignment.title,
             score=data.score,
@@ -1519,12 +1529,22 @@ async def auto_grade_assignment(
     if not class_:
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
-    # Resolve category name from assignment's category_id
-    category_name = "Retos de la Semana"
-    if assignment.category_id:
-        cat = db.query(GradeCategory).filter(GradeCategory.id == assignment.category_id).first()
+    # Resolve category from assignment, falling back to first class category
+    resolved_category_id = assignment.category_id
+    category_name = None
+    if resolved_category_id:
+        cat = db.query(GradeCategory).filter(GradeCategory.id == resolved_category_id).first()
         if cat:
             category_name = cat.name
+    if not resolved_category_id:
+        first_cat = db.query(GradeCategory).filter(
+            GradeCategory.class_id == assignment.class_id
+        ).first()
+        if first_cat:
+            resolved_category_id = first_cat.id
+            category_name = first_cat.name
+    if not category_name:
+        category_name = "Retos de la Semana"
 
     # Get ungraded submissions
     ungraded = db.query(Submission).filter(
@@ -1551,13 +1571,13 @@ async def auto_grade_assignment(
         if existing_grade:
             existing_grade.score = score
             existing_grade.max_score = assignment.max_points
-            existing_grade.category_id = assignment.category_id
+            existing_grade.category_id = resolved_category_id
             existing_grade.category = category_name
         else:
             grade = Grade(
                 student_id=s.student_id,
                 class_id=assignment.class_id,
-                category_id=assignment.category_id,
+                category_id=resolved_category_id,
                 category=category_name,
                 name=assignment.title,
                 score=score,

@@ -70,6 +70,47 @@ def _ensure_columns():
                     "ALTER TABLE classes ADD COLUMN grading_mode VARCHAR(20) DEFAULT 'points'"
                 ))
 
+    # Data repair: assign a category to assignments that were saved without one
+    if "assignments" in inspector.get_table_names() and "grade_categories" in inspector.get_table_names():
+        with engine.begin() as conn:
+            conn.execute(text("""
+                UPDATE assignments
+                SET category_id = (
+                    SELECT gc.id FROM grade_categories gc
+                    WHERE gc.class_id = assignments.class_id
+                    ORDER BY gc.id
+                    LIMIT 1
+                )
+                WHERE category_id IS NULL
+                AND EXISTS (
+                    SELECT 1 FROM grade_categories gc
+                    WHERE gc.class_id = assignments.class_id
+                )
+            """))
+
+    # Data repair: fix grades from assignments that have category_id = NULL
+    # Match by grade name == assignment title within the same class
+    if "grades" in inspector.get_table_names() and "assignments" in inspector.get_table_names():
+        with engine.begin() as conn:
+            conn.execute(text("""
+                UPDATE grades
+                SET category_id = (
+                    SELECT a.category_id FROM assignments a
+                    WHERE a.title = grades.name
+                    AND a.class_id = grades.class_id
+                    AND a.category_id IS NOT NULL
+                    LIMIT 1
+                )
+                WHERE category_id IS NULL
+                AND name IS NOT NULL
+                AND EXISTS (
+                    SELECT 1 FROM assignments a
+                    WHERE a.title = grades.name
+                    AND a.class_id = grades.class_id
+                    AND a.category_id IS NOT NULL
+                )
+            """))
+
     if "attendances" in inspector.get_table_names():
         existing_cols = {col["name"] for col in inspector.get_columns("attendances")}
 
