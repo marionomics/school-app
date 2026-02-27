@@ -333,7 +333,8 @@ async def add_grade(
             detail="Estudiante no encontrado en esta clase",
         )
 
-    # If category_id provided, verify it belongs to this class
+    # If category_id provided, verify it belongs to this class and resolve its name
+    category_name = data.category  # may be None if not sent by frontend
     if data.category_id:
         cat = db.query(GradeCategory).filter(
             GradeCategory.id == data.category_id,
@@ -341,12 +342,13 @@ async def add_grade(
         ).first()
         if not cat:
             raise HTTPException(status_code=404, detail="Categoría no encontrada en esta clase")
+        category_name = cat.name  # always use the real name from DB
 
     grade = Grade(
         student_id=data.student_id,
         class_id=data.class_id,
         category_id=data.category_id,
-        category=data.category,
+        category=category_name,
         name=data.name,
         score=data.score,
         max_score=data.max_score,
