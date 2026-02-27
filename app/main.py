@@ -70,6 +70,14 @@ def _ensure_columns():
                     "ALTER TABLE classes ADD COLUMN grading_mode VARCHAR(20) DEFAULT 'points'"
                 ))
 
+    if "assignments" in inspector.get_table_names():
+        existing_cols = {col["name"] for col in inspector.get_columns("assignments")}
+        with engine.begin() as conn:
+            if "exam_type" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE assignments ADD COLUMN exam_type VARCHAR(20) DEFAULT 'homework'"
+                ))
+
     # Data repair: assign a category to assignments that were saved without one
     if "assignments" in inspector.get_table_names() and "grade_categories" in inspector.get_table_names():
         with engine.begin() as conn:

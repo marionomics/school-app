@@ -295,6 +295,12 @@ class AssignmentCreate(BaseModel):
     due_date: Optional[datetime] = None
     max_points: Optional[float] = 100
     category_id: Optional[int] = None
+    exam_type: str = 'homework'  # 'homework' or 'exam'
+
+
+class ExamGradeRequest(BaseModel):
+    student_id: int
+    score: float
 
 
 class SubmissionResponse(BaseModel):
@@ -326,6 +332,7 @@ class AssignmentResponse(BaseModel):
     description: Optional[str] = None
     due_date: datetime
     max_points: float
+    exam_type: str = 'homework'
     allow_late: bool
     published: bool
     created_at: datetime

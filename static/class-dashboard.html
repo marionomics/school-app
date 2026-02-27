@@ -130,7 +130,7 @@
                     </button>
                     <button onclick="showTab('grades')" id="tab-grades"
                             class="tab-btn border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
-                        Calificaciones
+                        Exámenes
                     </button>
                     <button onclick="showTab('participation')" id="tab-participation"
                             class="tab-btn border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
@@ -163,8 +163,8 @@
                                 <span class="text-sm block text-blue-600">Registrar asistencia de hoy</span>
                             </button>
                             <button onclick="showTab('grades')" class="w-full text-left px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition">
-                                <span class="font-medium">Agregar Calificacion</span>
-                                <span class="text-sm block text-green-600">Registrar nueva calificacion</span>
+                                <span class="font-medium">Exámenes</span>
+                                <span class="text-sm block text-green-600">Calificar exámenes y ver categorías</span>
                             </button>
                             <button onclick="showTab('participation')" class="w-full text-left px-4 py-3 bg-primary-5 text-secondary rounded-lg hover:bg-primary-10 transition">
                                 <span class="font-medium">Revisar Participaciones</span>
@@ -302,52 +302,87 @@
                 </div>
             </div>
 
-            <!-- Grades Tab -->
+            <!-- Exámenes Tab -->
             <div id="panel-grades" class="tab-panel hidden">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Add Grade Form -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Agregar Calificacion</h2>
-                        <form id="grade-form" class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Estudiante</label>
-                                <select id="grade-student" required
-                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none">
-                                    <option value="">Selecciona un estudiante...</option>
-                                </select>
+                    <!-- Exam List + Create -->
+                    <div class="space-y-4">
+                        <!-- Exam List -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h2 class="text-lg font-semibold text-gray-800">Exámenes Presenciales</h2>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                                <select id="grade-category" required
-                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none">
-                                    <option value="">Selecciona una categoria...</option>
-                                </select>
+                            <div id="exams-list" class="space-y-2 mb-4">
+                                <p class="text-gray-400 text-sm">Cargando...</p>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre (opcional)</label>
-                                <input type="text" id="grade-name" placeholder="Ej: Reto Semana 1"
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none">
-                            </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Calificacion</label>
-                                    <input type="number" id="grade-score" required min="0" step="0.5"
-                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Maximo</label>
-                                    <input type="number" id="grade-max" required min="1" step="0.5" value="100"
-                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none">
+                            <!-- Create Exam Form -->
+                            <div class="border-t pt-4">
+                                <h3 class="text-sm font-medium text-gray-700 mb-3">Nuevo Examen Presencial</h3>
+                                <div class="space-y-2">
+                                    <input type="text" id="exam-title" placeholder="Nombre del examen (ej: Parcial 1)"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                                    <div class="flex gap-2">
+                                        <select id="exam-category"
+                                                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                                            <option value="">Categoria (auto)</option>
+                                        </select>
+                                        <input type="number" id="exam-max-points" placeholder="pts" min="1" step="0.5" value="100"
+                                               class="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                                    </div>
+                                    <button onclick="createExam()"
+                                            class="w-full px-4 py-2 bg-primary hover:bg-secondary text-white rounded-lg text-sm font-medium transition">
+                                        Crear y Calificar
+                                    </button>
                                 </div>
                             </div>
-                            <button type="submit"
-                                    class="w-full bg-primary hover:bg-secondary text-white font-medium py-2 px-6 rounded-lg transition">
-                                Agregar Calificacion
-                            </button>
-                        </form>
-                        <div id="grade-success" class="hidden mt-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm">
-                            Calificacion agregada exitosamente!
                         </div>
+
+                        <!-- Manual Grade (secondary) -->
+                        <details class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                            <summary class="text-sm font-medium text-gray-600 cursor-pointer select-none">
+                                Agregar Calificacion Individual
+                            </summary>
+                            <form id="grade-form" class="space-y-3 mt-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Estudiante</label>
+                                    <select id="grade-student" required
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                                        <option value="">Selecciona un estudiante...</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Categoria</label>
+                                    <select id="grade-category" required
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                                        <option value="">Selecciona una categoria...</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Nombre (opcional)</label>
+                                    <input type="text" id="grade-name" placeholder="Ej: Parcial 2"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Calificacion</label>
+                                        <input type="number" id="grade-score" required min="0" step="0.5"
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Maximo</label>
+                                        <input type="number" id="grade-max" required min="1" step="0.5" value="100"
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+                                    </div>
+                                </div>
+                                <button type="submit"
+                                        class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg text-sm transition">
+                                    Agregar Calificacion
+                                </button>
+                            </form>
+                            <div id="grade-success" class="hidden mt-3 p-2 bg-green-50 text-green-700 rounded-lg text-xs">
+                                Calificacion agregada!
+                            </div>
+                        </details>
                     </div>
 
                     <!-- Grade Categories -->
@@ -367,6 +402,61 @@
                                         class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm">
                                     Agregar
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Exam Grading Modal -->
+            <div id="exam-grading-modal" class="hidden fixed inset-0 z-50 flex items-stretch bg-black bg-opacity-50">
+                <div class="bg-white w-full max-w-2xl mx-auto flex flex-col shadow-2xl overflow-hidden rounded-xl my-6">
+                    <!-- Modal Header -->
+                    <div class="flex items-start justify-between p-5 border-b border-gray-200 bg-gray-50">
+                        <div>
+                            <h2 id="exam-modal-title" class="text-lg font-semibold text-gray-900">Calificando examen</h2>
+                            <p id="exam-modal-subtitle" class="text-sm text-gray-500 mt-0.5"></p>
+                        </div>
+                        <button onclick="closeExamGradingModal()" class="text-gray-400 hover:text-gray-600 ml-4 mt-0.5">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- Search -->
+                    <div class="p-4 border-b border-gray-100">
+                        <input type="text" id="exam-search" placeholder="Buscar alumno por nombre..."
+                               oninput="filterExamStudents(this.value)"
+                               onkeydown="handleExamSearchKey(event)"
+                               class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none">
+                        <p class="text-xs text-gray-400 mt-1.5">Escribe el nombre → Tab al puntaje → Enter para guardar y seguir</p>
+                    </div>
+                    <!-- Student Lists -->
+                    <div class="flex-1 overflow-y-auto">
+                        <!-- Por Calificar -->
+                        <div class="border-b border-gray-100">
+                            <button onclick="toggleExamSection('ungraded')"
+                                    class="w-full flex items-center justify-between px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">
+                                <span>Por Calificar <span id="exam-ungraded-count" class="ml-1.5 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">0</span></span>
+                                <svg id="exam-ungraded-chevron" class="w-4 h-4 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                            <div id="exam-ungraded-body" class="px-5 pb-3">
+                                <div id="exam-ungraded-list"></div>
+                            </div>
+                        </div>
+                        <!-- Calificados -->
+                        <div>
+                            <button onclick="toggleExamSection('graded')"
+                                    class="w-full flex items-center justify-between px-5 py-3 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition">
+                                <span>Calificados <span id="exam-graded-count" class="ml-1.5 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">0</span></span>
+                                <svg id="exam-graded-chevron" class="w-4 h-4 text-gray-400 transition-transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                            <div id="exam-graded-body" class="px-5 pb-3 hidden">
+                                <div id="exam-graded-list"></div>
                             </div>
                         </div>
                     </div>

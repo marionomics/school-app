@@ -482,12 +482,217 @@ async function saveAttendance() {
     }
 }
 
-// ==================== Grades Tab ====================
+// ==================== Grades / Exámenes Tab ====================
+
+let examsData = [];
+let currentExamGrading = null;
 
 function initGradesTab() {
     populateStudentSelect();
     populateCategorySelect();
+    populateExamCategorySelect();
     renderGradeCategoriesList();
+    loadExams();
+}
+
+function populateExamCategorySelect() {
+    const select = document.getElementById('exam-category');
+    if (!select) return;
+    select.innerHTML = '<option value="">Categoria (auto)</option>' +
+        categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+async function loadExams() {
+    const container = document.getElementById('exams-list');
+    try {
+        const allAssignments = await apiCall(`/admin/assignments?class_id=${classId}`);
+        examsData = allAssignments.filter(a => a.exam_type === 'exam');
+        renderExamsList();
+    } catch (err) {
+        if (container) container.innerHTML = `<p class="text-red-500 text-xs">Error: ${err.message}</p>`;
+    }
+}
+
+function renderExamsList() {
+    const container = document.getElementById('exams-list');
+    if (!container) return;
+    if (!examsData.length) {
+        container.innerHTML = '<p class="text-gray-400 text-sm">No hay exámenes. Crea uno abajo.</p>';
+        return;
+    }
+    container.innerHTML = examsData.map(exam => {
+        const gradedLabel = exam.graded_count > 0
+            ? `<span class="text-green-600 font-medium">${exam.graded_count}</span> calificados`
+            : 'Sin calificar';
+        return `
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <div class="min-w-0">
+                <p class="font-medium text-gray-800 text-sm truncate">${exam.title}</p>
+                <p class="text-xs text-gray-400 mt-0.5">${gradedLabel} · Máx ${exam.max_points} pts</p>
+            </div>
+            <button onclick="openExamGrading(${exam.id})"
+                    class="ml-3 px-3 py-1.5 bg-primary hover:bg-secondary text-white text-sm rounded-lg transition shrink-0">
+                Calificar
+            </button>
+        </div>`;
+    }).join('');
+}
+
+async function createExam() {
+    const titleEl = document.getElementById('exam-title');
+    const maxPtsEl = document.getElementById('exam-max-points');
+    const categoryEl = document.getElementById('exam-category');
+
+    const title = titleEl ? titleEl.value.trim() : '';
+    if (!title) {
+        alert('Por favor ingresa un título para el examen.');
+        return;
+    }
+
+    const maxPoints = parseFloat(maxPtsEl ? maxPtsEl.value : '100') || 100;
+    const categoryId = categoryEl && categoryEl.value ? parseInt(categoryEl.value) : null;
+
+    try {
+        const exam = await apiCall('/admin/assignments', {
+            method: 'POST',
+            body: JSON.stringify({
+                class_id: classId,
+                title,
+                max_points: maxPoints,
+                category_id: categoryId,
+                exam_type: 'exam',
+            })
+        });
+        if (titleEl) titleEl.value = '';
+        await loadExams();
+        openExamGrading(exam.id);
+    } catch (err) {
+        alert('Error al crear examen: ' + err.message);
+    }
+}
+
+async function openExamGrading(examId) {
+    try {
+        const data = await apiCall(`/admin/assignments/${examId}/exam-grading`);
+        currentExamGrading = data;
+        renderExamGradingModal();
+        document.getElementById('exam-grading-modal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => {
+            const search = document.getElementById('exam-search');
+            if (search) { search.value = ''; search.focus(); }
+        }, 50);
+    } catch (err) {
+        alert('Error al cargar datos del examen: ' + err.message);
+    }
+}
+
+function closeExamGradingModal() {
+    document.getElementById('exam-grading-modal').classList.add('hidden');
+    document.body.style.overflow = '';
+    currentExamGrading = null;
+    loadExams();
+}
+
+function renderExamGradingModal() {
+    const d = currentExamGrading;
+    document.getElementById('exam-modal-title').textContent = `Calificando: ${d.title}`;
+    document.getElementById('exam-modal-subtitle').textContent = `Máximo: ${d.max_points} pts`;
+    filterExamStudents('');
+}
+
+function filterExamStudents(query) {
+    const d = currentExamGrading;
+    if (!d) return;
+    const q = query.trim().toLowerCase();
+    const filtered = q ? d.students.filter(s => s.name.toLowerCase().includes(q)) : d.students;
+
+    const ungraded = filtered.filter(s => s.grade === null || s.grade === undefined);
+    const graded = filtered.filter(s => s.grade !== null && s.grade !== undefined);
+
+    document.getElementById('exam-ungraded-count').textContent = ungraded.length;
+    document.getElementById('exam-graded-count').textContent = graded.length;
+
+    document.getElementById('exam-ungraded-list').innerHTML = ungraded.length
+        ? ungraded.map(s => examStudentRow(s, d.max_points)).join('')
+        : '<p class="text-gray-400 text-sm py-2 text-center">Todos calificados</p>';
+
+    document.getElementById('exam-graded-list').innerHTML = graded.length
+        ? graded.map(s => examStudentRow(s, d.max_points)).join('')
+        : '<p class="text-gray-400 text-sm py-2 text-center">Ninguno calificado aún</p>';
+}
+
+function examStudentRow(student, maxPoints) {
+    const scoreVal = student.grade !== null && student.grade !== undefined ? student.grade : '';
+    const checkmark = student.grade !== null && student.grade !== undefined
+        ? '<span class="text-green-500 text-sm font-bold ml-1">✓</span>' : '<span class="w-4 ml-1"></span>';
+    return `
+        <div class="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0" id="exam-row-${student.student_id}">
+            <span class="flex-1 text-sm text-gray-800 font-medium">${student.name}</span>
+            <input type="number"
+                   class="exam-score-input w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-right focus:ring-2 focus:ring-primary outline-none"
+                   min="0" max="${maxPoints}" step="0.5"
+                   value="${scoreVal}"
+                   placeholder="—"
+                   data-student-id="${student.student_id}"
+                   onkeydown="handleExamScoreKey(event, ${student.student_id})">
+            <span class="text-gray-400 text-xs shrink-0">/ ${maxPoints}</span>
+            ${checkmark}
+        </div>`;
+}
+
+function handleExamSearchKey(event) {
+    if (event.key === 'ArrowDown' || event.key === 'Tab') {
+        // Focus first visible score input
+        const inputs = document.querySelectorAll('#exam-ungraded-list .exam-score-input, #exam-graded-list .exam-score-input');
+        if (inputs.length) {
+            event.preventDefault();
+            inputs[0].focus();
+            inputs[0].select();
+        }
+    } else if (event.key === 'Escape') {
+        closeExamGradingModal();
+    }
+}
+
+async function handleExamScoreKey(event, studentId) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        const input = event.target;
+        const score = parseFloat(input.value);
+        if (isNaN(score)) return;
+        await saveExamGrade(studentId, score);
+        // Clear search, re-render, refocus search
+        const searchEl = document.getElementById('exam-search');
+        if (searchEl) { searchEl.value = ''; searchEl.focus(); }
+        filterExamStudents('');
+    } else if (event.key === 'Escape') {
+        const searchEl = document.getElementById('exam-search');
+        if (searchEl) searchEl.focus();
+    }
+}
+
+async function saveExamGrade(studentId, score) {
+    const d = currentExamGrading;
+    try {
+        await apiCall(`/admin/assignments/${d.assignment_id}/exam-grade`, {
+            method: 'POST',
+            body: JSON.stringify({ student_id: studentId, score })
+        });
+        // Update local state so re-render shows checkmark
+        const student = d.students.find(s => s.student_id === studentId);
+        if (student) student.grade = score;
+    } catch (err) {
+        alert('Error al guardar calificacion: ' + err.message);
+    }
+}
+
+function toggleExamSection(section) {
+    const body = document.getElementById(`exam-${section}-body`);
+    const chevron = document.getElementById(`exam-${section}-chevron`);
+    if (!body || !chevron) return;
+    body.classList.toggle('hidden');
+    chevron.classList.toggle('rotate-180');
 }
 
 async function populateStudentSelect() {

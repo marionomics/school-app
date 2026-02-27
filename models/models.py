@@ -172,6 +172,7 @@ class Assignment(Base):
     description = Column(Text, nullable=True)
     due_date = Column(DateTime, nullable=False)
     max_points = Column(Float, nullable=False, default=100)
+    exam_type = Column(String(20), default='homework')  # 'homework' or 'exam'
     allow_late = Column(Boolean, nullable=False, default=True)
     published = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)

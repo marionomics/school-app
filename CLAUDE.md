@@ -65,7 +65,7 @@ python seed_data.py
   ├── Overview tab: quick actions, at-risk students, recent activity, category overview
   ├── Roster tab: student list with search/filter/sort
   ├── Attendance tab: take attendance by date
-  ├── Grades tab: add grades (with category_id), manage categories
+  ├── Exámenes tab: exam list + "Nuevo Examen Presencial" form + fast grading modal; manage grade categories; secondary individual grade form
   ├── Participation tab: approve/reject submissions, bulk approve
   ├── Retos tab: create assignments (with category selector), click to open submissions modal, grade/auto-grade
   └── Justificaciones tab: review/approve/reject student absence justifications
@@ -79,7 +79,7 @@ python seed_data.py
 - `Grade` - Has `category_id` FK to `grade_categories`, `name` field, and legacy `category` string
 - `GradeCategory` - Weighted categories per class (name, weight as decimal e.g. 0.4)
 - `SpecialPoints` - Optional bonus points per student (english, notebook)
-- `Assignment` - Homework/retos per class (title, description, due_date, max_points, allow_late, published)
+- `Assignment` - Homework/retos and exams per class (title, description, due_date, max_points, allow_late, published, exam_type: 'homework'|'exam')
 - `Submission` - Student submissions (drive_url, file_key, file_name, file_size, penalty_pct, is_late, grade, feedback)
 
 ### Code Generation
@@ -140,6 +140,8 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `GET /api/admin/assignments/{id}/submissions?filter=` - View submissions with student info, auto-grade, not-submitted list (filter: graded/ungraded/late)
 - `PATCH /api/admin/submissions/{id}/grade` - Grade submission (score, feedback), upserts Grade record
 - `POST /api/admin/assignments/{id}/auto-grade` - Auto-grade all ungraded submissions (penalty_pct/100 * max_points)
+- `GET /api/admin/assignments/{id}/exam-grading` - All enrolled students with their current grade for an exam (sorted ungraded-first)
+- `POST /api/admin/assignments/{id}/exam-grade` - Upsert grade for one student in an exam (no submission needed); body: `{student_id, score}`
 - `GET /api/admin/justifications?class_id=X&status_filter=` - List justifications (default: pending)
 - `PATCH /api/admin/justifications/{id}` - Approve/reject justification (approved → status becomes "excused")
 - `PATCH /api/admin/classes/{id}/settings` - Update class settings (grading_mode: 'points'|'percentage')
@@ -281,6 +283,32 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 - `file_key` is never exposed in API responses — only `has_file` boolean; download goes through presigned URL endpoint
 - Frontend uses XHR (not fetch) for upload progress events via `apiUpload()` helper
 
+### Exam Grading (Exámenes Tab)
+
+The "Calificaciones" tab was renamed "Exámenes" and redesigned for fast in-person exam grading.
+
+**Assignment types (`exam_type` field on `Assignment`):**
+- `'homework'` (default) — online retos, students submit via Drive link or file upload
+- `'exam'` — in-person exams, teacher grades all students directly; no submissions required
+
+**Exam creation flow:**
+1. Teacher enters exam name, optionally selects category and max points
+2. Clicks "Crear y Calificar" → creates `Assignment` with `exam_type='exam'`, auto-picks "Exámenes y Proyectos" category
+3. Grading modal opens immediately
+
+**Exam grading modal (keyboard-first UX):**
+- Search bar autofocused on open
+- Two sections: "Por Calificar" (expanded, ungraded students first) / "Calificados" (collapsed, already graded)
+- Keyboard flow: type name to filter → **Tab** or **↓** to focus score input → type score → **Enter** to save grade, clear search, refocus search
+- Esc from score input → returns focus to search; Esc from search → closes modal
+- Saving immediately moves student from "Por Calificar" to "Calificados" section (local state update)
+
+**Grade storage:** Exam grades go directly into the `grades` table (same as assignment grades) — `POST /api/admin/assignments/{id}/exam-grade` upserts by `(student_id, class_id, name=assignment.title)`. No `Submission` record is created.
+
+**Existing exam list:** Tab shows all `exam_type='exam'` assignments for the class, with graded count and a Calificar button to re-open the grading modal.
+
+**Secondary:** A collapsible `<details>` element contains the old individual grade form for manual one-off grades.
+
 ### Student Preview Mode (Impersonation)
 
 Teachers can preview the student dashboard for any of their classes:
@@ -343,7 +371,7 @@ forum_likes
 - Database file (`school.db`) is gitignored
 - Run `seed_data.py` to populate test data (creates teacher, 3 students, sample class, enrollments, and sample records)
 - `class_id` is nullable in attendance/participation/grades for backward compatibility
-- **Auto-migration on startup**: `Base.metadata.create_all()` always runs (creates missing tables), plus `_ensure_columns()` adds missing columns (`category_id`, `name` to `grades` table; `drive_url`, `penalty_pct`, `file_key`, `file_name`, `file_size`, `resubmit_count` to `submissions` table; `justification_file_key`, `justification_file_name`, `justification_text`, `justification_status`, `justification_submitted_at`, `justification_reviewed_at`, `justification_reviewed_by` to `attendances` table; `grading_mode` to `classes` table)
+- **Auto-migration on startup**: `Base.metadata.create_all()` always runs (creates missing tables), plus `_ensure_columns()` adds missing columns (`category_id`, `name` to `grades` table; `drive_url`, `penalty_pct`, `file_key`, `file_name`, `file_size`, `resubmit_count` to `submissions` table; `justification_file_key`, `justification_file_name`, `justification_text`, `justification_status`, `justification_submitted_at`, `justification_reviewed_at`, `justification_reviewed_by` to `attendances` table; `grading_mode` to `classes` table; `exam_type` to `assignments` table)
 
 ## Railway Deployment
 

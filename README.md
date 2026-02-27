@@ -8,6 +8,7 @@ A FastAPI application for managing student attendance, participation, and grades
 - **Class Dashboard**: Comprehensive per-class view with stats, roster, attendance, grades, and participation tabs
 - **Flexible Grading System**: Configurable grade categories with weights; per-class grading mode — "Puntos" (uncapped, extras stack freely) or "Porcentajes" (capped at 100)
 - **Assignment System (Retos)**: Create assignments with category selection, students submit Google Drive links or upload files (via Cloudflare R2), teacher grading modal with auto-grade support
+- **Exam Grading (Exámenes)**: Create in-person exams and grade all students in a fast keyboard-driven modal — search by name, Tab to score, Enter to save and move to next student
 - **File Uploads**: Optional Cloudflare R2 integration for direct file submissions (PDF, DOCX, ZIP, images, max 10MB) with upload progress and presigned download URLs
 - **Attendance Justifications**: Students upload justification documents (PDF, images) for absences/lates; teachers approve/reject; approved justifications change status to "excused" and remove the -1 point grade penalty
 - **Student Preview Mode**: Teachers can preview the student dashboard as any enrolled student via impersonation
@@ -215,6 +216,8 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 | GET | `/api/admin/justifications?class_id=X` | List pending justifications |
 | PATCH | `/api/admin/justifications/:id` | Approve/reject justification |
 | PATCH | `/api/admin/classes/:id/settings` | Update class settings (grading_mode) |
+| GET | `/api/admin/assignments/:id/exam-grading` | All enrolled students with current exam grade |
+| POST | `/api/admin/assignments/:id/exam-grade` | Save/update one student's exam grade (no submission) |
 
 ## Database Migrations
 

@@ -42,6 +42,7 @@ from models.schemas import (
     JustificationReviewRequest,
     AttendanceWithStudent,
     ClassSettingsUpdate,
+    ExamGradeRequest,
 )
 from app.auth import get_current_teacher
 
@@ -1171,7 +1172,7 @@ async def create_assignment(
     if not class_:
         raise HTTPException(status_code=404, detail="Clase no encontrada")
 
-    # Use provided category_id, or auto-find first category for this class
+    # Use provided category_id, or auto-find based on exam_type
     category_id = data.category_id
     if category_id:
         # Verify category belongs to this class
@@ -1182,12 +1183,28 @@ async def create_assignment(
         if not cat:
             raise HTTPException(status_code=404, detail="Categoría no encontrada en esta clase")
     else:
-        # Auto-find: first category for this class (typically "Retos de la Semana")
-        first_cat = db.query(GradeCategory).filter(
-            GradeCategory.class_id == data.class_id,
-        ).first()
-        if first_cat:
-            category_id = first_cat.id
+        if data.exam_type == 'exam':
+            # Prefer "Exámenes y Proyectos" category for exams
+            exam_cat = db.query(GradeCategory).filter(
+                GradeCategory.class_id == data.class_id,
+                GradeCategory.name.ilike('%examen%'),
+            ).first()
+            if exam_cat:
+                category_id = exam_cat.id
+            else:
+                # Fall back to last category (usually the exam category)
+                last_cat = db.query(GradeCategory).filter(
+                    GradeCategory.class_id == data.class_id,
+                ).order_by(GradeCategory.id.desc()).first()
+                if last_cat:
+                    category_id = last_cat.id
+        else:
+            # Auto-find: first category for this class (typically "Retos de la Semana")
+            first_cat = db.query(GradeCategory).filter(
+                GradeCategory.class_id == data.class_id,
+            ).first()
+            if first_cat:
+                category_id = first_cat.id
 
     # Default due_date: next Sunday 23:59
     due_date = data.due_date
@@ -1207,6 +1224,7 @@ async def create_assignment(
         description=data.description,
         due_date=due_date,
         max_points=data.max_points or 100,
+        exam_type=data.exam_type or 'homework',
     )
     db.add(assignment)
     db.commit()
@@ -1220,6 +1238,7 @@ async def create_assignment(
         description=assignment.description,
         due_date=assignment.due_date,
         max_points=assignment.max_points,
+        exam_type=assignment.exam_type or 'homework',
         allow_late=assignment.allow_late,
         published=assignment.published,
         created_at=assignment.created_at,
@@ -1266,6 +1285,7 @@ async def list_assignments(
             description=a.description,
             due_date=a.due_date,
             max_points=a.max_points,
+            exam_type=a.exam_type or 'homework',
             allow_late=a.allow_late,
             published=a.published,
             created_at=a.created_at,
@@ -1596,3 +1616,128 @@ async def auto_grade_assignment(
         graded_count=graded_count,
         skipped_count=skipped_count,
     )
+
+
+# ==================== Exam Grading ====================
+
+@router.get("/assignments/{assignment_id}/exam-grading")
+async def get_exam_grading_data(
+    assignment_id: int,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Return all enrolled students with their current grade for an exam."""
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Examen no encontrado")
+
+    class_ = db.query(Class).filter(
+        Class.id == assignment.class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=403, detail="No tienes permiso")
+
+    enrollments = db.query(StudentClass).filter(
+        StudentClass.class_id == assignment.class_id
+    ).all()
+
+    students = []
+    for e in enrollments:
+        student = e.student
+        if not student:
+            continue
+        existing = db.query(Grade).filter(
+            Grade.student_id == student.id,
+            Grade.class_id == assignment.class_id,
+            Grade.name == assignment.title,
+        ).first()
+        students.append({
+            "student_id": student.id,
+            "name": student.name,
+            "email": student.email,
+            "grade": existing.score if existing else None,
+        })
+
+    # Sort: ungraded first, then alphabetically
+    students.sort(key=lambda s: (0 if s["grade"] is None else 1, s["name"].lower()))
+
+    return {
+        "assignment_id": assignment.id,
+        "title": assignment.title,
+        "max_points": assignment.max_points,
+        "category_id": assignment.category_id,
+        "students": students,
+    }
+
+
+@router.post("/assignments/{assignment_id}/exam-grade")
+async def save_exam_grade(
+    assignment_id: int,
+    data: ExamGradeRequest,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Upsert a grade for one student in an exam (no submission needed)."""
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Examen no encontrado")
+
+    class_ = db.query(Class).filter(
+        Class.id == assignment.class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=403, detail="No tienes permiso")
+
+    enrollment = db.query(StudentClass).filter(
+        StudentClass.student_id == data.student_id,
+        StudentClass.class_id == assignment.class_id,
+    ).first()
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Estudiante no inscrito en esta clase")
+
+    # Resolve category
+    resolved_category_id = assignment.category_id
+    category_name = None
+    if resolved_category_id:
+        cat = db.query(GradeCategory).filter(GradeCategory.id == resolved_category_id).first()
+        if cat:
+            category_name = cat.name
+    if not resolved_category_id:
+        first_cat = db.query(GradeCategory).filter(
+            GradeCategory.class_id == assignment.class_id
+        ).first()
+        if first_cat:
+            resolved_category_id = first_cat.id
+            category_name = first_cat.name
+    if not category_name:
+        category_name = "Exámenes y Proyectos"
+
+    # Upsert Grade record (match by student + class + assignment title)
+    existing = db.query(Grade).filter(
+        Grade.student_id == data.student_id,
+        Grade.class_id == assignment.class_id,
+        Grade.name == assignment.title,
+    ).first()
+
+    if existing:
+        existing.score = data.score
+        existing.max_score = assignment.max_points
+        existing.category_id = resolved_category_id
+        existing.category = category_name
+    else:
+        grade = Grade(
+            student_id=data.student_id,
+            class_id=assignment.class_id,
+            category_id=resolved_category_id,
+            category=category_name,
+            name=assignment.title,
+            score=data.score,
+            max_score=assignment.max_points,
+            date=date.today(),
+        )
+        db.add(grade)
+
+    db.commit()
+    return {"status": "ok", "student_id": data.student_id, "score": data.score}
