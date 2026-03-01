@@ -235,6 +235,8 @@ function showDashboard() {
 
     if (currentStudent) {
         document.getElementById('student-name').textContent = currentStudent.name;
+        const forumLink = document.getElementById('nav-forum-link');
+        if (forumLink) forumLink.classList.remove('hidden');
     }
 
     if (previewMode) {

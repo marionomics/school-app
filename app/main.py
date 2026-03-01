@@ -11,8 +11,8 @@ load_dotenv()
 from sqlalchemy import inspect, text
 from models.database import Base, engine
 # Import all models to ensure they are registered with Base.metadata
-from models.models import Student, Attendance, Participation, Grade, Class, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission
-from routes import health, students, participation, auth, admin, classes
+from models.models import Student, Attendance, Participation, Grade, Class, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission, ForumPost, ForumReply, ForumLike
+from routes import health, students, participation, auth, admin, classes, forum
 
 
 def _ensure_columns():
@@ -187,6 +187,7 @@ app.include_router(participation.router)
 app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(classes.router)
+app.include_router(forum.router)
 
 # Mount static files
 if os.path.exists("static"):
@@ -209,6 +210,12 @@ async def admin_page():
 async def class_dashboard_page(class_id: int):
     """Serve the class dashboard page."""
     return FileResponse("static/class-dashboard.html")
+
+
+@app.get("/forum")
+async def forum_page():
+    """Serve the forum page."""
+    return FileResponse("static/forum.html")
 
 
 @app.get("/api/config")

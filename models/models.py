@@ -184,6 +184,59 @@ class Assignment(Base):
     submissions = relationship("Submission", back_populates="assignment", cascade="all, delete-orphan")
 
 
+class ForumPost(Base):
+    __tablename__ = "forum_posts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    author_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
+    title = Column(String(200), nullable=True)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    like_count = Column(Integer, nullable=False, default=0)
+    comment_count = Column(Integer, nullable=False, default=0)
+    pinned = Column(Boolean, nullable=False, default=False)
+    locked = Column(Boolean, nullable=False, default=False)
+
+    # Relationships
+    author = relationship("Student", foreign_keys=[author_id])
+    class_ = relationship("Class", foreign_keys=[class_id])
+    replies = relationship("ForumReply", back_populates="post", cascade="all, delete-orphan")
+    likes = relationship("ForumLike", back_populates="post", cascade="all, delete-orphan")
+
+
+class ForumReply(Base):
+    __tablename__ = "forum_replies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("forum_posts.id"), nullable=False)
+    author_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    parent_reply_id = Column(Integer, ForeignKey("forum_replies.id"), nullable=True)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    post = relationship("ForumPost", back_populates="replies")
+    author = relationship("Student", foreign_keys=[author_id])
+    children = relationship("ForumReply", back_populates="parent", cascade="all, delete-orphan")
+    parent = relationship("ForumReply", back_populates="children", remote_side=[id])
+
+
+class ForumLike(Base):
+    __tablename__ = "forum_likes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    post_id = Column(Integer, ForeignKey("forum_posts.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("Student", foreign_keys=[user_id])
+    post = relationship("ForumPost", back_populates="likes")
+
+    __table_args__ = (UniqueConstraint('user_id', 'post_id', name='unique_user_post_like'),)
+
+
 class Submission(Base):
     __tablename__ = "submissions"
 
