@@ -67,6 +67,7 @@ def _post_dict(post: ForumPost, user_id: int, db: Session) -> dict:
         "pinned": post.pinned,
         "locked": post.locked,
         "liked_by_me": liked,
+        "author_role": post.author.role if post.author else "student",
     }
 
 
@@ -78,6 +79,7 @@ def _reply_dict(reply: ForumReply) -> dict:
             "id": child.id,
             "author_id": child.author_id,
             "author_name": child.author.name if child.author else "Desconocido",
+            "author_role": child.author.role if child.author else "student",
             "content": child.content,
             "created_at": child.created_at.isoformat(),
             "parent_reply_id": child.parent_reply_id,
@@ -87,6 +89,7 @@ def _reply_dict(reply: ForumReply) -> dict:
         "id": reply.id,
         "author_id": reply.author_id,
         "author_name": reply.author.name if reply.author else "Desconocido",
+        "author_role": reply.author.role if reply.author else "student",
         "content": reply.content,
         "created_at": reply.created_at.isoformat(),
         "parent_reply_id": reply.parent_reply_id,
@@ -240,6 +243,7 @@ async def create_reply(
         "id": reply.id,
         "author_id": reply.author_id,
         "author_name": user.name,
+        "author_role": user.role,
         "content": reply.content,
         "created_at": reply.created_at.isoformat(),
         "parent_reply_id": reply.parent_reply_id,
@@ -321,3 +325,43 @@ async def delete_reply(
     db.delete(reply)
     db.commit()
     return {"message": "Respuesta eliminada"}
+
+
+@router.patch("/posts/{post_id}/pin")
+async def toggle_pin(
+    post_id: int,
+    user: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    """Toggle pin on a post. Teacher only."""
+    if user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Solo los profesores pueden fijar publicaciones")
+
+    post = db.query(ForumPost).filter(ForumPost.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post no encontrado")
+
+    _check_class_access(user, post.class_id, db)
+    post.pinned = not post.pinned
+    db.commit()
+    return {"pinned": post.pinned}
+
+
+@router.patch("/posts/{post_id}/lock")
+async def toggle_lock(
+    post_id: int,
+    user: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    """Toggle lock on a post. Teacher only."""
+    if user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Solo los profesores pueden bloquear publicaciones")
+
+    post = db.query(ForumPost).filter(ForumPost.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post no encontrado")
+
+    _check_class_access(user, post.class_id, db)
+    post.locked = not post.locked
+    db.commit()
+    return {"locked": post.locked}

@@ -7,6 +7,7 @@ let posts = [];
 let currentPage = 1;
 let hasMorePosts = false;
 let openPostId = null; // currently open in modal
+let currentModalPost = null; // full post data for the open modal
 
 const API_BASE = '/api';
 
@@ -152,12 +153,20 @@ function renderPosts(reset) {
 }
 
 function renderPostCard(post) {
+    const isTeacherPost = post.author_role === 'teacher';
     const initials = nameInitials(post.author_name);
-    const avatarColor = stringToColor(post.author_name);
+    const avatarColor = isTeacherPost ? '#9C4927' : stringToColor(post.author_name);
     const timeStr = timeAgo(post.created_at);
     const isOwn = post.author_id === currentUser.id;
     const canDelete = isOwn || currentUser.role === 'teacher';
     const cantLike = isOwn;
+
+    const authorLabel = isTeacherPost
+        ? `<span class="font-medium text-secondary text-sm">👨‍🏫 ${escHtml(post.author_name)}</span><span class="text-secondary text-xs font-medium">• Profesor</span>`
+        : `<span class="font-medium text-gray-800 text-sm">${escHtml(post.author_name)}</span><span class="px-2 py-0.5 bg-primary-10 text-secondary text-xs rounded-full">${escHtml(post.class_name)}</span>`;
+
+    const pinnedBadge = post.pinned ? `<span class="text-amber-500 text-xs font-medium">📌 Fijado</span>` : '';
+    const lockedBadge = post.locked ? `<span class="text-gray-400 text-xs">🔒 Bloqueado</span>` : '';
 
     const likeBtn = cantLike
         ? `<span class="flex items-center gap-1 text-xs text-gray-300 cursor-not-allowed select-none">
@@ -168,9 +177,18 @@ function renderPostCard(post) {
                ${heartIcon(post.liked_by_me)} <span id="like-count-${post.id}">${post.like_count}</span>
            </button>`;
 
+    const teacherActions = currentUser.role === 'teacher'
+        ? `<button onclick="event.stopPropagation(); togglePin(${post.id})"
+                   class="text-sm ${post.pinned ? 'text-amber-500 hover:text-amber-700' : 'text-gray-300 hover:text-amber-500'} transition"
+                   title="${post.pinned ? 'Desfijar' : 'Fijar'}">📌</button>
+           <button onclick="event.stopPropagation(); toggleLock(${post.id})"
+                   class="text-sm ${post.locked ? 'text-blue-400 hover:text-blue-600' : 'text-gray-300 hover:text-blue-400'} transition"
+                   title="${post.locked ? 'Desbloquear' : 'Bloquear'}">🔒</button>`
+        : '';
+
     const deleteBtn = canDelete
         ? `<button onclick="deletePost(event, ${post.id})"
-                   class="text-gray-300 hover:text-red-400 transition ml-auto" title="Eliminar">
+                   class="text-gray-300 hover:text-red-400 transition" title="Eliminar">
                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                </svg>
@@ -178,18 +196,19 @@ function renderPostCard(post) {
 
     return `
     <article onclick="openPost(${post.id})"
-             class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 cursor-pointer hover:border-gray-200 hover:shadow transition">
+             class="bg-white rounded-xl shadow-sm border ${post.pinned ? 'border-amber-200' : 'border-gray-100'} p-4 cursor-pointer hover:border-gray-200 hover:shadow transition">
         <div class="flex items-start gap-3">
             <div class="avatar text-white text-xs shrink-0" style="background:${avatarColor}">${initials}</div>
             <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap mb-1">
-                    <span class="font-medium text-gray-800 text-sm">${escHtml(post.author_name)}</span>
-                    <span class="px-2 py-0.5 bg-primary-10 text-secondary text-xs rounded-full">${escHtml(post.class_name)}</span>
+                    ${authorLabel}
+                    ${pinnedBadge}
+                    ${lockedBadge}
                     <span class="text-gray-400 text-xs ml-auto">${timeStr}</span>
                 </div>
                 ${post.title ? `<p class="font-semibold text-gray-800 text-sm mb-1">${escHtml(post.title)}</p>` : ''}
                 <p class="text-gray-600 text-sm line-clamp-3 whitespace-pre-wrap">${escHtml(post.content)}</p>
-                <div class="flex items-center gap-4 mt-3" onclick="event.stopPropagation()">
+                <div class="flex items-center gap-3 mt-3" onclick="event.stopPropagation()">
                     ${likeBtn}
                     <button onclick="openPost(${post.id})"
                             class="flex items-center gap-1 text-xs text-gray-400 hover:text-primary transition">
@@ -198,7 +217,10 @@ function renderPostCard(post) {
                         </svg>
                         ${post.comment_count}
                     </button>
-                    ${deleteBtn}
+                    <span class="ml-auto flex items-center gap-2">
+                        ${teacherActions}
+                        ${deleteBtn}
+                    </span>
                 </div>
             </div>
         </div>
@@ -283,7 +305,12 @@ function heartIcon(filled) {
 
 async function deletePost(event, postId) {
     event.stopPropagation();
-    if (!confirm('¿Eliminar esta publicación?')) return;
+    const post = posts.find(p => p.id === postId);
+    const isTeacherDeletingOther = currentUser.role === 'teacher' && post && post.author_id !== currentUser.id;
+    const confirmMsg = isTeacherDeletingOther
+        ? `¿Eliminar publicación de ${post.author_name}?`
+        : '¿Estás seguro de eliminar esta publicación?';
+    if (!confirm(confirmMsg)) return;
     try {
         await apiCall(`/forum/posts/${postId}`, { method: 'DELETE' });
         posts = posts.filter(p => p.id !== postId);
@@ -317,16 +344,22 @@ function closePostModal() {
     document.body.style.overflow = '';
     document.getElementById('modal-reply-input').value = '';
     openPostId = null;
+    currentModalPost = null;
     // Clear any nested reply state
     activeReplyToId = null;
     if (document.getElementById('nested-reply-form')) {
         document.getElementById('nested-reply-form').remove();
     }
+    // Restore reply composer visibility
+    const composer = document.getElementById('modal-reply-composer');
+    if (composer) composer.style.display = '';
 }
 
 function renderModalPost(post) {
+    currentModalPost = post;
+    const isTeacherPost = post.author_role === 'teacher';
     const initials = nameInitials(post.author_name);
-    const avatarColor = stringToColor(post.author_name);
+    const avatarColor = isTeacherPost ? '#9C4927' : stringToColor(post.author_name);
     const timeStr = timeAgo(post.created_at);
     const isOwn = post.author_id === currentUser.id;
     const cantLike = isOwn;
@@ -340,17 +373,39 @@ function renderModalPost(post) {
                ${heartIcon(post.liked_by_me)} <span id="modal-like-count">${post.like_count}</span>
            </button>`;
 
+    const teacherActions = currentUser.role === 'teacher'
+        ? `<button onclick="togglePin(${post.id})"
+                   class="flex items-center gap-1 text-sm ${post.pinned ? 'text-amber-500 hover:text-amber-700' : 'text-gray-400 hover:text-amber-500'} transition">
+               📌 ${post.pinned ? 'Desfijar' : 'Fijar'}
+           </button>
+           <button onclick="toggleLock(${post.id})"
+                   class="flex items-center gap-1 text-sm ${post.locked ? 'text-blue-400 hover:text-blue-600' : 'text-gray-400 hover:text-blue-400'} transition">
+               🔒 ${post.locked ? 'Desbloquear' : 'Bloquear'}
+           </button>`
+        : '';
+
+    const canDelete = isOwn || currentUser.role === 'teacher';
+    const deleteBtn = canDelete
+        ? `<button onclick="deleteModalPost()"
+                   class="flex items-center gap-1 text-sm text-gray-400 hover:text-red-400 transition ml-auto">
+               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+               </svg>
+               Eliminar
+           </button>`
+        : '';
+
     document.getElementById('modal-post-body').innerHTML = `
         <div class="flex items-start gap-3 mb-4">
             <div class="avatar text-white text-xs shrink-0" style="background:${avatarColor}">${initials}</div>
             <div>
-                <p class="font-medium text-gray-800 text-sm">${escHtml(post.author_name)}</p>
+                <p class="font-medium text-gray-800 text-sm">${isTeacherPost ? '👨‍🏫 ' : ''}${escHtml(post.author_name)}${isTeacherPost ? ' <span class="text-secondary text-xs font-medium">• Profesor</span>' : ''}</p>
                 <p class="text-gray-400 text-xs">${timeStr}</p>
             </div>
         </div>
         ${post.title ? `<h2 class="font-bold text-gray-900 text-lg mb-2">${escHtml(post.title)}</h2>` : ''}
         <p class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">${escHtml(post.content)}</p>
-        <div class="flex items-center gap-4 mt-4 pt-3 border-t border-gray-100">
+        <div class="flex items-center gap-3 mt-4 pt-3 border-t border-gray-100 flex-wrap">
             ${likeBtn}
             <span class="flex items-center gap-1 text-sm text-gray-400">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -358,8 +413,15 @@ function renderModalPost(post) {
                 </svg>
                 <span id="modal-comment-count">${post.comment_count}</span>
             </span>
+            ${teacherActions}
+            ${deleteBtn}
         </div>
+        ${post.locked ? '<p class="text-sm text-gray-400 mt-3 text-center py-2 bg-gray-50 rounded-lg">🔒 Esta publicación está bloqueada. No se permiten nuevas respuestas.</p>' : ''}
     `;
+
+    // Show/hide reply composer based on locked status
+    const replyComposer = document.getElementById('modal-reply-composer');
+    if (replyComposer) replyComposer.style.display = post.locked ? 'none' : '';
 
     renderModalReplies(post.replies || []);
 }
@@ -406,10 +468,14 @@ function countAllReplies(replies) {
 }
 
 function renderReply(reply, isNested) {
+    const isTeacherReply = reply.author_role === 'teacher';
     const initials = nameInitials(reply.author_name);
-    const avatarColor = stringToColor(reply.author_name);
+    const avatarColor = isTeacherReply ? '#9C4927' : stringToColor(reply.author_name);
     const canDelete = reply.author_id === currentUser.id || currentUser.role === 'teacher';
     const showReplyBtn = !isNested; // only top-level replies get a "Reply" button
+
+    const teacherBadge = isTeacherReply
+        ? `<span class="text-secondary text-xs font-medium">👨‍🏫 Profesor</span>` : '';
 
     const deleteBtn = canDelete
         ? `<button onclick="deleteReply(${reply.id})" class="text-gray-300 hover:text-red-400 transition text-xs">Eliminar</button>`
@@ -434,7 +500,8 @@ function renderReply(reply, isNested) {
             <div class="avatar text-white shrink-0" style="background:${avatarColor}; width:1.75rem; height:1.75rem; font-size:0.65rem">${initials}</div>
             <div class="flex-1 min-w-0">
                 <div class="flex items-baseline gap-2 flex-wrap">
-                    <span class="font-medium text-gray-800 text-xs">${escHtml(reply.author_name)}</span>
+                    <span class="font-medium ${isTeacherReply ? 'text-secondary' : 'text-gray-800'} text-xs">${isTeacherReply ? '👨‍🏫 ' : ''}${escHtml(reply.author_name)}</span>
+                    ${teacherBadge}
                     <span class="text-gray-400 text-xs">${timeAgo(reply.created_at)}</span>
                 </div>
                 <p class="text-gray-700 text-sm mt-0.5 whitespace-pre-wrap">${escHtml(reply.content)}</p>
@@ -537,6 +604,73 @@ async function deleteReply(replyId) {
         renderModalReplies(post.replies || []);
         const modalCount = document.getElementById('modal-comment-count');
         if (modalCount) modalCount.textContent = post.comment_count;
+    } catch (e) {
+        alert('Error al eliminar: ' + e.message);
+    }
+}
+
+// ==================== Moderation ====================
+
+async function togglePin(postId) {
+    try {
+        const result = await apiCall(`/forum/posts/${postId}/pin`, { method: 'PATCH' });
+        const post = posts.find(p => p.id === postId);
+        if (post) post.pinned = result.pinned;
+        // If modal is open for this post, refresh it
+        if (currentModalPost && currentModalPost.id === postId) {
+            const freshPost = await apiCall(`/forum/posts/${postId}`);
+            renderModalPost(freshPost);
+            return;
+        }
+        // Update feed card
+        if (post) _replaceCard(postId, post);
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function toggleLock(postId) {
+    try {
+        const result = await apiCall(`/forum/posts/${postId}/lock`, { method: 'PATCH' });
+        const post = posts.find(p => p.id === postId);
+        if (post) post.locked = result.locked;
+        // If modal is open for this post, refresh it
+        if (currentModalPost && currentModalPost.id === postId) {
+            const freshPost = await apiCall(`/forum/posts/${postId}`);
+            renderModalPost(freshPost);
+            return;
+        }
+        // Update feed card
+        if (post) _replaceCard(postId, post);
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+function _replaceCard(postId, post) {
+    const card = document.querySelector(`article[onclick="openPost(${postId})"]`);
+    if (card) {
+        const temp = document.createElement('div');
+        temp.innerHTML = renderPostCard(post);
+        card.replaceWith(temp.firstElementChild);
+    }
+}
+
+async function deleteModalPost() {
+    if (!currentModalPost) return;
+    const isTeacherDeletingOther = currentUser.role === 'teacher' && currentModalPost.author_id !== currentUser.id;
+    const confirmMsg = isTeacherDeletingOther
+        ? `¿Eliminar publicación de ${currentModalPost.author_name}?`
+        : '¿Estás seguro de eliminar esta publicación?';
+    if (!confirm(confirmMsg)) return;
+    const postId = currentModalPost.id;
+    try {
+        await apiCall(`/forum/posts/${postId}`, { method: 'DELETE' });
+        closePostModal();
+        posts = posts.filter(p => p.id !== postId);
+        const card = document.querySelector(`article[onclick="openPost(${postId})"]`);
+        if (card) card.remove();
+        if (!posts.length) document.getElementById('empty-state').classList.remove('hidden');
     } catch (e) {
         alert('Error al eliminar: ' + e.message);
     }
