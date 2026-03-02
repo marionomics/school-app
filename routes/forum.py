@@ -52,30 +52,28 @@ def _check_class_access(user: Student, class_id: int, db: Session):
 
 
 def _calculate_like_points(total_likes: int) -> float:
-    """Logarithmic points per like based on post's cumulative like count."""
-    if total_likes <= 2:
-        return 0.10
-    elif total_likes <= 7:
-        return 0.05
-    elif total_likes <= 20:
-        return 0.03
-    elif total_likes <= 50:
-        return 0.02
-    else:
+    """Slow progression: points per like based on cumulative like count."""
+    if total_likes <= 10:
         return 0.01
-
-
-def _roll_bonus() -> str:
-    """Casino roll: returns bonus type string."""
-    roll = random.random()
-    if roll < 0.005:    # 0.5% jackpot
-        return 'jackpot'
-    elif roll < 0.055:  # 5% double
-        return 'double'
-    elif roll < 0.155:  # 10% mini
-        return 'mini'
+    elif total_likes <= 25:
+        return 0.02
+    elif total_likes <= 50:
+        return 0.03
     else:
-        return 'normal'
+        return 0.05
+
+
+def _roll_bonus(base_pts: float) -> tuple:
+    """Casino roll: returns (bonus_type, points_awarded). Rare events only."""
+    roll = random.random()
+    if roll < 0.002:    # 0.2% jackpot → flat +0.5
+        return ('jackpot', 0.5)
+    elif roll < 0.02:   # 2% double → 2× the base increment
+        return ('double', round(base_pts * 2, 3))
+    elif roll < 0.05:   # 5% mini → base + flat 0.02
+        return ('mini', round(base_pts + 0.02, 3))
+    else:
+        return ('normal', base_pts)
 
 
 def _post_dict(post: ForumPost, user_id: int, db: Session) -> dict:
@@ -203,18 +201,17 @@ async def create_post(
 
     _check_class_access(user, data.class_id, db)
 
-    # Anti-spam: max 5 posts per day per student
+    # Anti-spam: max 3 posts per day per student
     if user.role == "student":
         today_start = datetime.combine(date_type.today(), datetime.min.time())
         tomorrow_start = today_start + timedelta(days=1)
         daily_count = db.query(func.count(ForumPost.id)).filter(
             ForumPost.author_id == user.id,
-            ForumPost.class_id == data.class_id,
             ForumPost.created_at >= today_start,
             ForumPost.created_at < tomorrow_start,
         ).scalar() or 0
-        if daily_count >= 5:
-            raise HTTPException(status_code=429, detail="Máximo 5 publicaciones por día")
+        if daily_count >= 3:
+            raise HTTPException(status_code=429, detail="Máximo 3 publicaciones por día")
 
     post = ForumPost(
         author_id=user.id,
@@ -225,13 +222,13 @@ async def create_post(
     db.add(post)
     db.flush()  # get post.id before commit
 
-    # Award +0.1 creation points to students
+    # Award +0.01 creation points to students
     if user.role == "student":
-        post.points_earned = 0.1
+        post.points_earned = 0.01
         db.add(ForumPoints(
             user_id=user.id,
             post_id=post.id,
-            points_earned=0.1,
+            points_earned=0.01,
             bonus_type='post',
         ))
 
@@ -356,27 +353,34 @@ async def toggle_like(
 
         # Award points: only when student likes a student post
         if user.role != "teacher" and post.author.role != "teacher":
-            base_pts = _calculate_like_points(post.like_count)
-            bonus_type = _roll_bonus()
+            # Rule 1: post needs at least 2 likes before points kick in (anti-spam)
+            qualifies = post.like_count >= 2
 
-            if bonus_type == 'jackpot':
-                points_awarded = 1.0
-            elif bonus_type == 'double':
-                points_awarded = round(base_pts * 2, 2)
-            elif bonus_type == 'mini':
-                points_awarded = round(base_pts + 0.05, 2)
+            # Rule 2: can't award points to the same author more than once per day
+            today_start = datetime.combine(date_type.today(), datetime.min.time())
+            already_liked_author_today = qualifies and db.query(ForumPoints).join(
+                ForumPost, ForumPoints.post_id == ForumPost.id
+            ).filter(
+                ForumPoints.user_id == user.id,
+                ForumPost.author_id == post.author_id,
+                ForumPoints.like_id.isnot(None),
+                ForumPoints.created_at >= today_start,
+            ).first() is not None
+
+            if qualifies and not already_liked_author_today:
+                base_pts = _calculate_like_points(post.like_count)
+                bonus_type, points_awarded = _roll_bonus(base_pts)
+
+                db.add(ForumPoints(
+                    user_id=post.author_id,
+                    post_id=post_id,
+                    like_id=like.id,
+                    points_earned=points_awarded,
+                    bonus_type=bonus_type,
+                ))
+                post.points_earned = round((post.points_earned or 0.0) + points_awarded, 3)
             else:
                 bonus_type = 'normal'
-                points_awarded = base_pts
-
-            db.add(ForumPoints(
-                user_id=post.author_id,
-                post_id=post_id,
-                like_id=like.id,
-                points_earned=points_awarded,
-                bonus_type=bonus_type,
-            ))
-            post.points_earned = round((post.points_earned or 0.0) + points_awarded, 2)
 
     db.commit()
     return {

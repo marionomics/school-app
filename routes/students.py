@@ -292,7 +292,7 @@ async def get_student_grade_calculation(
             db.query(ForumPost.id).filter(ForumPost.class_id == class_id)
         ),
     ).scalar() or 0.0
-    forum_contribution = round(float(forum_pts_raw), 2)
+    forum_contribution = min(3.0, round(float(forum_pts_raw), 3))
 
     max_base_grade = sum(cat.weight for cat in categories) * 100
     final_grade = weighted_sum + part_contribution + sp_total + forum_contribution - absence_penalty
