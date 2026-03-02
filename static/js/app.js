@@ -359,6 +359,7 @@ async function loadDashboardData() {
         loadGrades(),
         loadAttendance(),
         loadParticipationPoints(),
+        loadForumPoints(),
         loadAssignments()
     ]);
 }
@@ -468,6 +469,19 @@ function renderGradeBreakdown(calc) {
         html += '</div>';
     }
 
+    // Forum points
+    if (calc.forum_points > 0) {
+        html += `
+            <div class="flex justify-between items-center p-3 bg-amber-50 rounded-lg mt-3 border border-amber-100">
+                <div>
+                    <span class="font-medium text-amber-800">🏆 Puntos de Foro</span>
+                    <span class="text-xs text-amber-600 ml-2">(likes y publicaciones en el foro)</span>
+                </div>
+                <span class="font-medium text-amber-700">+${calc.forum_points.toFixed(2)} pts</span>
+            </div>
+        `;
+    }
+
     // Absence penalty
     if (calc.absence_count > 0) {
         html += `
@@ -532,6 +546,15 @@ async function loadParticipationPoints() {
     } catch (error) {
         console.error('Error al cargar puntos de participacion:', error);
         document.getElementById('total-participation').textContent = '0';
+    }
+}
+
+async function loadForumPoints() {
+    try {
+        const result = await apiCall(`/forum/points/summary?class_id=${selectedClassId}`);
+        document.getElementById('forum-points-stat').textContent = '+' + result.total.toFixed(2);
+    } catch (e) {
+        document.getElementById('forum-points-stat').textContent = '0';
     }
 }
 
@@ -1103,6 +1126,7 @@ async function init() {
     }
 
     document.getElementById('total-participation').textContent = '0';
+    document.getElementById('forum-points-stat').textContent = '0';
 }
 
 init();

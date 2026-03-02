@@ -6,7 +6,7 @@ from datetime import datetime as _dt, timedelta
 import logging
 
 from models.database import get_db
-from models.models import Student, Attendance, Grade, Participation, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission, Class
+from models.models import Student, Attendance, Grade, Participation, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission, Class, ForumPoints, ForumPost
 from models.schemas import (
     StudentResponse, AttendanceResponse, GradeResponse, ParticipationResponse,
     CategoryGradeBreakdown, SpecialPointsResponse,
@@ -285,8 +285,17 @@ async def get_student_grade_calculation(
     ).scalar() or 0
     absence_penalty = float(unjustified_absences)
 
+    # Forum points (sum of casino-style points earned from posts in this class)
+    forum_pts_raw = db.query(func.sum(ForumPoints.points_earned)).filter(
+        ForumPoints.user_id == current_student.id,
+        ForumPoints.post_id.in_(
+            db.query(ForumPost.id).filter(ForumPost.class_id == class_id)
+        ),
+    ).scalar() or 0.0
+    forum_contribution = round(float(forum_pts_raw), 2)
+
     max_base_grade = sum(cat.weight for cat in categories) * 100
-    final_grade = weighted_sum + part_contribution + sp_total - absence_penalty
+    final_grade = weighted_sum + part_contribution + sp_total + forum_contribution - absence_penalty
     if grading_mode == 'percentage':
         final_grade = min(100.0, final_grade)
 
@@ -301,6 +310,7 @@ async def get_student_grade_calculation(
         "special_points_total": sp_total,
         "absence_count": unjustified_absences,
         "absence_penalty": absence_penalty,
+        "forum_points": forum_contribution,
         "final_grade": final_grade,
         "grading_mode": grading_mode,
         "max_base_grade": max_base_grade,

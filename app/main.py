@@ -11,7 +11,7 @@ load_dotenv()
 from sqlalchemy import inspect, text
 from models.database import Base, engine
 # Import all models to ensure they are registered with Base.metadata
-from models.models import Student, Attendance, Participation, Grade, Class, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission, ForumPost, ForumReply, ForumLike
+from models.models import Student, Attendance, Participation, Grade, Class, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission, ForumPost, ForumReply, ForumLike, ForumPoints
 from routes import health, students, participation, auth, admin, classes, forum
 
 
@@ -76,6 +76,14 @@ def _ensure_columns():
             if "exam_type" not in existing_cols:
                 conn.execute(text(
                     "ALTER TABLE assignments ADD COLUMN exam_type VARCHAR(20) DEFAULT 'homework'"
+                ))
+
+    if "forum_posts" in inspector.get_table_names():
+        existing_cols = {col["name"] for col in inspector.get_columns("forum_posts")}
+        with engine.begin() as conn:
+            if "points_earned" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE forum_posts ADD COLUMN points_earned FLOAT DEFAULT 0.0 NOT NULL"
                 ))
 
     # Data repair: assign a category to assignments that were saved without one

@@ -197,6 +197,7 @@ class ForumPost(Base):
     comment_count = Column(Integer, nullable=False, default=0)
     pinned = Column(Boolean, nullable=False, default=False)
     locked = Column(Boolean, nullable=False, default=False)
+    points_earned = Column(Float, nullable=False, default=0.0)
 
     # Relationships
     author = relationship("Student", foreign_keys=[author_id])
@@ -235,6 +236,21 @@ class ForumLike(Base):
     post = relationship("ForumPost", back_populates="likes")
 
     __table_args__ = (UniqueConstraint('user_id', 'post_id', name='unique_user_post_like'),)
+
+
+class ForumPoints(Base):
+    __tablename__ = "forum_points"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    post_id = Column(Integer, ForeignKey("forum_posts.id"), nullable=True)
+    like_id = Column(Integer, ForeignKey("forum_likes.id"), nullable=True)
+    points_earned = Column(Float, nullable=False)
+    bonus_type = Column(String(20), nullable=False, default='normal')  # post, normal, mini, double, jackpot
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("Student")
+    post = relationship("ForumPost")
 
 
 class Submission(Base):

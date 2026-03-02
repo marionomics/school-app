@@ -1,13 +1,16 @@
 """
-Forum routes — class-scoped posts, threaded replies (max 2 levels), and likes.
+Forum routes — class-scoped posts, threaded replies (max 2 levels), likes, and casino points.
 """
+import random
 from typing import Optional
+from datetime import datetime, timedelta, date as date_type
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from models.database import get_db
-from models.models import Student, Class, StudentClass, ForumPost, ForumReply, ForumLike
+from models.models import Student, Class, StudentClass, ForumPost, ForumReply, ForumLike, ForumPoints
 from app.auth import get_current_student
 
 router = APIRouter(prefix="/api/forum", tags=["forum"])
@@ -48,6 +51,33 @@ def _check_class_access(user: Student, class_id: int, db: Session):
         return enrollment.class_
 
 
+def _calculate_like_points(total_likes: int) -> float:
+    """Logarithmic points per like based on post's cumulative like count."""
+    if total_likes <= 2:
+        return 0.10
+    elif total_likes <= 7:
+        return 0.05
+    elif total_likes <= 20:
+        return 0.03
+    elif total_likes <= 50:
+        return 0.02
+    else:
+        return 0.01
+
+
+def _roll_bonus() -> str:
+    """Casino roll: returns bonus type string."""
+    roll = random.random()
+    if roll < 0.005:    # 0.5% jackpot
+        return 'jackpot'
+    elif roll < 0.055:  # 5% double
+        return 'double'
+    elif roll < 0.155:  # 10% mini
+        return 'mini'
+    else:
+        return 'normal'
+
+
 def _post_dict(post: ForumPost, user_id: int, db: Session) -> dict:
     liked = db.query(ForumLike).filter(
         ForumLike.user_id == user_id,
@@ -68,6 +98,7 @@ def _post_dict(post: ForumPost, user_id: int, db: Session) -> dict:
         "locked": post.locked,
         "liked_by_me": liked,
         "author_role": post.author.role if post.author else "student",
+        "points_earned": post.points_earned or 0.0,
     }
 
 
@@ -160,6 +191,19 @@ async def create_post(
 
     _check_class_access(user, data.class_id, db)
 
+    # Anti-spam: max 5 posts per day per student
+    if user.role == "student":
+        today_start = datetime.combine(date_type.today(), datetime.min.time())
+        tomorrow_start = today_start + timedelta(days=1)
+        daily_count = db.query(func.count(ForumPost.id)).filter(
+            ForumPost.author_id == user.id,
+            ForumPost.class_id == data.class_id,
+            ForumPost.created_at >= today_start,
+            ForumPost.created_at < tomorrow_start,
+        ).scalar() or 0
+        if daily_count >= 5:
+            raise HTTPException(status_code=429, detail="Máximo 5 publicaciones por día")
+
     post = ForumPost(
         author_id=user.id,
         class_id=data.class_id,
@@ -167,6 +211,18 @@ async def create_post(
         content=content,
     )
     db.add(post)
+    db.flush()  # get post.id before commit
+
+    # Award +0.1 creation points to students
+    if user.role == "student":
+        post.points_earned = 0.1
+        db.add(ForumPoints(
+            user_id=user.id,
+            post_id=post.id,
+            points_earned=0.1,
+            bonus_type='post',
+        ))
+
     db.commit()
     db.refresh(post)
 
@@ -272,17 +328,53 @@ async def toggle_like(
         ForumLike.post_id == post_id,
     ).first()
 
+    points_awarded = 0.0
+    bonus_type = 'normal'
+
     if existing:
         db.delete(existing)
         post.like_count = max(0, post.like_count - 1)
         liked = False
     else:
-        db.add(ForumLike(user_id=user.id, post_id=post_id))
+        like = ForumLike(user_id=user.id, post_id=post_id)
+        db.add(like)
+        db.flush()  # get like.id
         post.like_count += 1
         liked = True
 
+        # Award points: only when student likes a student post
+        if user.role != "teacher" and post.author.role != "teacher":
+            base_pts = _calculate_like_points(post.like_count)
+            bonus_type = _roll_bonus()
+
+            if bonus_type == 'jackpot':
+                points_awarded = 1.0
+            elif bonus_type == 'double':
+                points_awarded = round(base_pts * 2, 2)
+            elif bonus_type == 'mini':
+                points_awarded = round(base_pts + 0.05, 2)
+            else:
+                bonus_type = 'normal'
+                points_awarded = base_pts
+
+            db.add(ForumPoints(
+                user_id=post.author_id,
+                post_id=post_id,
+                like_id=like.id,
+                points_earned=points_awarded,
+                bonus_type=bonus_type,
+            ))
+            post.points_earned = round((post.points_earned or 0.0) + points_awarded, 2)
+
     db.commit()
-    return {"liked": liked, "like_count": post.like_count}
+    return {
+        "liked": liked,
+        "like_count": post.like_count,
+        "points_awarded": points_awarded,
+        "bonus_type": bonus_type,
+        "author_name": post.author.name if post.author else "",
+        "post_points_earned": post.points_earned or 0.0,
+    }
 
 
 @router.delete("/posts/{post_id}")
@@ -325,6 +417,49 @@ async def delete_reply(
     db.delete(reply)
     db.commit()
     return {"message": "Respuesta eliminada"}
+
+
+@router.get("/points/summary")
+async def get_points_summary(
+    class_id: int,
+    user: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    """Total forum points earned by the current user in a given class."""
+    total = db.query(func.sum(ForumPoints.points_earned)).filter(
+        ForumPoints.user_id == user.id,
+        ForumPoints.post_id.in_(
+            db.query(ForumPost.id).filter(ForumPost.class_id == class_id)
+        ),
+    ).scalar() or 0.0
+    return {"total": round(float(total), 2)}
+
+
+@router.get("/points/recent")
+async def get_recent_points(
+    user: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    """Last 20 forum point awards for the current user (across all classes)."""
+    records = (
+        db.query(ForumPoints)
+        .filter(ForumPoints.user_id == user.id)
+        .order_by(ForumPoints.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    result = []
+    for r in records:
+        post = r.post
+        result.append({
+            "id": r.id,
+            "post_id": r.post_id,
+            "post_snippet": (post.title or post.content[:60]) if post else "",
+            "points_earned": r.points_earned,
+            "bonus_type": r.bonus_type,
+            "created_at": r.created_at.isoformat(),
+        })
+    return result
 
 
 @router.patch("/posts/{post_id}/pin")

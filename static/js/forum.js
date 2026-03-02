@@ -217,6 +217,7 @@ function renderPostCard(post) {
                         </svg>
                         ${post.comment_count}
                     </button>
+                    ${post.points_earned > 0 ? `<span class="text-xs text-amber-500 font-medium">🏆 +${post.points_earned.toFixed(2)}</span>` : ''}
                     <span class="ml-auto flex items-center gap-2">
                         ${teacherActions}
                         ${deleteBtn}
@@ -277,6 +278,7 @@ async function toggleLike(event, postId) {
         if (post) {
             post.like_count = result.like_count;
             post.liked_by_me = result.liked;
+            if (result.post_points_earned !== undefined) post.points_earned = result.post_points_earned;
         }
         // Update UI
         const countEl = document.getElementById(`like-count-${postId}`);
@@ -285,6 +287,8 @@ async function toggleLike(event, postId) {
             btn.classList.add('text-red-500');
             btn.classList.remove('text-gray-400', 'hover:text-red-400');
             btn.querySelector('svg path') && (btn.innerHTML = heartIcon(true) + ` <span id="like-count-${postId}">${result.like_count}</span>`);
+            // Casino notification
+            if (result.points_awarded > 0) _showLikeToast(result);
         } else {
             btn.classList.remove('text-red-500');
             btn.classList.add('text-gray-400', 'hover:text-red-400');
@@ -437,11 +441,17 @@ async function toggleModalLike(postId, currentlyLiked) {
             btn.innerHTML = heartIcon(result.liked) + ` <span id="modal-like-count">${result.like_count}</span>`;
             btn.setAttribute('onclick', `toggleModalLike(${postId}, ${result.liked})`);
         }
-        // Update feed card
+        // Update feed card and local state
         const post = posts.find(p => p.id === postId);
-        if (post) { post.like_count = result.like_count; post.liked_by_me = result.liked; }
+        if (post) {
+            post.like_count = result.like_count;
+            post.liked_by_me = result.liked;
+            if (result.post_points_earned !== undefined) post.points_earned = result.post_points_earned;
+        }
         const feedCount = document.getElementById(`like-count-${postId}`);
         if (feedCount) feedCount.textContent = result.like_count;
+        // Casino notification
+        if (result.liked && result.points_awarded > 0) _showLikeToast(result);
     } catch (e) {
         alert(e.message);
     }
@@ -674,6 +684,55 @@ async function deleteModalPost() {
     } catch (e) {
         alert('Error al eliminar: ' + e.message);
     }
+}
+
+// ==================== Notifications ====================
+
+function _showLikeToast(result) {
+    const pts = result.points_awarded.toFixed(2);
+    const name = result.author_name || 'el autor';
+    let msg, bg;
+
+    let duration = 3000;
+    if (result.bonus_type === 'jackpot') {
+        msg = `💰 ¡JACKPOT! Le diste +${pts} pts a ${name}`;
+        bg = 'linear-gradient(135deg, #f59e0b, #d97706)';
+        duration = 5000;
+    } else if (result.bonus_type === 'double') {
+        msg = `🎰 ¡DOBLE! Le diste +${pts} pts a ${name}`;
+        bg = 'linear-gradient(135deg, #EA8251, #9C4927)';
+        duration = 4000;
+    } else if (result.bonus_type === 'mini') {
+        msg = `✨ Le diste +${pts} pts a ${name}`;
+        bg = '#059669';
+    } else {
+        msg = `Le diste +${pts} pts a ${name}`;
+        bg = '#1F2020';
+    }
+    _showToast(msg, bg, duration);
+}
+
+function _showToast(msg, bg, duration = 3000) {
+    const el = document.createElement('div');
+    el.style.cssText = `
+        position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(1rem);
+        z-index: 9999; padding: 0.75rem 1.25rem; border-radius: 0.75rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.25); color: #fff; font-size: 0.875rem;
+        font-weight: 600; white-space: nowrap; background: ${bg};
+        opacity: 0; transition: opacity 0.3s ease, transform 0.3s ease;
+        font-family: system-ui, sans-serif;
+    `;
+    el.textContent = msg;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => {
+        el.style.opacity = '1';
+        el.style.transform = 'translateX(-50%) translateY(0)';
+    });
+    setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateX(-50%) translateY(1rem)';
+        setTimeout(() => el.remove(), 350);
+    }, duration);
 }
 
 // ==================== Utils ====================
