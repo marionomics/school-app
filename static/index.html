@@ -21,282 +21,268 @@
         }
     </script>
     <style>
-        .bg-primary-5 { background-color: rgba(234,130,81,0.05); }
+        .bg-primary-5  { background-color: rgba(234,130,81,0.05); }
         .bg-primary-10 { background-color: rgba(234,130,81,0.1); }
         .bg-primary-20 { background-color: rgba(234,130,81,0.2); }
-        .border-primary-30 { border-color: rgba(234,130,81,0.3); }
-        .text-cream-70 { color: rgba(242,240,228,0.7); }
-        .hover\:bg-primary-5:hover { background-color: rgba(234,130,81,0.05); }
+        .hover\:bg-primary-5:hover  { background-color: rgba(234,130,81,0.05); }
         .hover\:bg-primary-10:hover { background-color: rgba(234,130,81,0.1); }
-        .hover\:bg-primary-20:hover { background-color: rgba(234,130,81,0.2); }
-        .hover\:border-primary-30:hover { border-color: rgba(234,130,81,0.3); }
+        .text-cream-70 { color: rgba(242,240,228,0.7); }
+        .line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .reply-indent { border-left: 2px solid #e5e7eb; padding-left: 1rem; margin-left: 0.5rem; }
+        .avatar {
+            width: 2rem; height: 2rem;
+            border-radius: 9999px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; font-weight: 700;
+            flex-shrink: 0;
+        }
+        html { scroll-behavior: smooth; }
     </style>
 </head>
 <body class="bg-cream min-h-screen">
-    <!-- Sección de Login -->
+
+    <!-- ========== Login Section ========== -->
     <div id="login-section" class="min-h-screen flex items-center justify-center">
-        <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full mx-4">
-            <h1 class="text-2xl font-bold text-gray-800 mb-6 text-center">Portal del Estudiante</h1>
-            <div class="space-y-4">
-                <div id="google-signin-container" class="flex justify-center">
-                    <!-- El botón de Google Sign-In se renderiza aquí -->
-                </div>
-                <p id="login-error" class="text-red-500 text-sm text-center hidden"></p>
-            </div>
+        <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full mx-4 text-center">
+            <div class="text-4xl mb-3">📚</div>
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">Portal del Estudiante</h1>
+            <p class="text-gray-500 text-sm mb-6">Inicia sesión para acceder al foro y ver tu progreso</p>
+            <div id="google-signin-container" class="flex justify-center mb-4"></div>
+            <p id="login-error" class="text-red-500 text-sm hidden"></p>
         </div>
     </div>
 
-    <!-- Sección de Unirse a Clase -->
-    <div id="join-class-section" class="hidden min-h-screen flex items-center justify-center">
-        <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full mx-4">
-            <h1 class="text-2xl font-bold text-gray-800 mb-2 text-center">Unirse a una Clase</h1>
-            <p class="text-gray-500 text-center mb-6">Ingresa el codigo de clase proporcionado por tu profesor</p>
+    <!-- ========== App Section ========== -->
+    <div id="app-section" class="hidden">
 
-            <form id="join-class-form" class="space-y-4">
-                <div>
-                    <label for="class-code" class="block text-sm font-medium text-gray-700 mb-1">Codigo de Clase</label>
-                    <input type="text" id="class-code" required placeholder="Ej: MICRO2026ABCD"
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none uppercase">
-                </div>
-                <button type="submit"
-                        class="w-full bg-primary hover:bg-secondary text-white font-medium py-2 px-6 rounded-lg transition duration-200">
-                    Unirse a Clase
-                </button>
-            </form>
-            <p id="join-error" class="text-red-500 text-sm text-center mt-4 hidden"></p>
-
-            <div id="enrolled-classes-list" class="mt-6 hidden">
-                <h3 class="text-sm font-medium text-gray-700 mb-2">Mis Clases:</h3>
-                <div id="my-classes" class="space-y-2"></div>
-            </div>
-
-            <div class="mt-6 pt-4 border-t border-gray-200 flex justify-between items-center">
-                <span id="join-student-name" class="text-sm text-gray-500"></span>
-                <button onclick="logout()" class="text-gray-500 hover:text-gray-700 text-sm font-medium">
-                    Cerrar Sesion
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Sección del Dashboard -->
-    <div id="dashboard-section" class="hidden">
-        <!-- Preview Mode Banner -->
+        <!-- Preview Banner -->
         <div id="preview-banner" class="hidden bg-dark text-white">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                        </svg>
-                        <span class="font-medium">Modo de Vista Previa</span>
-                        <span class="text-cream-70">- Viendo como estudiante de <span id="preview-class-name"></span></span>
-                    </div>
-                    <button onclick="exitPreviewMode()"
-                            class="flex items-center gap-2 px-4 py-1.5 bg-white text-secondary rounded-lg font-medium hover:bg-primary-5 transition">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                        </svg>
-                        Volver al Panel de Profesor
+            <div class="max-w-2xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                    <span class="font-medium">Vista previa de estudiante</span>
+                    <span class="text-cream-70">— <span id="preview-class-name"></span></span>
+                </div>
+                <button onclick="exitPreviewMode()"
+                        class="shrink-0 text-xs px-3 py-1.5 bg-white text-secondary rounded-lg font-medium hover:bg-primary-5 transition">
+                    ← Volver al Panel
+                </button>
+            </div>
+        </div>
+
+        <!-- Sticky Nav -->
+        <nav class="sticky top-0 z-30 bg-white shadow-sm border-b border-gray-200">
+            <div class="max-w-2xl mx-auto px-4 h-14 flex items-center gap-3">
+                <!-- Brand -->
+                <span class="font-bold text-gray-800 shrink-0">Portal</span>
+
+                <!-- Section tabs -->
+                <div class="flex items-center gap-1 shrink-0">
+                    <button onclick="scrollToForum()"
+                            class="px-3 py-1.5 text-sm font-medium text-primary bg-primary-10 rounded-lg hover:bg-primary-20 transition">
+                        💬 Foro
+                    </button>
+                    <button onclick="scrollToDashboard()"
+                            class="px-3 py-1.5 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-lg transition">
+                        📊 Mi Progreso
                     </button>
                 </div>
-            </div>
-        </div>
 
-        <!-- Navegación -->
-        <nav class="bg-white shadow-sm border-b border-gray-200">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between h-16 items-center">
-                    <div class="flex items-center gap-4">
-                        <h1 class="text-xl font-bold text-gray-800">Mi Dashboard</h1>
-                        <select id="class-selector" onchange="onClassChange()"
-                                class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
-                        </select>
-                    </div>
-                    <div class="flex items-center gap-4">
-                        <a href="/forum" id="nav-forum-link"
-                           class="hidden text-sm font-medium text-gray-500 hover:text-primary transition">
-                            Foro
-                        </a>
-                        <span id="student-name" class="text-gray-600"></span>
-                        <button onclick="logout()"
-                                class="text-gray-500 hover:text-gray-700 text-sm font-medium">
-                            Cerrar Sesion
-                        </button>
-                    </div>
+                <!-- Class selector -->
+                <select id="nav-class-selector"
+                        onchange="onForumClassChange()"
+                        class="flex-1 min-w-0 px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none bg-gray-50 truncate">
+                </select>
+
+                <!-- Right side -->
+                <div class="flex items-center gap-2 shrink-0">
+                    <a id="nav-admin-link" href="/admin" class="hidden text-xs font-medium text-primary hover:text-secondary transition px-2 py-1 rounded-lg hover:bg-primary-5">
+                        Panel Profesor
+                    </a>
+                    <span id="nav-user-name" class="text-sm text-gray-500 hidden sm:inline truncate max-w-[100px]"></span>
+                    <button onclick="logout()" class="text-gray-400 hover:text-gray-600 text-sm transition">Salir</button>
                 </div>
             </div>
         </nav>
 
-        <!-- Contenido Principal -->
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <!-- Resumen de Estadísticas -->
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm text-gray-500">Calificacion Final</p>
-                            <p id="final-grade" class="text-3xl font-bold text-gray-800">--</p>
-                        </div>
-                        <div class="bg-green-100 p-3 rounded-full">
-                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm text-gray-500">Tasa de Asistencia</p>
-                            <p id="attendance-rate" class="text-3xl font-bold text-gray-800">--%</p>
-                        </div>
-                        <div class="bg-blue-100 p-3 rounded-full">
-                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm text-gray-500">Puntos de Participacion</p>
-                            <p id="total-participation" class="text-3xl font-bold text-gray-800">--</p>
-                        </div>
-                        <div class="bg-primary-10 p-3 rounded-full">
-                            <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm text-gray-500">Puntos Extra</p>
-                            <p id="special-points" class="text-3xl font-bold text-gray-800">--</p>
-                        </div>
-                        <div class="bg-amber-100 p-3 rounded-full">
-                            <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm text-gray-500">Pts. de Foro 🏆</p>
-                            <p id="forum-points-stat" class="text-3xl font-bold text-amber-500">--</p>
-                        </div>
-                        <div class="bg-amber-50 p-3 rounded-full text-2xl leading-none">🎰</div>
-                    </div>
-                </div>
-            </div>
+        <!-- Main Content -->
+        <main class="max-w-2xl mx-auto px-4 py-5">
 
-            <!-- Desglose de Calificacion -->
-            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-8">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">Desglose de Calificacion</h2>
-                <div id="grade-breakdown" class="space-y-3">
-                    <p class="text-center text-gray-500 py-4">Cargando...</p>
-                </div>
-            </div>
+            <!-- ====== Forum Section ====== -->
+            <section id="forum-section" class="space-y-3">
 
-            <!-- Retos Pendientes -->
-            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-8">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">Retos Pendientes</h2>
-                <div id="assignments-container" class="space-y-4">
-                    <p class="text-center text-gray-500 py-4">Cargando...</p>
+                <!-- Post Composer -->
+                <div id="composer-wrapper" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <!-- Collapsed trigger -->
+                    <button id="composer-trigger" onclick="openComposer()"
+                            class="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50 transition">
+                        <div class="avatar bg-primary-10 text-primary" id="composer-avatar">?</div>
+                        <span class="text-gray-400 text-sm">Escribe algo para tu clase...</span>
+                    </button>
+                    <!-- Expanded composer -->
+                    <div id="composer-form" class="hidden px-5 pb-5 pt-2 border-t border-gray-100">
+                        <input id="post-title" type="text" placeholder="Título (opcional)"
+                               class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg mb-2 focus:ring-2 focus:ring-primary outline-none">
+                        <textarea id="post-content" rows="4" placeholder="¿Qué quieres compartir con tu clase?"
+                                  class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-primary outline-none"></textarea>
+                        <div class="flex justify-end gap-2 mt-3">
+                            <button onclick="closeComposer()"
+                                    class="px-4 py-1.5 text-sm text-gray-600 hover:text-gray-800 rounded-lg transition">
+                                Cancelar
+                            </button>
+                            <button onclick="submitPost()"
+                                    class="px-5 py-1.5 text-sm bg-primary hover:bg-secondary text-white font-medium rounded-lg transition">
+                                Publicar
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Formulario de Participación -->
-            <div id="participation-section" class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-8">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">Registrar Participación</h2>
-                <form id="participation-form" class="space-y-4">
+                <!-- Posts Feed -->
+                <div id="posts-container" class="space-y-3">
+                    <p class="text-center text-gray-400 text-sm py-6">Cargando...</p>
+                </div>
+
+                <!-- Load More -->
+                <div id="load-more-container" class="hidden text-center py-2">
+                    <button onclick="loadMorePosts()"
+                            class="px-6 py-2 text-sm text-gray-600 border border-gray-200 rounded-full hover:bg-white transition">
+                        Cargar más publicaciones
+                    </button>
+                </div>
+
+                <!-- Empty State -->
+                <div id="forum-empty" class="hidden text-center py-12">
+                    <div class="text-4xl mb-3">💬</div>
+                    <p class="text-gray-500 text-sm">No hay publicaciones aún. ¡Sé el primero en escribir!</p>
+                </div>
+
+                <!-- No Class State -->
+                <div id="forum-no-class" class="hidden text-center py-12">
+                    <div class="text-4xl mb-3">📚</div>
+                    <p class="text-gray-500 text-sm">No estás inscrito en ninguna clase.</p>
+                    <button onclick="openJoinModal()"
+                            class="mt-4 px-5 py-2 text-sm bg-primary hover:bg-secondary text-white font-medium rounded-lg transition">
+                        Unirse a una clase
+                    </button>
+                </div>
+
+            </section>
+
+            <!-- ====== Dashboard Section ====== -->
+            <section class="mt-10">
+
+                <!-- Section Divider -->
+                <div id="dashboard-anchor" class="flex items-center gap-4 mb-5">
+                    <div class="flex-1 h-px bg-gray-200"></div>
                     <div>
-                        <label for="description" class="block text-sm font-medium text-gray-700 mb-1">
-                            ¿Cómo participaste hoy?
-                        </label>
-                        <textarea id="description" rows="3" required
-                                  placeholder="Describe tu participación (ej: respondí una pregunta, ayudé a un compañero, lideré una discusión...)"
-                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition resize-none"></textarea>
+                        <h2 id="dashboard-title" class="text-base font-bold text-gray-700 text-center">📊 Mi Progreso</h2>
+                        <p id="dashboard-subtitle" class="text-xs text-gray-400 text-center">Resumen de todas tus clases</p>
                     </div>
-                    <div class="flex items-center gap-4">
-                        <div class="flex-1">
-                            <label for="points" class="block text-sm font-medium text-gray-700 mb-1">Puntos</label>
-                            <select id="points"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition">
-                                <option value="1">1 - Contribución pequeña</option>
-                                <option value="2">2 - Buena participación</option>
-                                <option value="3">3 - Contribución excelente</option>
-                            </select>
-                        </div>
-                        <button type="submit"
-                                class="mt-6 bg-primary hover:bg-secondary text-white font-medium py-2 px-6 rounded-lg transition duration-200">
-                            Enviar
-                        </button>
-                    </div>
-                </form>
-                <div id="participation-success" class="hidden mt-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm">
-                    ¡Participación enviada exitosamente!
-                </div>
-            </div>
-
-            <!-- Grid de Calificaciones y Asistencia -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <!-- Tabla de Calificaciones -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div class="px-6 py-4 border-b border-gray-100">
-                        <h2 class="text-lg font-semibold text-gray-800">Calificaciones</h2>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calificación</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                                </tr>
-                            </thead>
-                            <tbody id="grades-table" class="divide-y divide-gray-100">
-                                <tr>
-                                    <td colspan="3" class="px-6 py-4 text-center text-gray-500">Cargando...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    <div class="flex-1 h-px bg-gray-200"></div>
                 </div>
 
-                <!-- Tabla de Asistencia -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div class="px-6 py-4 border-b border-gray-100">
-                        <h2 class="text-lg font-semibold text-gray-800">Asistencia</h2>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notas</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Justificacion</th>
-                                </tr>
-                            </thead>
-                            <tbody id="attendance-table" class="divide-y divide-gray-100">
-                                <tr>
-                                    <td colspan="4" class="px-6 py-4 text-center text-gray-500">Cargando...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                <!-- Class Cards -->
+                <div id="class-cards" class="space-y-3">
+                    <p class="text-center text-gray-400 text-sm py-4">Cargando...</p>
                 </div>
-            </div>
+
+                <!-- Upcoming Assignments -->
+                <section id="upcoming-section" class="hidden mt-5">
+                    <h3 class="text-sm font-semibold text-gray-600 mb-2">📅 Próximas entregas</h3>
+                    <div id="upcoming-list" class="space-y-2"></div>
+                </section>
+
+                <!-- Join Class CTA (shown when no classes) -->
+                <div class="text-center py-6">
+                    <button onclick="openJoinModal()"
+                            class="text-sm text-primary hover:text-secondary font-medium transition">
+                        + Unirse a una clase
+                    </button>
+                </div>
+
+            </section>
+
         </main>
     </div>
 
-    <script src="/static/js/app.js"></script>
+    <!-- ========== Post Detail Modal ========== -->
+    <div id="post-modal" class="hidden fixed inset-0 z-50 bg-black/50 overflow-y-auto">
+        <div class="min-h-full flex items-start justify-center p-4 py-8">
+            <div class="bg-white w-full max-w-2xl rounded-xl shadow-2xl">
+                <!-- Modal header -->
+                <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span id="modal-class-badge"
+                              class="px-2 py-0.5 bg-primary-10 text-secondary text-xs font-medium rounded-full truncate max-w-[200px]"></span>
+                    </div>
+                    <button onclick="closePostModal()" class="text-gray-400 hover:text-gray-600 ml-3 shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Post content -->
+                <div id="modal-post-body" class="px-5 py-5">
+                    <p class="text-center text-gray-400 text-sm">Cargando...</p>
+                </div>
+
+                <!-- Reply composer -->
+                <div id="modal-reply-composer" class="px-5 pb-3 border-t border-gray-100 pt-4">
+                    <div class="flex gap-2">
+                        <div class="avatar bg-primary-10 text-primary text-xs shrink-0 mt-0.5" id="modal-avatar">?</div>
+                        <div class="flex-1">
+                            <textarea id="modal-reply-input" rows="2"
+                                      placeholder="Escribe una respuesta..."
+                                      class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-primary outline-none"></textarea>
+                            <div class="flex justify-end mt-1.5">
+                                <button onclick="submitModalReply()"
+                                        class="px-4 py-1.5 text-sm bg-primary hover:bg-secondary text-white font-medium rounded-lg transition">
+                                    Responder
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Replies -->
+                <div id="modal-replies" class="px-5 pb-5 border-t border-gray-100 pt-4">
+                    <!-- Replies rendered here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== Join Class Modal ========== -->
+    <div id="join-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-1">Unirse a una clase</h3>
+            <p class="text-sm text-gray-500 mb-4">Ingresa el código proporcionado por tu profesor</p>
+            <input id="join-class-code" type="text" placeholder="Ej: MICRO2026ABCD"
+                   class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none uppercase tracking-wider mb-2">
+            <p id="join-error" class="text-red-500 text-sm hidden mb-2"></p>
+            <div class="flex gap-2 mt-4">
+                <button onclick="closeJoinModal()"
+                        class="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition font-medium">
+                    Cancelar
+                </button>
+                <button onclick="submitJoinClass()"
+                        class="flex-1 px-4 py-2 text-sm bg-primary hover:bg-secondary text-white rounded-lg transition font-medium">
+                    Unirse
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/home.js"></script>
 </body>
 </html>

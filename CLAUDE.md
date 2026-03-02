@@ -35,15 +35,19 @@ python seed_data.py
 - `routes/classes.py` - Class management endpoints (create, join, leave, list)
 - `routes/students.py` - Student endpoints (grades, attendance, grade-calculation, assignments/submissions, file upload/download)
 - `routes/participation.py` - Participation submission (requires class_id)
-- `models/models.py` - SQLAlchemy ORM models (Student, Class, StudentClass, Attendance, Participation, Grade, GradeCategory, SpecialPoints, Assignment, Submission)
+- `models/models.py` - SQLAlchemy ORM models (Student, Class, StudentClass, Attendance, Participation, Grade, GradeCategory, SpecialPoints, Assignment, Submission, ForumPost, ForumReply, ForumLike, ForumPoints)
 - `models/schemas.py` - Pydantic request/response schemas
 - `models/database.py` - Database connection and session management
-- `static/index.html` - Student dashboard frontend (Spanish: "Portal del Estudiante")
-- `static/js/app.js` - Student dashboard JavaScript (class enrollment, switching, Drive link submissions, file uploads)
+- `routes/forum.py` - Forum endpoints (posts, replies, likes, pin/lock, points summary)
+- `static/index.html` - Combined Forum + Student Dashboard landing page (Spanish: "Portal del Estudiante")
+- `static/js/home.js` - Combined landing page JS (forum feed, post modal, class cards, join class, casino toast notifications)
+- `static/js/app.js` - Legacy student dashboard JS (kept for reference; landing page now uses home.js)
 - `static/admin.html` - Teacher admin panel - class overview (Spanish: "Panel del Profesor")
 - `static/js/admin.js` - Admin panel JavaScript (class list, quick stats)
 - `static/class-dashboard.html` - Per-class dashboard with tabs (Spanish)
 - `static/js/class-dashboard.js` - Class dashboard JavaScript (attendance, grades, participation, roster, assignment grading modal, file viewer, justification review)
+- `static/forum.html` - Standalone forum page (accessible from admin nav; same content as landing page forum section)
+- `static/js/forum.js` - Standalone forum JavaScript (teacher moderation, likes, post modal, casino toasts)
 
 ## Multi-Class System
 
@@ -81,6 +85,10 @@ python seed_data.py
 - `SpecialPoints` - Optional bonus points per student (english, notebook)
 - `Assignment` - Homework/retos and exams per class (title, description, due_date, max_points, allow_late, published, exam_type: 'homework'|'exam')
 - `Submission` - Student submissions (drive_url, file_key, file_name, file_size, penalty_pct, is_late, grade, feedback)
+- `ForumPost` - Forum posts (class_id, author_id, title, content, pinned, locked, like_count, comment_count, points_earned)
+- `ForumReply` - Threaded replies (post_id, author_id, parent_reply_id, content)
+- `ForumLike` - Likes on posts (user_id, post_id; unique constraint)
+- `ForumPoints` - Casino point ledger (user_id, post_id, like_id, points_earned, bonus_type: 'normal'|'mini'|'double'|'jackpot')
 
 ### Code Generation
 Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X")
@@ -116,6 +124,20 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `POST /api/students/me/attendance/{id}/justify` - Upload justification for absence/late (multipart, R2 storage)
 - `GET /api/students/attendance/{id}/justification-file` - Get presigned URL for justification file (owner or class teacher)
 - `POST /api/participation` - Submit participation entry (requires class_id)
+
+### Forum Endpoints (requires auth)
+- `GET /api/forum/classes` - List classes the current user can access (enrolled or teaching)
+- `GET /api/forum/posts?class_id=X&page=N&limit=N` - Paginated post list with liked_by_me, author_role
+- `POST /api/forum/posts` - Create post (student: max 5/day, earns +0.1 pts; teacher: no limit, no points)
+- `GET /api/forum/posts/{id}` - Get single post with replies tree
+- `DELETE /api/forum/posts/{id}` - Delete post (own post or teacher)
+- `POST /api/forum/posts/{id}/like` - Toggle like; awards casino points to post author (students only); returns points_awarded, bonus_type, post_points_earned
+- `POST /api/forum/posts/{id}/replies` - Create reply (supports parent_reply_id for threading)
+- `DELETE /api/forum/replies/{id}` - Delete reply (own or teacher)
+- `PATCH /api/forum/posts/{id}/pin` - Toggle pin (teacher only)
+- `PATCH /api/forum/posts/{id}/lock` - Toggle lock (teacher only); locked posts hide reply form
+- `GET /api/forum/points/summary?class_id=X` - Total forum points earned by current user in a class
+- `GET /api/forum/points/recent` - Last 20 point award events for current user
 
 ### Admin Endpoints (Teacher only)
 - `GET /api/admin/classes/{id}/dashboard` - Full class dashboard with stats, students, categories, recent activity
@@ -185,14 +207,18 @@ Uses Google OAuth with Google Identity Services (client-side Sign-In button).
 - `grades` - Scored assignments (category_id, name, score, max_score, class_id)
 - `grade_categories` - Weighted grade categories per class (name, weight)
 - `special_points` - Optional bonus points per student (english, notebook)
-- `assignments` - Homework/retos (class_id, category_id, title, description, due_date, max_points, allow_late, published)
+- `assignments` - Homework/retos and exams (class_id, category_id, title, description, due_date, max_points, allow_late, published, exam_type)
 - `submissions` - Student submissions (assignment_id, student_id, drive_url, file_key, file_name, file_size, penalty_pct, is_late, grade, feedback)
+- `forum_posts` - Forum posts (class_id, author_id, title, content, pinned, locked, like_count, comment_count, points_earned)
+- `forum_replies` - Threaded replies (post_id, author_id, parent_reply_id, content)
+- `forum_likes` - Post likes (user_id, post_id; unique per user+post)
+- `forum_points` - Casino points ledger (user_id, post_id, like_id, points_earned, bonus_type)
 
 ### Grading System
 
 **Grade Calculation Formula:**
 ```
-Final Grade = Σ(Category Weight × Category Average) + (Participation Points × 0.1) + Special Points - Unjustified Absences
+Final Grade = Σ(Category Weight × Category Average) + (Participation Points × 0.1) + Special Points + Forum Points - Unjustified Absences
 ```
 
 **Grading Mode** (`classes.grading_mode`):
@@ -224,6 +250,16 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 - Two categories: "english" and "notebook" (0.5 pts each)
 - Students opt-in, teacher awards at end of semester
 - TODO: Add `awarded_at` and `awarded_by` columns for audit trail
+
+**Forum Points** (`forum_points`):
+- Students earn points for forum engagement; points are included in the final grade calculation
+- `+0.1 pts` for creating a post (max 5 posts/day per student)
+- Per-like points use a logarithmic decay: +0.10 (likes 1-2), +0.05 (3-7), +0.03 (8-20), +0.02 (21-50), +0.01 (50+)
+- Casino bonus rolls on each like: 0.5% jackpot (×10), 5% double (×2), 10% mini (+0.05 flat bonus)
+- Teachers excluded from earning or granting points
+- Points are permanent — unliking does not remove awarded points
+- `forum_posts.points_earned` is a denormalized cumulative for display on post cards
+- Grade-calc endpoint includes `forum_points` in the returned dict
 
 **Absence Penalty:**
 - Each unjustified absence (status = "absent") subtracts 1 point from final grade
@@ -344,24 +380,31 @@ lesson_progress
 └── UNIQUE(lesson_id, student_id)
 ```
 
-### 2. Forum
-```
-forum_posts
-├── id, class_id, author_id, title, content
-├── pinned, locked, reply_count, like_count
-└── created_at, updated_at
-
-forum_replies
-├── id, post_id, author_id, parent_id (for threading)
-├── content, like_count, created_at, updated_at
-
-forum_likes
-├── id, user_id, post_id (nullable), reply_id (nullable)
-└── CHECK: exactly one of post_id/reply_id is set
-```
-
 ### Pending Schema Updates
 - `special_points`: Add `awarded_at` (DATETIME) and `awarded_by` (FK to students)
+
+## Implemented Features
+
+### Forum System
+- **Routes:** `routes/forum.py`
+- **Frontend:** `static/forum.html` + `static/js/forum.js` (standalone); forum also embedded in combined landing page via `home.js`
+- Threaded replies (one level of nesting via `parent_reply_id`)
+- Like system with per-post toggle (one like per user per post)
+- Teacher moderation: pin posts (📌), lock posts (🔒 hides reply form), delete any post/reply
+- Teacher posts show 👨‍🏫 badge; teacher author label is rust-colored
+- Casino points system: students earn fractional grade points for posting and receiving likes (see Forum Points section above)
+- Daily post limit: 5 posts/day per student (anti-spam)
+- Casino toast notifications on like: normal (dark), mini ✨, double 🎰, jackpot 💰
+- Context-aware delete confirmation: "¿Eliminar publicación de [name]?" when teacher deletes another user's post
+
+### Combined Landing Page (`/`)
+- `static/index.html` + `static/js/home.js` replace the old student-only dashboard
+- Forum feed is the primary section (top); personal dashboard is secondary (below)
+- Sticky nav: "💬 Foro" and "📊 Mi Progreso" smooth-scroll tabs, forum class selector, admin link (teacher only), logout
+- Student class cards show: final grade (color-coded), participation pts, forum pts, special pts, absence count
+- Teacher class cards link to `/admin/class/{id}`
+- Upcoming assignments section (due in future, not yet graded, sorted by due date, max 5)
+- Join class modal accessible from nav, no-class state, and dashboard CTA
 
 ## Development Notes
 
@@ -371,7 +414,7 @@ forum_likes
 - Database file (`school.db`) is gitignored
 - Run `seed_data.py` to populate test data (creates teacher, 3 students, sample class, enrollments, and sample records)
 - `class_id` is nullable in attendance/participation/grades for backward compatibility
-- **Auto-migration on startup**: `Base.metadata.create_all()` always runs (creates missing tables), plus `_ensure_columns()` adds missing columns (`category_id`, `name` to `grades` table; `drive_url`, `penalty_pct`, `file_key`, `file_name`, `file_size`, `resubmit_count` to `submissions` table; `justification_file_key`, `justification_file_name`, `justification_text`, `justification_status`, `justification_submitted_at`, `justification_reviewed_at`, `justification_reviewed_by` to `attendances` table; `grading_mode` to `classes` table; `exam_type` to `assignments` table)
+- **Auto-migration on startup**: `Base.metadata.create_all()` always runs (creates missing tables), plus `_ensure_columns()` adds missing columns (`category_id`, `name` to `grades` table; `drive_url`, `penalty_pct`, `file_key`, `file_name`, `file_size`, `resubmit_count` to `submissions` table; `justification_file_key`, `justification_file_name`, `justification_text`, `justification_status`, `justification_submitted_at`, `justification_reviewed_at`, `justification_reviewed_by` to `attendances` table; `grading_mode` to `classes` table; `exam_type` to `assignments` table; `points_earned` to `forum_posts` table)
 
 ## Railway Deployment
 

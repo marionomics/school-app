@@ -12,7 +12,9 @@ A FastAPI application for managing student attendance, participation, and grades
 - **File Uploads**: Optional Cloudflare R2 integration for direct file submissions (PDF, DOCX, ZIP, images, max 10MB) with upload progress and presigned download URLs
 - **Attendance Justifications**: Students upload justification documents (PDF, images) for absences/lates; teachers approve/reject; approved justifications change status to "excused" and remove the -1 point grade penalty
 - **Student Preview Mode**: Teachers can preview the student dashboard as any enrolled student via impersonation
-- **Student Dashboard**: View grades breakdown, attendance, submit participation (filtered by class)
+- **Combined Landing Page**: Forum feed (primary) + personal class progress dashboard on the same page — no need to navigate between views
+- **Forum**: Class discussion boards with threaded replies, likes, teacher moderation (pin/lock/delete), and a casino-style engagement points system
+- **Forum Points (Casino System)**: Students earn fractional grade points for posting (+0.1/post) and receiving likes (logarithmic per-like with jackpot/double/mini bonus rolls at 0.5%/5%/10% odds). Points appear in final grade calculation
 - **Teacher Admin Panel**: Simple class overview with quick stats, click any class to open detailed dashboard
 - **Google OAuth**: Secure authentication via Google accounts
 - **Spanish UI**: Full Spanish language interface
@@ -84,7 +86,7 @@ A FastAPI application for managing student attendance, participation, and grades
 The app uses a weighted grading formula:
 
 ```
-Final Grade = Σ(Category Weight × Category Average) + (Participation Points × 0.1) + Special Points - Unjustified Absences
+Final Grade = Σ(Category Weight × Category Average) + (Participation Points × 0.1) + Special Points + Forum Points - Unjustified Absences
 ```
 
 Each unjustified absence (status = "absent") subtracts 1 point from the final grade. Students can upload justification documents; if the teacher approves, the absence becomes "excused" and the penalty is removed.
@@ -114,6 +116,14 @@ The default mode is `points`, which matches UJED's system where categories total
 - Students submit participation entries describing their contributions
 - Teachers approve/reject and assign points (1-3)
 - Approved points × 0.1 added to final grade (no cap)
+
+### Forum Points
+- Students earn fractional points through forum engagement, added directly to final grade
+- **+0.1 pts** per post created (max 5 posts/day)
+- **Per-like earnings** decrease logarithmically: +0.10 (first 2 likes), +0.05 (3–7), +0.03 (8–20), +0.02 (21–50), +0.01 (50+)
+- **Casino bonus rolls** on each like: 0.5% jackpot (×10), 5% double (×2), 10% mini (+0.05 flat)
+- Points are permanent — unliking does not remove earned points
+- Teacher activity (posting, liking) does not generate or award points
 
 ### Special Points
 - Two optional categories: English (0.5 pts) and Notebook (0.5 pts)
@@ -219,6 +229,22 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 | GET | `/api/admin/assignments/:id/exam-grading` | All enrolled students with current exam grade |
 | POST | `/api/admin/assignments/:id/exam-grade` | Save/update one student's exam grade (no submission) |
 
+### Forum (requires auth)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/forum/classes` | Classes the current user can access |
+| GET | `/api/forum/posts?class_id=X&page=N` | Paginated post list |
+| POST | `/api/forum/posts` | Create post (student: max 5/day, earns +0.1 pts) |
+| GET | `/api/forum/posts/:id` | Post with replies tree |
+| DELETE | `/api/forum/posts/:id` | Delete post (own or teacher) |
+| POST | `/api/forum/posts/:id/like` | Toggle like; awards casino points |
+| POST | `/api/forum/posts/:id/replies` | Create reply (threaded) |
+| DELETE | `/api/forum/replies/:id` | Delete reply (own or teacher) |
+| PATCH | `/api/forum/posts/:id/pin` | Toggle pin (teacher only) |
+| PATCH | `/api/forum/posts/:id/lock` | Toggle lock (teacher only) |
+| GET | `/api/forum/points/summary?class_id=X` | User's total forum points for a class |
+| GET | `/api/forum/points/recent` | Last 20 point award events |
+
 ## Database Migrations
 
 This project uses **Alembic** for database migrations to safely manage schema changes without data loss.
@@ -296,6 +322,7 @@ school-app/
 │   ├── classes.py        # Class management endpoints
 │   ├── students.py       # Student endpoints
 │   ├── participation.py  # Participation endpoints
+│   ├── forum.py          # Forum endpoints (posts, replies, likes, moderation, points)
 │   └── health.py         # Health check
 ├── alembic/
 │   ├── env.py            # Alembic environment config
@@ -303,13 +330,16 @@ school-app/
 ├── scripts/
 │   └── migrate.py        # Production migration script
 ├── static/
-│   ├── index.html        # Student dashboard (Spanish)
+│   ├── index.html        # Combined Forum + Dashboard landing page (Spanish)
 │   ├── admin.html        # Admin panel - class overview (Spanish)
 │   ├── class-dashboard.html  # Per-class dashboard (Spanish)
+│   ├── forum.html        # Standalone forum page
 │   └── js/
-│       ├── app.js        # Student JS (class enrollment, switching)
+│       ├── home.js       # Combined landing page JS (forum + dashboard + casino toasts)
+│       ├── app.js        # Legacy student JS (kept for reference)
 │       ├── admin.js      # Admin JS (class list, quick stats)
-│       └── class-dashboard.js  # Class dashboard JS (tabs, attendance, grades)
+│       ├── class-dashboard.js  # Class dashboard JS (tabs, attendance, grades)
+│       └── forum.js      # Standalone forum JS (moderation, likes, modal, toasts)
 ├── alembic.ini           # Alembic configuration
 ├── seed_data.py          # Test data script
 ├── requirements.txt
@@ -323,7 +353,6 @@ school-app/
 ### Planned Features
 
 - **Lessons/Classroom**: Rich content lessons with video embeds, attachments, and progress tracking
-- **Forum**: Class discussion boards with threaded replies and likes
 
 See `CLAUDE.md` for detailed schema designs.
 
