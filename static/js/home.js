@@ -20,6 +20,7 @@ let enrolledClasses = [];   // student enrolled classes
 let teachingClasses = [];   // teacher's classes
 let gradesByClassId = {};   // { class_id: gradeCalcResponse }
 let assignmentsByClassId = {}; // { class_id: [...assignments] }
+let fileUploadsEnabled = false;
 
 const API = '/api';
 
@@ -38,6 +39,24 @@ async function apiCall(endpoint, options = {}) {
         throw new Error(msg);
     }
     return res.json();
+}
+
+function apiUpload(endpoint, formData, onProgress) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${API}${endpoint}`);
+        if (authToken) xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
+        if (previewMode && previewStudentId) xhr.setRequestHeader('X-Impersonate', String(previewStudentId));
+        xhr.upload.addEventListener('progress', e => {
+            if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+        });
+        xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
+            else { const err = JSON.parse(xhr.responseText || '{}'); reject(new Error(err.detail || `Error: ${xhr.status}`)); }
+        });
+        xhr.addEventListener('error', () => reject(new Error('Error de red')));
+        xhr.send(formData);
+    });
 }
 
 function logout() {
@@ -146,9 +165,10 @@ async function boot() {
 function showLogin() {
     document.getElementById('login-section').classList.remove('hidden');
     document.getElementById('app-section').classList.add('hidden');
-    // Fetch config for Google Client ID
+    // Fetch config for Google Client ID and feature flags
     fetch('/api/config').then(r => r.json()).then(cfg => {
         googleClientId = cfg.google_client_id;
+        fileUploadsEnabled = cfg.file_uploads_enabled || false;
         if (window.google) initGoogleSignIn();
         else window.addEventListener('load', () => setTimeout(initGoogleSignIn, 100));
     }).catch(() => {});
@@ -662,7 +682,7 @@ async function loadStudentDashboard() {
     });
 
     container.innerHTML = enrolledClasses.map(c => renderStudentClassCard(c, gradesByClassId[c.class_id])).join('');
-    renderUpcomingAssignments();
+    renderAssignmentsSection();
 }
 
 function renderStudentClassCard(cls, grade) {
@@ -719,40 +739,216 @@ function renderStudentClassCard(cls, grade) {
     </div>`;
 }
 
-function renderUpcomingAssignments() {
-    const now = new Date();
-    const upcoming = [];
-
-    enrolledClasses.forEach(cls => {
-        const assignments = assignmentsByClassId[cls.class_id] || [];
-        assignments.forEach(a => {
-            if (!a.due_date) return;
-            const due = new Date(a.due_date);
-            if (due < now) return; // already past
-            if (a.submission && a.submission.grade !== null) return; // already graded
-            upcoming.push({ ...a, class_name: cls.class_name, due });
-        });
-    });
-
-    if (!upcoming.length) return;
-    upcoming.sort((a, b) => a.due - b.due);
-
+function renderAssignmentsSection() {
     const section = document.getElementById('upcoming-section');
     const list = document.getElementById('upcoming-list');
+
+    // Collect all assignments across all enrolled classes
+    const hasAny = enrolledClasses.some(cls => (assignmentsByClassId[cls.class_id] || []).length > 0);
+    if (!hasAny) return;
+
     section.classList.remove('hidden');
 
-    list.innerHTML = upcoming.slice(0, 5).map(a => {
-        const daysLeft = Math.ceil((a.due - now) / (1000 * 60 * 60 * 24));
-        const urgency = daysLeft <= 2 ? 'text-red-600 bg-red-50 border-red-100' : daysLeft <= 5 ? 'text-amber-600 bg-amber-50 border-amber-100' : 'text-gray-600 bg-gray-50 border-gray-100';
+    list.innerHTML = enrolledClasses.map(cls => {
+        const assignments = assignmentsByClassId[cls.class_id] || [];
+        if (!assignments.length) return '';
         return `
-        <div class="flex items-center justify-between px-4 py-3 rounded-lg border ${urgency}">
-            <div>
-                <span class="font-medium text-sm">${escHtml(a.title)}</span>
-                <span class="text-xs opacity-70 ml-2">${escHtml(a.class_name)}</span>
-            </div>
-            <span class="text-xs font-medium">${daysLeft === 1 ? 'Mañana' : `${daysLeft} días`} 📅</span>
+        <div class="mb-5">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">${escHtml(cls.class_name)}</p>
+            <div class="space-y-3">${assignments.map(a => renderAssignmentCard(a)).join('')}</div>
         </div>`;
     }).join('');
+}
+
+function renderAssignmentCard(a) {
+    const now = new Date();
+    const due = new Date(a.due_date);
+    const isPast = now > due;
+    const diff = due - now;
+    const hasSubmission = !!a.submission;
+    const isGraded = a.submission?.grade !== null && a.submission?.grade !== undefined;
+
+    // Status badge
+    let statusBadge, statusColor;
+    if (isGraded) {
+        statusBadge = `Calificado: ${a.submission.grade}/${a.max_points}`;
+        statusColor = 'bg-blue-100 text-blue-800';
+    } else if (hasSubmission) {
+        statusBadge = 'Entregado';
+        statusColor = 'bg-green-100 text-green-800';
+    } else if (isPast) {
+        statusBadge = 'Vencido';
+        statusColor = 'bg-red-100 text-red-800';
+    } else {
+        statusBadge = 'Pendiente';
+        statusColor = 'bg-yellow-100 text-yellow-800';
+    }
+
+    // Countdown
+    let countdown = '';
+    if (!hasSubmission && !isPast) {
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        countdown = days > 0 ? `${days}d ${hours}h restantes` : `${hours}h ${Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))}m restantes`;
+    }
+
+    // Penalty badge
+    let penaltyHtml = '';
+    if (hasSubmission && a.submission.is_late) {
+        const pct = a.submission.penalty_pct ?? 100;
+        const pc = pct === 90 ? 'bg-yellow-100 text-yellow-800' : pct === 50 ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800';
+        penaltyHtml = `<span class="text-xs px-2 py-0.5 rounded ${pc}">Penalización: ${100 - pct}%</span>`;
+    }
+
+    // Submission details
+    let submissionHtml = '';
+    if (hasSubmission) {
+        const submittedAt = new Date(a.submission.submitted_at).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        const fileLine = a.submission.has_file
+            ? `<span class="font-medium">Archivo:</span> <button onclick="viewSubmissionFile(${a.submission.id})" class="text-primary hover:text-secondary underline">${escHtml(a.submission.file_name || 'archivo')} (${formatFileSize(a.submission.file_size || 0)})</button>`
+            : '';
+        const driveLine = a.submission.drive_url
+            ? `<span class="font-medium">Enlace:</span> <a href="${escHtml(a.submission.drive_url)}" target="_blank" class="text-primary hover:text-secondary underline">Google Drive</a>`
+            : '';
+        const deleteBtn = !isGraded && !previewMode
+            ? `<button onclick="deleteSubmission(${a.submission.id})" class="shrink-0 text-xs px-3 py-1.5 bg-red-100 text-red-700 rounded hover:bg-red-200 transition">Eliminar entrega</button>`
+            : '';
+        submissionHtml = `
+        <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+            <div class="flex justify-between items-start gap-3">
+                <div class="space-y-1 text-gray-600">
+                    ${fileLine ? `<div>${fileLine}</div>` : ''}
+                    ${driveLine ? `<div>${driveLine}</div>` : ''}
+                    <div>Entregado: ${submittedAt}</div>
+                    ${penaltyHtml ? `<div>${penaltyHtml}</div>` : ''}
+                </div>
+                ${deleteBtn}
+            </div>
+        </div>`;
+    }
+
+    // Feedback
+    const feedbackHtml = a.submission?.feedback
+        ? `<div class="mt-2 p-2 bg-blue-50 rounded text-sm text-blue-800"><span class="font-medium">Retroalimentación:</span> ${escHtml(a.submission.feedback)}</div>`
+        : '';
+
+    // Submit form
+    const submitHtml = !hasSubmission && !previewMode ? `
+    <div class="mt-3 pt-3 border-t border-gray-100">
+        <div class="flex gap-2">
+            <input type="url" id="submit-url-${a.id}" placeholder="https://drive.google.com/..."
+                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+            <button onclick="submitAssignment(${a.id})"
+                    class="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-secondary transition">
+                Enviar
+            </button>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">Pega el enlace de Google Drive de tu tarea</p>
+        ${fileUploadsEnabled ? `
+        <div class="mt-3 pt-3 border-t border-gray-100">
+            <div class="flex items-center gap-2">
+                <label class="flex-1 flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 cursor-pointer hover:bg-gray-50">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                    <span>O subir archivo directamente</span>
+                    <input type="file" id="file-input-${a.id}" class="hidden"
+                           accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.png,.jpg,.jpeg,.gif,.webp,.svg"
+                           onchange="handleFileSelect(${a.id}, this)">
+                </label>
+                <button id="upload-btn-${a.id}" onclick="uploadAssignmentFile(${a.id})"
+                        class="hidden px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-secondary transition">
+                    Subir
+                </button>
+            </div>
+            <p id="file-info-${a.id}" class="text-xs text-gray-500 mt-1 hidden"></p>
+            <div id="upload-progress-${a.id}" class="hidden mt-2 w-full bg-gray-200 rounded-full h-2">
+                <div id="upload-progress-fill-${a.id}" class="bg-primary h-2 rounded-full transition-all" style="width:0%"></div>
+            </div>
+            <p class="text-xs text-gray-400 mt-1">PDF, DOCX, ZIP, imágenes · Máx. 10 MB</p>
+        </div>` : ''}
+    </div>` : '';
+
+    return `
+    <div class="bg-white border border-gray-200 rounded-lg p-4">
+        <div class="flex items-start justify-between gap-2 mb-1">
+            <span class="font-medium text-gray-800 text-sm">${escHtml(a.title)}</span>
+            <span class="shrink-0 text-xs px-2 py-0.5 rounded ${statusColor}">${statusBadge}</span>
+        </div>
+        ${a.description ? `<p class="text-gray-500 text-sm mb-1">${escHtml(a.description)}</p>` : ''}
+        <div class="flex items-center gap-3 text-xs text-gray-400">
+            <span>Límite: ${new Date(a.due_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+            ${countdown ? `<span class="text-amber-600 font-medium">${countdown}</span>` : ''}
+        </div>
+        ${feedbackHtml}
+        ${submissionHtml}
+        ${submitHtml}
+    </div>`;
+}
+
+// ==================== Assignment Submission ====================
+
+async function submitAssignment(assignmentId) {
+    const input = document.getElementById(`submit-url-${assignmentId}`);
+    const driveUrl = input?.value.trim();
+    if (!driveUrl) { alert('Por favor ingresa un enlace de Google Drive'); return; }
+    try {
+        await apiCall(`/students/me/assignments/${assignmentId}/submit`, {
+            method: 'POST', body: JSON.stringify({ drive_url: driveUrl }),
+        });
+        await refreshAssignments();
+    } catch (e) { alert('Error al enviar: ' + e.message); }
+}
+
+async function deleteSubmission(submissionId) {
+    if (!confirm('¿Eliminar tu entrega? Tendrás que volver a subirla.')) return;
+    try {
+        await apiCall(`/students/submissions/${submissionId}`, { method: 'DELETE' });
+        await refreshAssignments();
+    } catch (e) { alert('Error al eliminar: ' + e.message); }
+}
+
+async function uploadAssignmentFile(assignmentId) {
+    const fileInput = document.getElementById(`file-input-${assignmentId}`);
+    const file = fileInput?.files[0];
+    if (!file) { alert('Selecciona un archivo primero'); return; }
+    const progressBar = document.getElementById(`upload-progress-${assignmentId}`);
+    const progressFill = document.getElementById(`upload-progress-fill-${assignmentId}`);
+    const btn = document.getElementById(`upload-btn-${assignmentId}`);
+    progressBar.classList.remove('hidden');
+    btn.disabled = true; btn.textContent = 'Subiendo...';
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+        await apiUpload(`/students/me/assignments/${assignmentId}/upload`, formData, pct => {
+            progressFill.style.width = pct + '%';
+        });
+        await refreshAssignments();
+    } catch (e) { alert('Error al subir: ' + e.message); }
+    finally { progressBar.classList.add('hidden'); progressFill.style.width = '0%'; btn.disabled = false; btn.textContent = 'Subir'; }
+}
+
+function handleFileSelect(assignmentId, input) {
+    const infoEl = document.getElementById(`file-info-${assignmentId}`);
+    const btn = document.getElementById(`upload-btn-${assignmentId}`);
+    if (input.files.length > 0) {
+        infoEl.textContent = `${input.files[0].name} (${formatFileSize(input.files[0].size)})`;
+        infoEl.classList.remove('hidden'); btn.classList.remove('hidden');
+    } else { infoEl.classList.add('hidden'); btn.classList.add('hidden'); }
+}
+
+async function viewSubmissionFile(submissionId) {
+    try {
+        const data = await apiCall(`/students/submissions/${submissionId}/file`);
+        window.open(data.download_url, '_blank');
+    } catch (e) { alert('Error al abrir archivo: ' + e.message); }
+}
+
+async function refreshAssignments() {
+    // Reload assignment data for all enrolled classes and re-render
+    const results = await Promise.all(
+        enrolledClasses.map(c => apiCall(`/students/me/assignments?class_id=${c.class_id}`).catch(() => []))
+    );
+    enrolledClasses.forEach((c, i) => { assignmentsByClassId[c.class_id] = results[i] || []; });
+    renderAssignmentsSection();
 }
 
 async function loadTeacherDashboard() {
@@ -851,6 +1047,12 @@ function _showToast(msg, bg, duration = 3000) {
 }
 
 // ==================== Utilities ====================
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
 
 function escHtml(str) {
     if (!str) return '';
