@@ -7,7 +7,6 @@ let previewStudentId = null;
 
 // Forum state
 let forumClasses = [];
-let selectedForumClassId = null;
 let posts = [];
 let currentPage = 1;
 let hasMorePosts = false;
@@ -194,30 +193,19 @@ async function loadForumSection() {
         forumClasses = await apiCall('/forum/classes');
     } catch (e) { forumClasses = []; }
 
-    const sel = document.getElementById('nav-class-selector');
     if (!forumClasses.length) {
-        sel.innerHTML = '<option>Sin clases</option>';
         document.getElementById('posts-container').innerHTML = '';
         document.getElementById('forum-no-class').classList.remove('hidden');
         document.getElementById('composer-wrapper').classList.add('hidden');
         return;
     }
 
-    sel.innerHTML = forumClasses.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-
-    // Restore last selected forum class
-    const saved = localStorage.getItem('forumClassId');
-    if (saved && forumClasses.find(c => c.id === parseInt(saved))) {
-        sel.value = saved;
+    // Populate class selector inside the composer
+    const composerSel = document.getElementById('composer-class-selector');
+    if (composerSel) {
+        composerSel.innerHTML = forumClasses.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
     }
-    selectedForumClassId = parseInt(sel.value);
-    await loadPosts(true);
-}
 
-async function onForumClassChange() {
-    const sel = document.getElementById('nav-class-selector');
-    selectedForumClassId = parseInt(sel.value);
-    localStorage.setItem('forumClassId', selectedForumClassId);
     await loadPosts(true);
 }
 
@@ -227,7 +215,7 @@ async function loadPosts(reset = false) {
     if (reset) container.innerHTML = '<p class="text-center text-gray-400 text-sm py-6">Cargando...</p>';
 
     try {
-        const data = await apiCall(`/forum/posts?class_id=${selectedForumClassId}&page=${currentPage}&limit=10`);
+        const data = await apiCall(`/forum/posts?page=${currentPage}&limit=10`);
         posts = reset ? data.posts : [...posts, ...data.posts];
         hasMorePosts = data.has_more;
         renderPosts(reset);
@@ -271,9 +259,10 @@ function renderPostCard(post) {
     const canDelete = isOwn || currentUser.role === 'teacher';
     const cantLike = isOwn;
 
+    const classBadge = `<span class="px-2 py-0.5 bg-primary-10 text-secondary text-xs rounded-full">${escHtml(post.class_name)}</span>`;
     const authorLabel = isTeacherPost
-        ? `<span class="font-medium text-secondary text-sm">👨‍🏫 ${escHtml(post.author_name)}</span><span class="text-secondary text-xs font-medium ml-1">• Profesor</span>`
-        : `<span class="font-medium text-gray-800 text-sm">${escHtml(post.author_name)}</span><span class="px-2 py-0.5 bg-primary-10 text-secondary text-xs rounded-full ml-1">${escHtml(post.class_name)}</span>`;
+        ? `<span class="font-medium text-secondary text-sm">👨‍🏫 ${escHtml(post.author_name)}</span><span class="text-secondary text-xs font-medium">• Profesor</span>${classBadge}`
+        : `<span class="font-medium text-gray-800 text-sm">${escHtml(post.author_name)}</span>${classBadge}`;
 
     const pinnedBadge = post.pinned ? `<span class="text-amber-500 text-xs font-medium">📌 Fijado</span>` : '';
     const lockedBadge = post.locked ? `<span class="text-gray-400 text-xs">🔒</span>` : '';
@@ -338,11 +327,13 @@ function closeComposer() {
 async function submitPost() {
     const title = document.getElementById('post-title').value.trim();
     const content = document.getElementById('post-content').value.trim();
+    const classId = parseInt(document.getElementById('composer-class-selector')?.value);
     if (!content) { alert('El contenido no puede estar vacío.'); return; }
+    if (!classId) { alert('Selecciona una clase.'); return; }
     try {
         const post = await apiCall('/forum/posts', {
             method: 'POST',
-            body: JSON.stringify({ class_id: selectedForumClassId, title: title || null, content }),
+            body: JSON.stringify({ class_id: classId, title: title || null, content }),
         });
         closeComposer();
         posts.unshift(post);

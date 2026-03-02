@@ -149,22 +149,34 @@ async def get_forum_classes(
 
 @router.get("/posts")
 async def list_posts(
-    class_id: int,
+    class_id: Optional[int] = None,
     page: int = 1,
     limit: int = 20,
     user: Student = Depends(get_current_student),
     db: Session = Depends(get_db),
 ):
-    """List posts for a class, newest first (pinned float to top)."""
-    _check_class_access(user, class_id, db)
+    """List posts across all accessible classes (or a specific class), newest first with pinned on top."""
+    if class_id is not None:
+        _check_class_access(user, class_id, db)
+        class_ids = [class_id]
+    else:
+        if user.role == "teacher":
+            classes = db.query(Class).filter(Class.teacher_id == user.id).all()
+        else:
+            enrollments = db.query(StudentClass).filter(StudentClass.student_id == user.id).all()
+            classes = [e.class_ for e in enrollments if e.class_]
+        class_ids = [c.id for c in classes]
+
+    if not class_ids:
+        return {"posts": [], "has_more": False, "page": page}
 
     offset = (page - 1) * limit
     posts = (
         db.query(ForumPost)
-        .filter(ForumPost.class_id == class_id)
+        .filter(ForumPost.class_id.in_(class_ids))
         .order_by(ForumPost.pinned.desc(), ForumPost.created_at.desc())
         .offset(offset)
-        .limit(limit + 1)  # fetch one extra to detect hasMore
+        .limit(limit + 1)
         .all()
     )
 
