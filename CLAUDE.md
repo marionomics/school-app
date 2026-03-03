@@ -39,8 +39,8 @@ python seed_data.py
 - `models/schemas.py` - Pydantic request/response schemas
 - `models/database.py` - Database connection and session management
 - `routes/forum.py` - Forum endpoints (posts, replies, likes, pin/lock, points summary)
-- `static/index.html` - Combined Forum + Student Dashboard landing page (Spanish: "Portal del Estudiante")
-- `static/js/home.js` - Combined landing page JS (forum feed, post modal, class cards, join class, casino toast notifications)
+- `static/index.html` - Student landing page (Spanish: "Portal del Estudiante"): progress cards → participation form → assignments → forum
+- `static/js/home.js` - Landing page JS: class cards with grade breakdown modal, participation form, assignments, unified forum feed, casino toast notifications
 - `static/js/app.js` - Legacy student dashboard JS (kept for reference; landing page now uses home.js)
 - `static/admin.html` - Teacher admin panel - class overview (Spanish: "Panel del Profesor")
 - `static/js/admin.js` - Admin panel JavaScript (class list, quick stats)
@@ -239,7 +239,8 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 - Grade model also has optional `name` field (e.g., "Reto Semana 1")
 - Category average = mean of graded assignments only (variable count — doesn't matter if 4 or 15 assignments exist)
 - Grade-calculation response includes per-category: `graded_count`, `pending_count`, `total_assignments`
-- Student dashboard shows: "Tu calificacion se calcula sobre X tareas completadas"
+- Grade-calculation response top-level: `participation_points` (class-only, for compat), `participation_points_class`, `participation_points_forum` (raw uncapped forum pts), `forum_points` (capped at 3.0), `final_grade`, `grading_mode`, `max_base_grade`
+- Student dashboard grade modal shows breakdown: categories, class participation (×0.1), forum pts, special pts, absence penalty, final grade
 - **Uncategorized grades fallback**: Grades with `category_id = NULL` (legacy/manual entries) are grouped into a "Sin categoría" bucket in grade-calculation. They get the remaining weight after defined categories (e.g., if categories sum to 0.8, uncategorized gets 0.2). This ensures legacy grades are never silently dropped.
 
 **Participation Points:**
@@ -252,14 +253,15 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 - TODO: Add `awarded_at` and `awarded_by` columns for audit trail
 
 **Forum Points** (`forum_points`):
-- Students earn points for forum engagement; points are included in the final grade calculation
-- `+0.1 pts` for creating a post (max 5 posts/day per student)
-- Per-like points use a logarithmic decay: +0.10 (likes 1-2), +0.05 (3-7), +0.03 (8-20), +0.02 (21-50), +0.01 (50+)
-- Casino bonus rolls on each like: 0.5% jackpot (×10), 5% double (×2), 10% mini (+0.05 flat bonus)
+- Students earn points for forum engagement; included in final grade (hard cap: 3.0 pts per class)
+- `+0.01 pts` for creating a post (max 3 posts/day globally, not per-class)
+- Per-like points: +0.01 (≤10 likes), +0.02 (≤25), +0.03 (≤50), +0.05 (50+ likes)
+- Anti-exploit: post must have ≥2 total likes before any points are awarded; user can only award points to the same author once per day
+- Casino bonus rolls: 0.2% jackpot (+0.50 pts), 2% double (×2 base), 5% mini (+0.02 flat)
 - Teachers excluded from earning or granting points
 - Points are permanent — unliking does not remove awarded points
 - `forum_posts.points_earned` is a denormalized cumulative for display on post cards
-- Grade-calc endpoint includes `forum_points` in the returned dict
+- Grade-calc endpoint includes `forum_points` (capped), `participation_points_forum` (raw, uncapped) in the returned dict
 
 **Absence Penalty:**
 - Each unjustified absence (status = "absent") subtracts 1 point from final grade
@@ -393,7 +395,7 @@ lesson_progress
 - Teacher moderation: pin posts (📌), lock posts (🔒 hides reply form), delete any post/reply
 - Teacher posts show 👨‍🏫 badge; teacher author label is rust-colored
 - Casino points system: students earn fractional grade points for posting and receiving likes (see Forum Points section above)
-- Daily post limit: 5 posts/day per student (anti-spam)
+- Daily post limit: 3 posts/day per student globally (anti-spam)
 - Casino toast notifications on like: normal (dark), mini ✨, double 🎰, jackpot 💰
 - Context-aware delete confirmation: "¿Eliminar publicación de [name]?" when teacher deletes another user's post
 

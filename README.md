@@ -12,9 +12,9 @@ A FastAPI application for managing student attendance, participation, and grades
 - **File Uploads**: Optional Cloudflare R2 integration for direct file submissions (PDF, DOCX, ZIP, images, max 10MB) with upload progress and presigned download URLs
 - **Attendance Justifications**: Students upload justification documents (PDF, images) for absences/lates; teachers approve/reject; approved justifications change status to "excused" and remove the -1 point grade penalty
 - **Student Preview Mode**: Teachers can preview the student dashboard as any enrolled student via impersonation
-- **Combined Landing Page**: Forum feed (primary) + personal class progress dashboard on the same page — no need to navigate between views
-- **Forum**: Class discussion boards with threaded replies, likes, teacher moderation (pin/lock/delete), and a casino-style engagement points system
-- **Forum Points (Casino System)**: Students earn fractional grade points for posting (+0.1/post) and receiving likes (logarithmic per-like with jackpot/double/mini bonus rolls at 0.5%/5%/10% odds). Points appear in final grade calculation
+- **Combined Landing Page**: Unified page for students — class progress cards (with full grade breakdown modal) → participation form → assignments → forum feed. No separate navigation needed.
+- **Forum**: Unified class discussion board showing posts from all enrolled classes, with threaded replies, likes, teacher moderation (pin/lock/delete), and a casino-style engagement points system
+- **Forum Points (Casino System)**: Students earn fractional grade points for posting (+0.01/post, max 3/day) and receiving likes (0.01–0.05/like based on post popularity, with jackpot/double/mini bonus rolls). Anti-exploit: post needs ≥2 likes before awarding; user can only award points to same author once per day. Hard cap: 3.0 pts per class.
 - **Teacher Admin Panel**: Simple class overview with quick stats, click any class to open detailed dashboard
 - **Google OAuth**: Secure authentication via Google accounts
 - **Spanish UI**: Full Spanish language interface
@@ -118,10 +118,10 @@ The default mode is `points`, which matches UJED's system where categories total
 - Approved points × 0.1 added to final grade (no cap)
 
 ### Forum Points
-- Students earn fractional points through forum engagement, added directly to final grade
-- **+0.1 pts** per post created (max 5 posts/day)
-- **Per-like earnings** decrease logarithmically: +0.10 (first 2 likes), +0.05 (3–7), +0.03 (8–20), +0.02 (21–50), +0.01 (50+)
-- **Casino bonus rolls** on each like: 0.5% jackpot (×10), 5% double (×2), 10% mini (+0.05 flat)
+- Students earn fractional points through forum engagement, added directly to final grade (hard cap: 3.0 pts per class)
+- **+0.01 pts** per post created (max 3 posts/day, global across classes)
+- **Per-like earnings** (post needs ≥2 likes to qualify, once per author per day): +0.01 (≤10 likes), +0.02 (≤25), +0.03 (≤50), +0.05 (50+ likes)
+- **Casino bonus rolls** on each qualifying like: 0.2% jackpot (+0.50 pts), 2% double (×2 base), 5% mini (+0.02 flat)
 - Points are permanent — unliking does not remove earned points
 - Teacher activity (posting, liking) does not generate or award points
 
@@ -186,7 +186,7 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 | GET | `/api/students/me/grades?class_id=X` | Student's grades |
 | GET | `/api/students/me/attendance?class_id=X` | Student's attendance |
 | GET | `/api/students/me/participation/points?class_id=X` | Participation point total |
-| GET | `/api/students/me/grade-calculation/:class_id` | Full grade breakdown with categories and assignment counts |
+| GET | `/api/students/me/grade-calculation/:class_id` | Full grade breakdown: categories, participation (class + forum split), special pts, absences, final grade |
 | GET | `/api/students/me/assignments?class_id=X` | List assignments with submission status |
 | POST | `/api/students/me/assignments/:id/submit` | Submit assignment (Google Drive link, auto penalty) |
 | POST | `/api/students/me/assignments/:id/upload` | Upload file for assignment (multipart, R2 storage) |
@@ -233,8 +233,8 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/forum/classes` | Classes the current user can access |
-| GET | `/api/forum/posts?class_id=X&page=N` | Paginated post list |
-| POST | `/api/forum/posts` | Create post (student: max 5/day, earns +0.1 pts) |
+| GET | `/api/forum/posts?class_id=X&page=N` | Paginated post list (class_id optional — returns all accessible classes when omitted) |
+| POST | `/api/forum/posts` | Create post (student: max 3/day, earns +0.01 pts) |
 | GET | `/api/forum/posts/:id` | Post with replies tree |
 | DELETE | `/api/forum/posts/:id` | Delete post (own or teacher) |
 | POST | `/api/forum/posts/:id/like` | Toggle like; awards casino points |

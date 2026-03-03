@@ -140,11 +140,6 @@ async function boot() {
 
     if (currentUser.role === 'teacher') {
         document.getElementById('nav-admin-link').classList.remove('hidden');
-        document.getElementById('dashboard-title').textContent = '📊 Mis Clases';
-        document.getElementById('dashboard-subtitle').textContent = 'Haz clic en una clase para ver el dashboard completo';
-    } else {
-        document.getElementById('dashboard-title').textContent = '📊 Mi Progreso';
-        document.getElementById('dashboard-subtitle').textContent = 'Resumen de todas tus clases';
     }
 
     // Hide composer in preview mode
@@ -157,6 +152,11 @@ async function boot() {
         loadForumSection(),
         loadDashboardSection(),
     ]);
+
+    // After dashboard loads, show participation form for students
+    if (currentUser.role === 'student' && !previewMode) {
+        renderParticipationSection();
+    }
 }
 
 // ==================== Show / Hide ====================
@@ -178,13 +178,6 @@ function showApp() {
     document.getElementById('app-section').classList.remove('hidden');
 }
 
-function scrollToForum() {
-    document.getElementById('forum-section').scrollIntoView({ behavior: 'smooth' });
-}
-
-function scrollToDashboard() {
-    document.getElementById('dashboard-anchor').scrollIntoView({ behavior: 'smooth' });
-}
 
 // ==================== Forum: load classes + posts ====================
 
@@ -682,10 +675,9 @@ function renderStudentClassCard(cls, grade) {
     const finalGrade = hasGrade ? grade.final_grade.toFixed(1) : '--';
     const gradeColor = hasGrade ? (grade.final_grade >= 70 ? 'text-green-600' : grade.final_grade >= 60 ? 'text-yellow-600' : 'text-red-600') : 'text-gray-500';
 
-    const partPts = hasGrade ? grade.participation_points : '--';
-    const forumPts = hasGrade && grade.forum_points > 0 ? `+${grade.forum_points.toFixed(2)}` : '0';
+    const classPts = hasGrade ? (grade.participation_points_class ?? grade.participation_points ?? 0) : 0;
+    const forumPtsRaw = hasGrade ? (grade.participation_points_forum ?? grade.forum_points ?? 0) : 0;
     const absences = hasGrade ? grade.absence_count : 0;
-
     const spTotal = hasGrade ? grade.special_points.reduce((s, sp) => s + (sp.opted_in && sp.awarded ? sp.points_value : 0), 0) : 0;
 
     return `
@@ -697,19 +689,13 @@ function renderStudentClassCard(cls, grade) {
             </div>
             <span class="${gradeColor} text-2xl font-bold">${finalGrade}</span>
         </div>
-        <div class="px-5 py-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="px-5 py-4 grid grid-cols-3 gap-4">
             <div class="flex items-center gap-2">
                 <span class="text-lg">⭐</span>
                 <div>
                     <p class="text-xs text-gray-400">Participación</p>
-                    <p class="font-semibold text-gray-700 text-sm">${partPts} pts</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <span class="text-lg">🏆</span>
-                <div>
-                    <p class="text-xs text-gray-400">Puntos Foro</p>
-                    <p class="font-semibold text-amber-500 text-sm">${forumPts} pts</p>
+                    <p class="font-semibold text-gray-700 text-sm">${hasGrade ? classPts : '--'} pts</p>
+                    ${forumPtsRaw > 0 ? `<p class="text-xs text-amber-500">+${forumPtsRaw.toFixed(2)} foro</p>` : ''}
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -723,11 +709,166 @@ function renderStudentClassCard(cls, grade) {
                 <span class="text-lg">${absences > 0 ? '⚠️' : '✅'}</span>
                 <div>
                     <p class="text-xs text-gray-400">Faltas</p>
-                    <p class="font-semibold ${absences > 0 ? 'text-red-500' : 'text-green-600'} text-sm">${absences} ${absences > 0 ? `(-${absences} pts)` : ''}</p>
+                    <p class="font-semibold ${absences > 0 ? 'text-red-500' : 'text-green-600'} text-sm">${absences}${absences > 0 ? ` (-${absences})` : ''}</p>
                 </div>
             </div>
         </div>
+        <div class="px-5 pb-4">
+            <button onclick="openGradeModal(${cls.class_id})"
+                    class="w-full py-2 text-sm text-primary font-medium border border-primary-30 rounded-lg hover:bg-primary-5 transition">
+                Ver Desglose Completo →
+            </button>
+        </div>
     </div>`;
+}
+
+// ==================== Grade Breakdown Modal ====================
+
+async function openGradeModal(classId) {
+    document.getElementById('grade-modal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+
+    const cls = enrolledClasses.find(c => c.class_id === classId);
+    if (cls) document.getElementById('grade-modal-title').textContent = cls.class_name;
+
+    document.getElementById('grade-modal-body').innerHTML = '<p class="text-center text-gray-400 text-sm py-6">Cargando...</p>';
+
+    try {
+        const calc = await apiCall(`/students/me/grade-calculation/${classId}`);
+        gradesByClassId[classId] = calc;
+        document.getElementById('grade-modal-body').innerHTML = renderGradeModalContent(calc);
+    } catch (e) {
+        document.getElementById('grade-modal-body').innerHTML = `<p class="text-red-400 text-sm text-center py-4">${e.message}</p>`;
+    }
+}
+
+function closeGradeModal() {
+    document.getElementById('grade-modal').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+function renderGradeModalContent(calc) {
+    if (!calc) return '<p class="text-gray-400 text-sm text-center">Sin datos</p>';
+
+    const classPts = calc.participation_points_class ?? calc.participation_points ?? 0;
+    const forumPtsRaw = calc.participation_points_forum ?? 0;
+    const forumContrib = calc.forum_points ?? 0; // already capped at 3.0
+    const partContrib = (classPts * 0.1).toFixed(2);
+
+    const categoriesHtml = (calc.categories || []).map(cat => {
+        const pct = cat.average !== null && cat.average !== undefined ? cat.average.toFixed(1) : '--';
+        const contrib = cat.weighted_contribution !== null && cat.weighted_contribution !== undefined ? cat.weighted_contribution.toFixed(1) : '--';
+        const gradedInfo = cat.graded_count > 0
+            ? `${cat.graded_count} calificada${cat.graded_count > 1 ? 's' : ''}`
+            : 'Sin calificar';
+        return `
+        <div class="flex justify-between items-center py-2.5 border-b border-gray-100 last:border-0">
+            <div>
+                <p class="text-sm font-medium text-gray-700">${escHtml(cat.name)}</p>
+                <p class="text-xs text-gray-400">${Math.round(cat.weight * 100)}% del total · ${gradedInfo}</p>
+            </div>
+            <div class="text-right">
+                <p class="text-sm font-semibold text-gray-700">${contrib} pts</p>
+                <p class="text-xs text-gray-400">Prom: ${pct}%</p>
+            </div>
+        </div>`;
+    }).join('');
+
+    const spTotal = (calc.special_points || []).reduce((s, sp) => s + (sp.opted_in && sp.awarded ? sp.points_value : 0), 0);
+    const gradeColor = calc.final_grade >= 70 ? 'text-green-600' : calc.final_grade >= 60 ? 'text-yellow-600' : 'text-red-600';
+
+    const totalGraded = (calc.categories || []).reduce((s, c) => s + (c.graded_count || 0), 0);
+
+    return `
+    <div class="space-y-4">
+        <!-- Categories -->
+        <div>
+            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Categorías de Calificación</h4>
+            <div class="bg-gray-50 rounded-lg px-4 py-1">
+                ${categoriesHtml || '<p class="text-xs text-gray-400 py-2 text-center">Sin categorías configuradas</p>'}
+            </div>
+        </div>
+
+        <!-- Participation breakdown -->
+        <div>
+            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Participación</h4>
+            <div class="bg-gray-50 rounded-lg px-4 py-3 space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">⭐ Participación en clase</span>
+                    <span class="font-medium text-gray-700">${classPts} pts × 0.1 = <span class="text-green-600">+${partContrib}</span></span>
+                </div>
+                ${forumPtsRaw > 0 ? `
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">🏆 Puntos del foro</span>
+                    <span class="font-medium text-amber-600">+${forumContrib.toFixed(2)}</span>
+                </div>` : `
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-400">🏆 Foro (sin actividad aún)</span>
+                    <span class="text-gray-400">0</span>
+                </div>`}
+            </div>
+        </div>
+
+        <!-- Extras / Penalties -->
+        ${spTotal > 0 || calc.absence_count > 0 ? `
+        <div>
+            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Extras y Penalizaciones</h4>
+            <div class="bg-gray-50 rounded-lg px-4 py-3 space-y-2">
+                ${spTotal > 0 ? `
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">✨ Puntos especiales</span>
+                    <span class="font-medium text-green-600">+${spTotal.toFixed(1)}</span>
+                </div>` : ''}
+                ${calc.absence_count > 0 ? `
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">⚠️ Faltas injustificadas (${calc.absence_count})</span>
+                    <span class="font-medium text-red-500">-${calc.absence_penalty.toFixed(0)}</span>
+                </div>` : ''}
+            </div>
+        </div>` : ''}
+
+        <!-- Final grade -->
+        <div class="flex items-center justify-between px-4 py-3 bg-primary-5 rounded-xl border border-primary-30">
+            <span class="font-semibold text-gray-700">Calificación Final</span>
+            <span class="text-2xl font-bold ${gradeColor}">${calc.final_grade.toFixed(1)}</span>
+        </div>
+
+        ${totalGraded > 0 ? `<p class="text-xs text-gray-400 text-center">Calculada sobre ${totalGraded} tarea${totalGraded !== 1 ? 's' : ''} calificada${totalGraded !== 1 ? 's' : ''}</p>` : ''}
+    </div>`;
+}
+
+// ==================== Participation Form ====================
+
+function renderParticipationSection() {
+    if (!enrolledClasses.length) return;
+
+    const section = document.getElementById('participation-section');
+    if (!section) return;
+    section.classList.remove('hidden');
+
+    const sel = document.getElementById('participation-class-selector');
+    if (sel) {
+        sel.innerHTML = enrolledClasses.map(c =>
+            `<option value="${c.class_id}">${escHtml(c.class_name)}</option>`
+        ).join('');
+    }
+}
+
+async function submitParticipation() {
+    const classId = parseInt(document.getElementById('participation-class-selector')?.value);
+    const description = document.getElementById('participation-description')?.value.trim();
+    if (!classId) { alert('Selecciona una clase.'); return; }
+    if (!description) { alert('Por favor describe tu participación.'); return; }
+    try {
+        await apiCall('/participation', {
+            method: 'POST',
+            body: JSON.stringify({ class_id: classId, description }),
+        });
+        document.getElementById('participation-description').value = '';
+        _showToast('✅ Participación enviada. El profesor la revisará pronto.', '#059669');
+    } catch (e) {
+        alert('Error al enviar: ' + e.message);
+    }
 }
 
 function renderAssignmentsSection() {
@@ -1004,6 +1145,7 @@ async function submitJoinClass() {
         closeJoinModal();
         // Refresh forum classes and dashboard
         await Promise.all([loadForumSection(), loadStudentDashboard()]);
+        renderParticipationSection();
     } catch (e) {
         errEl.textContent = e.message;
         errEl.classList.remove('hidden');
@@ -1084,7 +1226,8 @@ function timeAgo(isoString) {
 // ==================== Event Listeners ====================
 
 document.getElementById('post-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closePostModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closePostModal(); });
+document.getElementById('grade-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeGradeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePostModal(); closeGradeModal(); } });
 
 // Enter submits join form
 document.getElementById('join-class-code').addEventListener('keydown', e => { if (e.key === 'Enter') submitJoinClass(); });

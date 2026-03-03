@@ -255,14 +255,15 @@ async def get_student_grade_calculation(
         valid = [g for g in all_grades if g.max_score and g.max_score > 0]
         weighted_sum = (sum((g.score / g.max_score) * 100 for g in valid) / len(valid)) if valid else 0.0
 
-    # Participation (no cap)
-    part_pts = db.query(func.sum(Participation.points)).filter(
+    # Participation — class-sourced (teacher-approved)
+    class_part_pts = int(db.query(func.sum(Participation.points)).filter(
         Participation.student_id == current_student.id,
         Participation.class_id == class_id,
         Participation.approved == "approved",
-    ).scalar() or 0
+    ).scalar() or 0)
 
-    part_contribution = 0.1 * int(part_pts)
+    part_pts = class_part_pts  # kept for backward compat below
+    part_contribution = 0.1 * class_part_pts
 
     # Special points
     sp_records = db.query(SpecialPoints).filter(
@@ -304,7 +305,9 @@ async def get_student_grade_calculation(
         "student_name": current_student.name,
         "student_email": current_student.email,
         "categories": [cb.model_dump() for cb in category_breakdowns],
-        "participation_points": int(part_pts),
+        "participation_points": class_part_pts,
+        "participation_points_class": class_part_pts,
+        "participation_points_forum": round(float(forum_pts_raw), 3),
         "participation_contribution": part_contribution,
         "special_points": [sp.model_dump() for sp in sp_responses],
         "special_points_total": sp_total,
