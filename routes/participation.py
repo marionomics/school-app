@@ -29,12 +29,26 @@ async def submit_participation(
             detail="No estas inscrito en esta clase",
         )
 
+    if len(participation.description.strip()) < 5:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La descripción debe tener al menos 5 caracteres",
+        )
+
+    points = participation.points or 1
+    if points not in [1, 2, 3]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Los puntos deben ser 1, 2 o 3",
+        )
+
     db_participation = Participation(
         student_id=current_student.id,
         class_id=participation.class_id,
         date=date.today(),
         description=participation.description,
-        points=participation.points
+        points=points,
+        source='class',
     )
     db.add(db_participation)
     db.commit()

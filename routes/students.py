@@ -265,6 +265,13 @@ async def get_student_grade_calculation(
     part_pts = class_part_pts  # kept for backward compat below
     part_contribution = 0.1 * class_part_pts
 
+    # Pending participation (submitted but not yet approved)
+    pending_part_pts = int(db.query(func.sum(Participation.points)).filter(
+        Participation.student_id == current_student.id,
+        Participation.class_id == class_id,
+        Participation.approved == "pending",
+    ).scalar() or 0)
+
     # Special points
     sp_records = db.query(SpecialPoints).filter(
         SpecialPoints.student_id == current_student.id,
@@ -307,6 +314,7 @@ async def get_student_grade_calculation(
         "categories": [cb.model_dump() for cb in category_breakdowns],
         "participation_points": class_part_pts,
         "participation_points_class": class_part_pts,
+        "pending_participation_points": pending_part_pts,
         "participation_points_forum": round(float(forum_pts_raw), 3),
         "participation_contribution": part_contribution,
         "special_points": [sp.model_dump() for sp in sp_responses],

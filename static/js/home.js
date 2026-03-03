@@ -14,6 +14,11 @@ let openPostId = null;
 let currentModalPost = null;
 let activeReplyToId = null;
 
+// Participation tap state
+let tapCount = 0;
+let tapTimer = null;
+let tapDescription = '';
+
 // Dashboard state
 let enrolledClasses = [];   // student enrolled classes
 let teachingClasses = [];   // teacher's classes
@@ -676,6 +681,7 @@ function renderStudentClassCard(cls, grade) {
     const gradeColor = hasGrade ? (grade.final_grade >= 70 ? 'text-green-600' : grade.final_grade >= 60 ? 'text-yellow-600' : 'text-red-600') : 'text-gray-500';
 
     const classPts = hasGrade ? (grade.participation_points_class ?? grade.participation_points ?? 0) : 0;
+    const pendingPts = hasGrade ? (grade.pending_participation_points ?? 0) : 0;
     const forumPtsRaw = hasGrade ? (grade.participation_points_forum ?? grade.forum_points ?? 0) : 0;
     const absences = hasGrade ? grade.absence_count : 0;
     const spTotal = hasGrade ? grade.special_points.reduce((s, sp) => s + (sp.opted_in && sp.awarded ? sp.points_value : 0), 0) : 0;
@@ -695,6 +701,7 @@ function renderStudentClassCard(cls, grade) {
                 <div>
                     <p class="text-xs text-gray-400">Participación</p>
                     <p class="font-semibold text-gray-700 text-sm">${hasGrade ? classPts : '--'} pts</p>
+                    ${pendingPts > 0 ? `<p class="text-xs text-violet-500">+${(pendingPts * 0.1).toFixed(1)} pendiente</p>` : ''}
                     ${forumPtsRaw > 0 ? `<p class="text-xs text-amber-500">+${forumPtsRaw.toFixed(2)} foro</p>` : ''}
                 </div>
             </div>
@@ -751,6 +758,7 @@ function renderGradeModalContent(calc) {
     if (!calc) return '<p class="text-gray-400 text-sm text-center">Sin datos</p>';
 
     const classPts = calc.participation_points_class ?? calc.participation_points ?? 0;
+    const pendingPts = calc.pending_participation_points ?? 0;
     const forumPtsRaw = calc.participation_points_forum ?? 0;
     const forumContrib = calc.forum_points ?? 0; // already capped at 3.0
     const partContrib = (classPts * 0.1).toFixed(2);
@@ -794,9 +802,14 @@ function renderGradeModalContent(calc) {
             <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Participación</h4>
             <div class="bg-gray-50 rounded-lg px-4 py-3 space-y-2">
                 <div class="flex justify-between text-sm">
-                    <span class="text-gray-600">⭐ Participación en clase</span>
+                    <span class="text-gray-600">⭐ Participación aprobada</span>
                     <span class="font-medium text-gray-700">${classPts} pts × 0.1 = <span class="text-green-600">+${partContrib}</span></span>
                 </div>
+                ${pendingPts > 0 ? `
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">⏳ Pendiente de aprobación</span>
+                    <span class="font-medium text-violet-500">+${(pendingPts * 0.1).toFixed(1)} (pendiente)</span>
+                </div>` : ''}
                 ${forumPtsRaw > 0 ? `
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-600">🏆 Puntos del foro</span>
@@ -837,11 +850,10 @@ function renderGradeModalContent(calc) {
     </div>`;
 }
 
-// ==================== Participation Form ====================
+// ==================== Participation Form (multi-tap) ====================
 
 function renderParticipationSection() {
     if (!enrolledClasses.length) return;
-
     const section = document.getElementById('participation-section');
     if (!section) return;
     section.classList.remove('hidden');
@@ -852,22 +864,111 @@ function renderParticipationSection() {
             `<option value="${c.class_id}">${escHtml(c.class_name)}</option>`
         ).join('');
     }
+
+    const textarea = document.getElementById('participation-description');
+    const btn = document.getElementById('participation-submit-btn');
+    if (textarea && btn) {
+        textarea.addEventListener('input', () => {
+            tapDescription = textarea.value.trim();
+            btn.disabled = tapDescription.length < 5;
+            // Reset tap count whenever the text changes
+            tapCount = 0;
+            clearTimeout(tapTimer);
+            _updateTapIndicator();
+        });
+        btn.addEventListener('click', _handleParticipationTap);
+    }
 }
 
-async function submitParticipation() {
+function _handleParticipationTap() {
+    tapDescription = document.getElementById('participation-description')?.value.trim() || '';
+    if (tapDescription.length < 5) return;
+
+    tapCount = Math.min(tapCount + 1, 3);
+    clearTimeout(tapTimer);
+
+    const pts = (tapCount * 0.1).toFixed(1);
+    if (tapCount === 1) {
+        _showTapAnimation(`✨ +${pts} pts`, 'tap-normal');
+    } else if (tapCount === 2) {
+        _showTapAnimation(`🎉 ×2! +${pts} pts`, 'tap-double');
+    } else {
+        _showTapAnimation(`🎊 ×3! +${pts} pts`, 'tap-triple');
+        _doSubmitParticipation(3);
+        return;
+    }
+
+    _updateTapIndicator();
+    tapTimer = setTimeout(() => _doSubmitParticipation(tapCount), 2000);
+}
+
+function _updateTapIndicator() {
+    const indicator = document.getElementById('tap-indicator');
+    const dots = document.getElementById('tap-dots');
+    const preview = document.getElementById('tap-pts-preview');
+    if (!indicator) return;
+    if (tapCount === 0) { indicator.classList.add('hidden'); return; }
+    indicator.classList.remove('hidden');
+    dots.textContent = '●'.repeat(tapCount);
+    preview.textContent = `+${(tapCount * 0.1).toFixed(1)} pts`;
+}
+
+function _showTapAnimation(text, cssClass) {
+    const wrapper = document.getElementById('participation-btn-wrapper');
+    if (!wrapper) return;
+    const el = document.createElement('div');
+    el.className = `tap-animation ${cssClass}`;
+    el.textContent = text;
+    el.style.cssText = `top:50%;left:50%;font-size:1.75rem;font-weight:800;z-index:10;animation:popBounce 0.55s ease-out forwards;`;
+    wrapper.appendChild(el);
+    setTimeout(() => el.remove(), 600);
+}
+
+async function _doSubmitParticipation(multiplier) {
+    clearTimeout(tapTimer);
+    tapCount = 0;
+    _updateTapIndicator();
+
     const classId = parseInt(document.getElementById('participation-class-selector')?.value);
-    const description = document.getElementById('participation-description')?.value.trim();
-    if (!classId) { alert('Selecciona una clase.'); return; }
-    if (!description) { alert('Por favor describe tu participación.'); return; }
+    const description = tapDescription;
+
+    const btn = document.getElementById('participation-submit-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+
     try {
         await apiCall('/participation', {
             method: 'POST',
-            body: JSON.stringify({ class_id: classId, description }),
+            body: JSON.stringify({ class_id: classId, description, points: multiplier }),
         });
-        document.getElementById('participation-description').value = '';
-        _showToast('✅ Participación enviada. El profesor la revisará pronto.', '#059669');
+
+        // Reset form
+        const textarea = document.getElementById('participation-description');
+        if (textarea) textarea.value = '';
+        tapDescription = '';
+        if (btn) { btn.disabled = true; btn.textContent = 'ENVIAR'; }
+
+        const ptsDisplay = (multiplier * 0.1).toFixed(1);
+        _showToast(`✅ Participación enviada (+${ptsDisplay} pts pendiente)`, '#7C3AED', 4000);
+
+        // Refresh cards to show pending count
+        await _refreshGradeCards();
     } catch (e) {
         alert('Error al enviar: ' + e.message);
+        if (btn) { btn.disabled = false; btn.textContent = 'ENVIAR'; }
+    }
+}
+
+async function _refreshGradeCards() {
+    if (!enrolledClasses.length) return;
+    const results = await Promise.all(
+        enrolledClasses.map(c => apiCall(`/students/me/grade-calculation/${c.class_id}`).catch(() => null))
+    );
+    enrolledClasses.forEach((c, i) => { gradesByClassId[c.class_id] = results[i]; });
+    const container = document.getElementById('class-cards');
+    if (container) {
+        container.innerHTML = enrolledClasses.map(c =>
+            renderStudentClassCard(c, gradesByClassId[c.class_id])
+        ).join('');
     }
 }
 

@@ -78,6 +78,14 @@ def _ensure_columns():
                     "ALTER TABLE assignments ADD COLUMN exam_type VARCHAR(20) DEFAULT 'homework'"
                 ))
 
+    if "participations" in inspector.get_table_names():
+        existing_cols = {col["name"] for col in inspector.get_columns("participations")}
+        with engine.begin() as conn:
+            if "source" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE participations ADD COLUMN source VARCHAR(20) DEFAULT 'class'"
+                ))
+
     if "forum_posts" in inspector.get_table_names():
         existing_cols = {col["name"] for col in inspector.get_columns("forum_posts")}
         with engine.begin() as conn:

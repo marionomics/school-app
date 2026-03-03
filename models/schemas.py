@@ -49,7 +49,7 @@ class AttendanceResponse(BaseModel):
 # Participation schemas
 class ParticipationCreate(BaseModel):
     description: str
-    points: Optional[int] = 1
+    points: Optional[int] = 1  # 1, 2, or 3 (maps to 0.1, 0.2, 0.3 grade pts via × 0.1 formula)
     class_id: int
 
 

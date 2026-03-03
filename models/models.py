@@ -61,6 +61,7 @@ class Participation(Base):
     description = Column(Text, nullable=False)
     points = Column(Integer, nullable=False, default=1)
     approved = Column(String(20), nullable=False, default="pending")  # pending, approved, rejected
+    source = Column(String(20), nullable=True, default='class')  # 'class' or 'forum'
 
     # Relationships
     student = relationship("Student", back_populates="participations")
