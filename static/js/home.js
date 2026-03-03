@@ -19,6 +19,10 @@ let tapCount = 0;
 let tapTimer = null;
 let tapDescription = '';
 
+// Justification modal state
+let justModalClassId = null;
+let justModalAbsences = {};  // { class_id: [attendance records] }
+
 // Dashboard state
 let enrolledClasses = [];   // student enrolled classes
 let teachingClasses = [];   // teacher's classes
@@ -672,6 +676,14 @@ async function loadStudentDashboard() {
 
     container.innerHTML = enrolledClasses.map(c => renderStudentClassCard(c, gradesByClassId[c.class_id])).join('');
     renderAssignmentsSection();
+
+    // Show justification link if any class has unjustified absences with no pending review
+    const anyAbsences = enrolledClasses.some(c => {
+        const g = gradesByClassId[c.class_id];
+        return g && g.absence_count > 0 && (g.pending_justification_count ?? 0) < g.absence_count;
+    });
+    const justLinkSec = document.getElementById('justification-link-section');
+    if (justLinkSec && !previewMode) justLinkSec.classList.toggle('hidden', !anyAbsences);
 }
 
 function renderStudentClassCard(cls, grade) {
@@ -717,6 +729,7 @@ function renderStudentClassCard(cls, grade) {
                 <div>
                     <p class="text-xs text-gray-400">Faltas</p>
                     <p class="font-semibold ${absences > 0 ? 'text-red-500' : 'text-green-600'} text-sm">${absences}${absences > 0 ? ` (-${absences})` : ''}</p>
+                    ${(() => { const pendingJust = hasGrade ? (grade.pending_justification_count ?? 0) : 0; return pendingJust > 0 ? `<p class="text-xs text-yellow-600">⏳ ${pendingJust} en revisión</p>` : absences > 0 ? `<button onclick="event.stopPropagation();openJustificationModal(${cls.class_id})" class="text-xs text-red-400 hover:text-red-600 font-medium transition">Justificar →</button>` : ''; })()}
                 </div>
             </div>
         </div>
@@ -969,6 +982,188 @@ async function _refreshGradeCards() {
         container.innerHTML = enrolledClasses.map(c =>
             renderStudentClassCard(c, gradesByClassId[c.class_id])
         ).join('');
+    }
+    // Update justification link visibility
+    const anyAbsences = enrolledClasses.some(c => {
+        const g = gradesByClassId[c.class_id];
+        return g && g.absence_count > 0 && (g.pending_justification_count ?? 0) < g.absence_count;
+    });
+    const justLinkSec = document.getElementById('justification-link-section');
+    if (justLinkSec && !previewMode) justLinkSec.classList.toggle('hidden', !anyAbsences);
+}
+
+// ==================== Justification Modal ====================
+
+async function openJustificationModal(preClassId = null) {
+    document.getElementById('justification-modal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    justModalClassId = preClassId || (enrolledClasses.length > 0 ? enrolledClasses[0].class_id : null);
+    await _renderJustificationModal();
+}
+
+function closeJustificationModal() {
+    document.getElementById('justification-modal').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+async function _renderJustificationModal() {
+    const body = document.getElementById('justification-modal-body');
+    if (!justModalClassId) {
+        body.innerHTML = '<p class="text-gray-400 text-sm text-center">No estás inscrito en ninguna clase.</p>';
+        return;
+    }
+
+    body.innerHTML = '<p class="text-center text-gray-400 text-sm py-4">Cargando...</p>';
+
+    // Fetch absences for this class (cache)
+    if (!justModalAbsences[justModalClassId]) {
+        try {
+            const records = await apiCall(`/students/me/attendance?class_id=${justModalClassId}`);
+            justModalAbsences[justModalClassId] = records.filter(r => r.status === 'absent' || r.status === 'late');
+        } catch (e) {
+            body.innerHTML = `<p class="text-red-400 text-sm text-center">${e.message}</p>`;
+            return;
+        }
+    }
+
+    const absences = justModalAbsences[justModalClassId];
+
+    const classSelectorHtml = enrolledClasses.length > 1 ? `
+        <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-500 mb-1">Clase</label>
+            <select id="just-class-selector" onchange="_onJustClassChange(parseInt(this.value))"
+                    class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-400 outline-none bg-gray-50">
+                ${enrolledClasses.map(c => `<option value="${c.class_id}" ${c.class_id === justModalClassId ? 'selected' : ''}>${escHtml(c.class_name)}</option>`).join('')}
+            </select>
+        </div>` : `<p class="text-sm font-semibold text-gray-700 mb-4">${escHtml((enrolledClasses[0] || {}).class_name || '')}</p>`;
+
+    if (!absences.length) {
+        body.innerHTML = classSelectorHtml + `
+            <div class="text-center py-6">
+                <div class="text-3xl mb-2">✅</div>
+                <p class="text-gray-500 text-sm">No tienes faltas o retardos en esta clase.</p>
+            </div>`;
+        return;
+    }
+
+    const absenceOptions = absences.map(a => {
+        const dateStr = new Date(a.date + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'long' });
+        const typeLabel = a.status === 'absent' ? 'Falta' : 'Retardo';
+        const statusSuffix = a.justification_status === 'pending' ? ' · en revisión ⏳'
+            : a.justification_status === 'rejected' ? ' · rechazada ❌'
+            : a.justification_status === 'approved' ? ' · aprobada ✅' : '';
+        return `<option value="${a.id}">${dateStr} — ${typeLabel}${statusSuffix}</option>`;
+    }).join('');
+
+    body.innerHTML = `
+        ${classSelectorHtml}
+        <div class="mb-3">
+            <label class="block text-xs font-medium text-gray-500 mb-1">Fecha de la falta</label>
+            <select id="just-absence-selector" onchange="_onJustAbsenceChange(parseInt(this.value))"
+                    class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-400 outline-none bg-gray-50">
+                ${absenceOptions}
+            </select>
+        </div>
+        <div id="just-status-hint" class="mb-3 hidden"></div>
+        <div class="mb-3">
+            <label class="block text-xs font-medium text-gray-500 mb-1">Motivo de la justificación</label>
+            <textarea id="just-text" rows="3" placeholder="Explica brevemente el motivo de tu falta..."
+                      class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-red-400 outline-none"></textarea>
+        </div>
+        ${fileUploadsEnabled ? `
+        <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-500 mb-1">Documento justificante (opcional)</label>
+            <label class="flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 cursor-pointer hover:bg-gray-50 transition">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                <span id="just-file-label">PDF, JPG, PNG · Máx. 10 MB</span>
+                <input type="file" id="just-file-input" class="hidden" accept=".pdf,.jpg,.jpeg,.png"
+                       onchange="_onJustFileSelect(this)">
+            </label>
+        </div>` : ''}
+        <p id="just-submit-error" class="text-red-500 text-sm mb-2 hidden"></p>
+        <button onclick="submitJustification()" id="just-submit-btn"
+                class="w-full py-2.5 text-sm bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition">
+            Enviar justificación
+        </button>`;
+
+    // Show status hint for first absence
+    const firstId = absences[0]?.id;
+    if (firstId) _onJustAbsenceChange(firstId);
+}
+
+async function _onJustClassChange(classId) {
+    justModalClassId = classId;
+    await _renderJustificationModal();
+}
+
+function _onJustAbsenceChange(attId) {
+    const hintEl = document.getElementById('just-status-hint');
+    if (!hintEl) return;
+    const absences = justModalAbsences[justModalClassId] || [];
+    const att = absences.find(a => a.id === attId);
+    if (!att) { hintEl.classList.add('hidden'); return; }
+
+    if (att.justification_status === 'pending') {
+        hintEl.innerHTML = `<div class="px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">⏳ Ya enviaste una justificación — está pendiente de revisión. Puedes reemplazarla.</div>`;
+        hintEl.classList.remove('hidden');
+    } else if (att.justification_status === 'rejected') {
+        hintEl.innerHTML = `<div class="px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800">❌ Tu justificación anterior fue rechazada. Puedes enviar una nueva.</div>`;
+        hintEl.classList.remove('hidden');
+    } else if (att.justification_status === 'approved') {
+        hintEl.innerHTML = `<div class="px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800">✅ Esta falta ya está justificada y aprobada.</div>`;
+        hintEl.classList.remove('hidden');
+    } else {
+        hintEl.classList.add('hidden');
+    }
+}
+
+function _onJustFileSelect(input) {
+    const label = document.getElementById('just-file-label');
+    if (!label) return;
+    label.textContent = input.files.length > 0
+        ? `${input.files[0].name} (${formatFileSize(input.files[0].size)})`
+        : 'PDF, JPG, PNG · Máx. 10 MB';
+}
+
+async function submitJustification() {
+    const absenceIdStr = document.getElementById('just-absence-selector')?.value;
+    const text = document.getElementById('just-text')?.value.trim();
+    const fileInput = document.getElementById('just-file-input');
+    const file = fileInput?.files[0];
+    const errEl = document.getElementById('just-submit-error');
+    const btn = document.getElementById('just-submit-btn');
+
+    if (!absenceIdStr) return;
+    if (!text && !file) {
+        errEl.textContent = 'Escribe un motivo o adjunta un documento.';
+        errEl.classList.remove('hidden');
+        return;
+    }
+    errEl.classList.add('hidden');
+
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+
+    const formData = new FormData();
+    if (text) formData.append('justification_text', text);
+    if (file) formData.append('file', file);
+
+    try {
+        await apiUpload(`/students/me/attendance/${absenceIdStr}/justify`, formData);
+
+        // Invalidate cached absences for this class so they reload fresh
+        delete justModalAbsences[justModalClassId];
+
+        closeJustificationModal();
+        _showToast('✅ Justificación enviada — el profesor la revisará pronto', '#059669', 4000);
+
+        // Refresh cards to update absence/pending counts (also updates justification link)
+        await _refreshGradeCards();
+    } catch (e) {
+        errEl.textContent = 'Error: ' + e.message;
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Enviar justificación';
     }
 }
 
@@ -1328,7 +1523,8 @@ function timeAgo(isoString) {
 
 document.getElementById('post-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closePostModal(); });
 document.getElementById('grade-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeGradeModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePostModal(); closeGradeModal(); } });
+document.getElementById('justification-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeJustificationModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePostModal(); closeGradeModal(); closeJustificationModal(); } });
 
 // Enter submits join form
 document.getElementById('join-class-code').addEventListener('keydown', e => { if (e.key === 'Enter') submitJoinClass(); });

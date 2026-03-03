@@ -175,6 +175,14 @@
                 </div>
             </section>
 
+            <!-- ====== 2b. Justification Link ====== -->
+            <div id="justification-link-section" class="hidden text-center -mt-2">
+                <button onclick="openJustificationModal(null)"
+                        class="inline-flex items-center gap-1.5 text-sm text-red-500 hover:text-red-700 font-medium transition py-1 px-3 rounded-lg hover:bg-red-50">
+                    📋 Tienes faltas pendientes de justificar →
+                </button>
+            </div>
+
             <!-- ====== 3. Assignments ====== -->
             <section id="upcoming-section" class="hidden">
                 <h3 class="text-sm font-semibold text-gray-600 mb-3">📋 Mis Retos</h3>
@@ -251,6 +259,25 @@
             </section>
 
         </main>
+    </div>
+
+    <!-- ========== Justification Modal ========== -->
+    <div id="justification-modal" class="hidden fixed inset-0 z-50 bg-black/50 overflow-y-auto">
+        <div class="min-h-full flex items-start justify-center p-4 py-8">
+            <div class="bg-white w-full max-w-md rounded-xl shadow-2xl">
+                <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                    <h2 class="font-bold text-gray-800">📋 Justificar Falta</h2>
+                    <button onclick="closeJustificationModal()" class="text-gray-400 hover:text-gray-600 ml-3 shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div id="justification-modal-body" class="px-5 py-5">
+                    <p class="text-center text-gray-400 text-sm">Cargando...</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ========== Grade Breakdown Modal ========== -->

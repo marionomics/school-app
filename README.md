@@ -10,7 +10,7 @@ A FastAPI application for managing student attendance, participation, and grades
 - **Assignment System (Retos)**: Create assignments with category selection, students submit Google Drive links or upload files (via Cloudflare R2), teacher grading modal with auto-grade support
 - **Exam Grading (Exámenes)**: Create in-person exams and grade all students in a fast keyboard-driven modal — search by name, Tab to score, Enter to save and move to next student
 - **File Uploads**: Optional Cloudflare R2 integration for direct file submissions (PDF, DOCX, ZIP, images, max 10MB) with upload progress and presigned download URLs
-- **Attendance Justifications**: Students upload justification documents (PDF, images) for absences/lates; teachers approve/reject; approved justifications change status to "excused" and remove the -1 point grade penalty
+- **Attendance Justifications**: Students submit justifications (text explanation and/or uploaded document) for absences/lates directly from their dashboard; teachers approve/reject; approved justifications change status to "excused" and remove the -1 point grade penalty. Student dashboard shows "Justificar →" button on absence cards, a persistent link when unjustified absences exist, and "⏳ en revisión" badge for pending submissions.
 - **Student Preview Mode**: Teachers can preview the student dashboard as any enrolled student via impersonation
 - **Combined Landing Page**: Unified page for students — class progress cards (with full grade breakdown modal) → participation form → assignments → forum feed. No separate navigation needed.
 - **Forum**: Unified class discussion board showing posts from all enrolled classes, with threaded replies, likes, teacher moderation (pin/lock/delete), and a casino-style engagement points system
@@ -186,13 +186,13 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 | GET | `/api/students/me/grades?class_id=X` | Student's grades |
 | GET | `/api/students/me/attendance?class_id=X` | Student's attendance |
 | GET | `/api/students/me/participation/points?class_id=X` | Participation point total |
-| GET | `/api/students/me/grade-calculation/:class_id` | Full grade breakdown: categories, participation (class + forum split), special pts, absences, final grade |
+| GET | `/api/students/me/grade-calculation/:class_id` | Full grade breakdown: categories, participation (class + forum split), special pts, absences, pending justification count, final grade |
 | GET | `/api/students/me/assignments?class_id=X` | List assignments with submission status |
 | POST | `/api/students/me/assignments/:id/submit` | Submit assignment (Google Drive link, auto penalty) |
 | POST | `/api/students/me/assignments/:id/upload` | Upload file for assignment (multipart, R2 storage) |
 | GET | `/api/students/submissions/:id/file` | Get presigned download URL for submission file |
 | DELETE | `/api/students/submissions/:id` | Delete ungraded submission (allows re-submit) |
-| POST | `/api/students/me/attendance/:id/justify` | Upload justification for absence (multipart, R2) |
+| POST | `/api/students/me/attendance/:id/justify` | Submit justification for absence (multipart: optional file + optional text; at least one required) |
 | GET | `/api/students/attendance/:id/justification-file` | Get presigned URL for justification file |
 | POST | `/api/participation` | Submit participation (requires class_id) |
 

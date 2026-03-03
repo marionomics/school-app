@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
@@ -321,6 +321,11 @@ async def get_student_grade_calculation(
         "special_points_total": sp_total,
         "absence_count": unjustified_absences,
         "absence_penalty": absence_penalty,
+        "pending_justification_count": int(db.query(func.count(Attendance.id)).filter(
+            Attendance.student_id == current_student.id,
+            Attendance.class_id == class_id,
+            Attendance.justification_status == "pending",
+        ).scalar() or 0),
         "forum_points": forum_contribution,
         "final_grade": final_grade,
         "grading_mode": grading_mode,
@@ -585,15 +590,17 @@ async def delete_submission(
 @router.post("/me/attendance/{attendance_id}/justify")
 async def submit_justification(
     attendance_id: int,
-    file: UploadFile = File(...),
+    file: Optional[UploadFile] = File(None),
+    justification_text: Optional[str] = Form(None),
     current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db),
 ):
-    """Submit a justification document for an absence."""
-    from app.storage import is_r2_configured, validate_file, upload_file, delete_file
+    """Submit a justification (text and/or file) for an absence."""
+    has_text = justification_text and justification_text.strip()
+    has_file = file and file.filename
 
-    if not is_r2_configured():
-        raise HTTPException(status_code=501, detail="Subida de archivos no configurada")
+    if not has_text and not has_file:
+        raise HTTPException(status_code=400, detail="Debes escribir un motivo o adjuntar un documento")
 
     attendance = db.query(Attendance).filter(
         Attendance.id == attendance_id,
@@ -608,26 +615,30 @@ async def submit_justification(
     if attendance.justification_status == "approved":
         raise HTTPException(status_code=400, detail="Esta justificacion ya fue aprobada")
 
-    # Read and validate file
-    file_bytes = await file.read()
-    error = validate_file(file.filename, len(file_bytes))
-    if error:
-        raise HTTPException(status_code=400, detail=error)
+    if has_file:
+        from app.storage import is_r2_configured, validate_file, upload_file, delete_file
 
-    # Generate R2 key
-    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "bin"
-    timestamp = int(_dt.utcnow().timestamp())
-    file_key = f"justifications/{current_student.id}_{attendance_id}_{timestamp}.{ext}"
+        if not is_r2_configured():
+            raise HTTPException(status_code=501, detail="Subida de archivos no configurada")
 
-    # Upload to R2
-    upload_file(file_bytes, file_key, file.content_type or "application/octet-stream")
+        file_bytes = await file.read()
+        error = validate_file(file.filename, len(file_bytes))
+        if error:
+            raise HTTPException(status_code=400, detail=error)
 
-    # Delete old file if re-submitting
-    if attendance.justification_file_key:
-        delete_file(attendance.justification_file_key)
+        ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "bin"
+        timestamp = int(_dt.utcnow().timestamp())
+        file_key = f"justifications/{current_student.id}_{attendance_id}_{timestamp}.{ext}"
 
-    attendance.justification_file_key = file_key
-    attendance.justification_file_name = file.filename
+        upload_file(file_bytes, file_key, file.content_type or "application/octet-stream")
+
+        if attendance.justification_file_key:
+            delete_file(attendance.justification_file_key)
+
+        attendance.justification_file_key = file_key
+        attendance.justification_file_name = file.filename
+
+    attendance.justification_text = justification_text.strip() if has_text else attendance.justification_text
     attendance.justification_status = "pending"
     attendance.justification_submitted_at = _dt.utcnow()
     attendance.justification_reviewed_at = None

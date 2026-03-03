@@ -39,8 +39,8 @@ python seed_data.py
 - `models/schemas.py` - Pydantic request/response schemas
 - `models/database.py` - Database connection and session management
 - `routes/forum.py` - Forum endpoints (posts, replies, likes, pin/lock, points summary)
-- `static/index.html` - Student landing page (Spanish: "Portal del Estudiante"): progress cards → participation form → assignments → forum
-- `static/js/home.js` - Landing page JS: class cards with grade breakdown modal, participation form, assignments, unified forum feed, casino toast notifications
+- `static/index.html` - Student landing page (Spanish: "Portal del Estudiante"): progress cards → participation form → justification link → assignments → forum
+- `static/js/home.js` - Landing page JS: class cards with grade breakdown modal, participation form, justification modal (openJustificationModal/submitJustification), assignments, unified forum feed, casino toast notifications
 - `static/js/app.js` - Legacy student dashboard JS (kept for reference; landing page now uses home.js)
 - `static/admin.html` - Teacher admin panel - class overview (Spanish: "Panel del Profesor")
 - `static/js/admin.js` - Admin panel JavaScript (class list, quick stats)
@@ -121,7 +121,7 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `POST /api/students/me/assignments/{id}/upload` - Upload file for assignment (multipart/form-data, R2 storage, allows re-upload)
 - `GET /api/students/submissions/{id}/file` - Get presigned download URL for submission file (owner or class teacher)
 - `DELETE /api/students/submissions/{id}` - Delete ungraded submission (soft-reset, allows re-submit)
-- `POST /api/students/me/attendance/{id}/justify` - Upload justification for absence/late (multipart, R2 storage)
+- `POST /api/students/me/attendance/{id}/justify` - Submit justification for absence/late (multipart: `file` optional + `justification_text` Form optional; at least one required; file upload requires R2)
 - `GET /api/students/attendance/{id}/justification-file` - Get presigned URL for justification file (owner or class teacher)
 - `POST /api/participation` - Submit participation entry (requires class_id)
 
@@ -269,7 +269,7 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 - Justification workflow: student submits → status = "pending" → teacher approves/rejects
 - Approved justification changes attendance status to "excused" (no longer penalized)
 - Rejected justifications can be re-submitted
-- Grade-calculation response includes `absence_count` and `absence_penalty`
+- Grade-calculation response includes `absence_count`, `absence_penalty`, and `pending_justification_count` (absences currently under review)
 - R2 key format: `justifications/{student_id}_{attendance_id}_{timestamp}.{ext}`
 
 ### Assignment Submissions (Retos)
@@ -401,11 +401,12 @@ lesson_progress
 
 ### Combined Landing Page (`/`)
 - `static/index.html` + `static/js/home.js` replace the old student-only dashboard
-- Forum feed is the primary section (top); personal dashboard is secondary (below)
-- Sticky nav: "💬 Foro" and "📊 Mi Progreso" smooth-scroll tabs, forum class selector, admin link (teacher only), logout
-- Student class cards show: final grade (color-coded), participation pts, forum pts, special pts, absence count
+- Section order: progress cards → participation form → justification link (if absences) → assignments → forum
+- Student class cards show: final grade (color-coded), participation pts (pending in violet), forum pts, special pts, absence count with "Justificar →" button (or "⏳ X en revisión" if pending)
+- Grade breakdown modal (`openGradeModal(classId)`) with full category/participation/extras breakdown
+- **Justification modal** (`openJustificationModal(classId)`): class selector, absence dropdown (absent/late dates), status hints (pending/rejected/approved), text area, optional file upload; calls `POST /api/students/me/attendance/{id}/justify`
 - Teacher class cards link to `/admin/class/{id}`
-- Upcoming assignments section (due in future, not yet graded, sorted by due date, max 5)
+- Upcoming assignments section with Drive link + file upload support
 - Join class modal accessible from nav, no-class state, and dashboard CTA
 
 ## Development Notes
