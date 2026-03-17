@@ -114,6 +114,13 @@ function initGoogleSignIn() {
 // ==================== Init ====================
 
 async function init() {
+    // Always fetch config first (sets fileUploadsEnabled and googleClientId)
+    try {
+        const cfg = await fetch('/api/config').then(r => r.json());
+        googleClientId = cfg.google_client_id;
+        fileUploadsEnabled = cfg.file_uploads_enabled || false;
+    } catch (e) { /* non-fatal */ }
+
     // Check preview mode
     const params = new URLSearchParams(window.location.search);
     if (params.get('preview') === 'true' && sessionStorage.getItem('teacherPreviewMode')) {
@@ -173,13 +180,8 @@ async function boot() {
 function showLogin() {
     document.getElementById('login-section').classList.remove('hidden');
     document.getElementById('app-section').classList.add('hidden');
-    // Fetch config for Google Client ID and feature flags
-    fetch('/api/config').then(r => r.json()).then(cfg => {
-        googleClientId = cfg.google_client_id;
-        fileUploadsEnabled = cfg.file_uploads_enabled || false;
-        if (window.google) initGoogleSignIn();
-        else window.addEventListener('load', () => setTimeout(initGoogleSignIn, 100));
-    }).catch(() => {});
+    if (window.google) initGoogleSignIn();
+    else window.addEventListener('load', () => setTimeout(initGoogleSignIn, 100));
 }
 
 function showApp() {
