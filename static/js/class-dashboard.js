@@ -1281,7 +1281,7 @@ async function loadAssignments() {
 
         container.innerHTML = assignments.map(a => {
             const now = new Date();
-            const due = new Date(a.due_date);
+            const due = new Date(a.due_date + 'Z');
             const isPast = now > due;
             const dueBadge = isPast
                 ? '<span class="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">Vencido</span>'
@@ -1415,7 +1415,7 @@ function renderSubmissionRow(s, maxPoints) {
         ? `<button onclick="event.stopPropagation(); viewSubmissionFileAdmin(${s.id})" class="text-xs text-blue-600 hover:underline">Ver archivo (${s.file_name || 'archivo'}${s.file_size ? ', ' + formatFileSizeAdmin(s.file_size) : ''})</button>`
         : '';
 
-    const submittedDate = new Date(s.submitted_at).toLocaleString('es-MX', {
+    const submittedDate = new Date(s.submitted_at + 'Z').toLocaleString('es-MX', {
         day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
     });
 
@@ -1550,7 +1550,7 @@ async function loadJustifications() {
             const statusName = statusNames[j.justification_status] || j.justification_status;
             const attStatus = attStatusNames[j.status] || j.status;
             const submittedDate = j.justification_submitted_at
-                ? new Date(j.justification_submitted_at).toLocaleString('es-MX', {
+                ? new Date(j.justification_submitted_at + 'Z').toLocaleString('es-MX', {
                     day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
                 })
                 : '';

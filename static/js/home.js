@@ -1192,7 +1192,7 @@ function renderAssignmentsSection() {
 
 function renderAssignmentCard(a) {
     const now = new Date();
-    const due = new Date(a.due_date);
+    const due = new Date(a.due_date + 'Z');
     const isPast = now > due;
     const diff = due - now;
     const hasSubmission = !!a.submission;
@@ -1233,7 +1233,7 @@ function renderAssignmentCard(a) {
     // Submission details
     let submissionHtml = '';
     if (hasSubmission) {
-        const submittedAt = new Date(a.submission.submitted_at).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        const submittedAt = new Date(a.submission.submitted_at + 'Z').toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
         const fileLine = a.submission.has_file
             ? `<span class="font-medium">Archivo:</span> <button onclick="viewSubmissionFile(${a.submission.id})" class="text-primary hover:text-secondary underline">${escHtml(a.submission.file_name || 'archivo')} (${formatFileSize(a.submission.file_size || 0)})</button>`
             : '';
@@ -1305,7 +1305,7 @@ function renderAssignmentCard(a) {
         </div>
         ${a.description ? `<p class="text-gray-500 text-sm mb-1">${escHtml(a.description)}</p>` : ''}
         <div class="flex items-center gap-3 text-xs text-gray-400">
-            <span>Límite: ${new Date(a.due_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+            <span>Límite: ${new Date(a.due_date + 'Z').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
             ${countdown ? `<span class="text-amber-600 font-medium">${countdown}</span>` : ''}
         </div>
         ${feedbackHtml}

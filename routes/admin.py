@@ -1210,7 +1210,7 @@ async def create_assignment(
     due_date = data.due_date
     if not due_date:
         from datetime import timedelta
-        today = date.today()
+        today = dt.utcnow().date()
         days_until_sunday = (6 - today.weekday()) % 7
         if days_until_sunday == 0:
             days_until_sunday = 7
