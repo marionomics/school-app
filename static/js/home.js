@@ -1296,21 +1296,52 @@ function renderAssignmentCard(a) {
         </div>` : ''}
     </div>` : '';
 
-    return `
-    <div class="bg-white border border-gray-200 rounded-lg p-4">
-        <div class="flex items-start justify-between gap-2 mb-1">
-            <span class="font-medium text-gray-800 text-sm">${escHtml(a.title)}</span>
-            <span class="shrink-0 text-xs px-2 py-0.5 rounded ${statusColor}">${statusBadge}</span>
-        </div>
-        ${a.description ? `<p class="text-gray-500 text-sm mb-1">${escHtml(a.description)}</p>` : ''}
-        <div class="flex items-center gap-3 text-xs text-gray-400">
-            <span>Límite: ${new Date(a.due_date + 'Z').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-            ${countdown ? `<span class="text-amber-600 font-medium">${countdown}</span>` : ''}
-        </div>
+    const cardId = `reto-card-${a.id}`;
+    const dueLabel = new Date(a.due_date + 'Z').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+    const descPreview = a.description
+        ? a.description.split('\n')[0].slice(0, 80) + (a.description.length > 80 ? '…' : '')
+        : '';
+    const gradeSummary = isGraded
+        ? `<span class="text-xs text-blue-700 font-medium">${a.submission.grade}/${a.max_points} pts</span>`
+        : '';
+
+    const detailsHtml = `
+        ${countdown ? `<p class="text-xs text-amber-600 font-medium mb-2">${countdown}</p>` : ''}
         ${feedbackHtml}
         ${submissionHtml}
-        ${submitHtml}
+        ${submitHtml}`;
+
+    return `
+    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden ${isPast && !hasSubmission ? 'opacity-60' : ''}">
+        <div class="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 transition"
+             onclick="toggleReto('${cardId}')">
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="font-medium text-gray-800 text-sm truncate">${escHtml(a.title)}</span>
+                    <span class="shrink-0 text-xs px-2 py-0.5 rounded ${statusColor}">${statusBadge}</span>
+                    ${gradeSummary}
+                </div>
+                ${descPreview ? `<p class="text-xs text-gray-400 mt-0.5 truncate">${escHtml(descPreview)}</p>` : ''}
+            </div>
+            <div class="flex items-center gap-3 ml-3 shrink-0">
+                <span class="text-xs text-gray-400">${dueLabel}</span>
+                <svg id="${cardId}-chevron" class="w-4 h-4 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </div>
+        </div>
+        <div id="${cardId}" class="hidden border-t border-gray-100 px-4 py-4">
+            ${detailsHtml}
+        </div>
     </div>`;
+}
+
+function toggleReto(cardId) {
+    const panel = document.getElementById(cardId);
+    const chevron = document.getElementById(cardId + '-chevron');
+    const isHidden = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', !isHidden);
+    chevron.style.transform = isHidden ? 'rotate(180deg)' : '';
 }
 
 // ==================== Assignment Submission ====================
