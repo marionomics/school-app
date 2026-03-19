@@ -257,14 +257,15 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 
 **Forum Points** (`forum_points`):
 - Students earn points for forum engagement; included in final grade (hard cap: 3.0 pts per class)
-- `+0.01 pts` for creating a post (max 3 posts/day globally, not per-class)
-- Per-like points: +0.01 (≤10 likes), +0.02 (≤25), +0.03 (≤50), +0.05 (50+ likes)
+- `+0.1 pts` for creating a post (max 3 posts/day globally, not per-class)
+- Per-like points: +0.1 (≤10 likes), +0.2 (≤25), +0.3 (≤50), +0.5 (50+ likes)
 - Anti-exploit: post must have ≥2 total likes before any points are awarded; user can only award points to the same author once per day
-- Casino bonus rolls: 0.2% jackpot (+0.50 pts), 2% double (×2 base), 5% mini (+0.02 flat)
+- Casino bonus rolls: 0.2% jackpot (+5.0 pts), 2% double (×2 base), 5% mini (+0.2 flat)
 - Teachers excluded from earning or granting points
 - Points are permanent — unliking does not remove awarded points
+- No grade cap — forum points add 1:1 to final grade, same as participation (see Participation Points)
 - `forum_posts.points_earned` is a denormalized cumulative for display on post cards
-- Grade-calc endpoint includes `forum_points` (capped), `participation_points_forum` (raw, uncapped) in the returned dict
+- Grade-calc endpoint includes `forum_points` (uncapped), `participation_points_forum` (raw) in the returned dict
 
 **Absence Penalty:**
 - Each unjustified absence (status = "absent") subtracts 1 point from final grade

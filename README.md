@@ -120,9 +120,9 @@ The default mode is `points`, which matches UJED's system where categories total
 
 ### Forum Points
 - Students earn fractional points through forum engagement, added directly to final grade (hard cap: 3.0 pts per class)
-- **+0.01 pts** per post created (max 3 posts/day, global across classes) — values will be rebalanced in a future update
-- **Per-like earnings** (post needs ≥2 likes to qualify, once per author per day): +0.01 (≤10 likes), +0.02 (≤25), +0.03 (≤50), +0.05 (50+ likes)
-- **Casino bonus rolls** on each qualifying like: 0.2% jackpot (+0.50 pts), 2% double (×2 base), 5% mini (+0.02 flat)
+- **+0.1 pts** per post created (max 3 posts/day, global across classes)
+- **Per-like earnings** (post needs ≥2 likes to qualify, once per author per day): +0.1 (≤10 likes), +0.2 (≤25), +0.3 (≤50), +0.5 (50+ likes)
+- **Casino bonus rolls** on each qualifying like: 0.2% jackpot (+5.0 pts), 2% double (×2 base), 5% mini (+0.2 flat)
 - Points are permanent — unliking does not remove earned points
 - Teacher activity (posting, liking) does not generate or award points
 

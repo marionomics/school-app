@@ -54,24 +54,24 @@ def _check_class_access(user: Student, class_id: int, db: Session):
 def _calculate_like_points(total_likes: int) -> float:
     """Slow progression: points per like based on cumulative like count."""
     if total_likes <= 10:
-        return 0.01
+        return 0.1
     elif total_likes <= 25:
-        return 0.02
+        return 0.2
     elif total_likes <= 50:
-        return 0.03
+        return 0.3
     else:
-        return 0.05
+        return 0.5
 
 
 def _roll_bonus(base_pts: float) -> tuple:
     """Casino roll: returns (bonus_type, points_awarded). Rare events only."""
     roll = random.random()
-    if roll < 0.002:    # 0.2% jackpot → flat +0.5
-        return ('jackpot', 0.5)
+    if roll < 0.002:    # 0.2% jackpot → flat +5.0
+        return ('jackpot', 5.0)
     elif roll < 0.02:   # 2% double → 2× the base increment
         return ('double', round(base_pts * 2, 3))
-    elif roll < 0.05:   # 5% mini → base + flat 0.02
-        return ('mini', round(base_pts + 0.02, 3))
+    elif roll < 0.05:   # 5% mini → base + flat 0.2
+        return ('mini', round(base_pts + 0.2, 3))
     else:
         return ('normal', base_pts)
 
@@ -222,13 +222,13 @@ async def create_post(
     db.add(post)
     db.flush()  # get post.id before commit
 
-    # Award +0.01 creation points to students
+    # Award +0.1 creation points to students
     if user.role == "student":
-        post.points_earned = 0.01
+        post.points_earned = 0.1
         db.add(ForumPoints(
             user_id=user.id,
             post_id=post.id,
-            points_earned=0.01,
+            points_earned=0.1,
             bonus_type='post',
         ))
 
