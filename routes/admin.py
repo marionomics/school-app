@@ -707,7 +707,7 @@ async def update_special_points(
 def _calc_grade(student_id: int, class_id: int, db: Session) -> dict:
     """Calculate grade using category weights, participation, and special points.
 
-    Formula: Σ(category_avg × weight) + (participation × 0.1) + special_points
+    Formula: Σ(category_avg × weight) + participation + special_points
     In 'percentage' mode, final grade is capped at 100.
     """
     # Get class for grading mode
@@ -809,7 +809,7 @@ def _calc_grade(student_id: int, class_id: int, db: Session) -> dict:
         Participation.approved == "approved",
     ).scalar() or 0
 
-    part_contribution = 0.1 * int(part_pts)
+    part_contribution = float(int(part_pts))  # 1 tap = 1 grade point, no multiplier
 
     # Special points
     sp_records = db.query(SpecialPoints).filter(

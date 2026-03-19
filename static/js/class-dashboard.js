@@ -1098,7 +1098,7 @@ async function openStudentModal(studentId) {
                 <h3 class="text-sm font-medium text-gray-700 mb-2">Participacion</h3>
                 <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
                     <span class="text-sm">Puntos aprobados</span>
-                    <span class="text-sm font-medium">${student.participation_points} pts × 0.1 = ${(student.participation_points * 0.1).toFixed(1)} pts</span>
+                    <span class="text-sm font-medium">${student.participation_points} pts</span>
                 </div>
             </div>
 

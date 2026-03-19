@@ -902,7 +902,7 @@ function _handleParticipationTap() {
     tapCount = Math.min(tapCount + 1, 3);
     clearTimeout(tapTimer);
 
-    const pts = (tapCount * 0.1).toFixed(1);
+    const pts = tapCount;
     if (tapCount === 1) {
         _showTapAnimation(`✨ +${pts} pts`, 'tap-normal');
     } else if (tapCount === 2) {
@@ -925,7 +925,7 @@ function _updateTapIndicator() {
     if (tapCount === 0) { indicator.classList.add('hidden'); return; }
     indicator.classList.remove('hidden');
     dots.textContent = '●'.repeat(tapCount);
-    preview.textContent = `+${(tapCount * 0.1).toFixed(1)} pts`;
+    preview.textContent = `+${tapCount} pts`;
 }
 
 function _showTapAnimation(text, cssClass) {
@@ -962,8 +962,7 @@ async function _doSubmitParticipation(multiplier) {
         tapDescription = '';
         if (btn) { btn.disabled = true; btn.textContent = 'ENVIAR'; }
 
-        const ptsDisplay = (multiplier * 0.1).toFixed(1);
-        _showToast(`✅ Participación enviada (+${ptsDisplay} pts pendiente)`, '#7C3AED', 4000);
+        _showToast(`✅ Participación enviada (+${multiplier} pts pendiente)`, '#7C3AED', 4000);
 
         // Refresh cards to show pending count
         await _refreshGradeCards();
