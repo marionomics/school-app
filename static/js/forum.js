@@ -207,7 +207,7 @@ function renderPostCard(post) {
                     <span class="text-gray-400 text-xs ml-auto">${timeStr}</span>
                 </div>
                 ${post.title ? `<p class="font-semibold text-gray-800 text-sm mb-1">${escHtml(post.title)}</p>` : ''}
-                <p class="text-gray-600 text-sm line-clamp-3 whitespace-pre-wrap">${escHtml(post.content)}</p>
+                <p class="text-gray-600 text-sm line-clamp-3 whitespace-pre-wrap">${linkify(post.content)}</p>
                 <div class="flex items-center gap-3 mt-3" onclick="event.stopPropagation()">
                     ${likeBtn}
                     <button onclick="openPost(${post.id})"
@@ -408,7 +408,7 @@ function renderModalPost(post) {
             </div>
         </div>
         ${post.title ? `<h2 class="font-bold text-gray-900 text-lg mb-2">${escHtml(post.title)}</h2>` : ''}
-        <p class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">${escHtml(post.content)}</p>
+        <p class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">${linkify(post.content)}</p>
         <div class="flex items-center gap-3 mt-4 pt-3 border-t border-gray-100 flex-wrap">
             ${likeBtn}
             <span class="flex items-center gap-1 text-sm text-gray-400">
@@ -514,7 +514,7 @@ function renderReply(reply, isNested) {
                     ${teacherBadge}
                     <span class="text-gray-400 text-xs">${timeAgo(reply.created_at)}</span>
                 </div>
-                <p class="text-gray-700 text-sm mt-0.5 whitespace-pre-wrap">${escHtml(reply.content)}</p>
+                <p class="text-gray-700 text-sm mt-0.5 whitespace-pre-wrap">${linkify(reply.content)}</p>
                 <div class="flex items-center gap-3 mt-1">
                     ${replyBtn}
                     ${deleteBtn}
@@ -740,6 +740,14 @@ function _showToast(msg, bg, duration = 3000) {
 function escHtml(str) {
     if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function linkify(text) {
+    const escaped = escHtml(text);
+    return escaped.replace(
+        /(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]])/g,
+        '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-primary underline hover:text-secondary break-all">$1</a>'
+    );
 }
 
 function nameInitials(name) {
