@@ -446,7 +446,7 @@ function renderGradeBreakdown(calc) {
         <div class="flex justify-between items-center p-3 bg-primary-5 rounded-lg mt-3">
             <div>
                 <span class="font-medium text-secondary">Participacion</span>
-                <span class="text-xs text-primary ml-2">(${calc.participation_points} pts aprobados × 0.1)</span>
+                <span class="text-xs text-primary ml-2">(${calc.participation_points} pts aprobados)</span>
             </div>
             <span class="font-medium text-secondary">+${calc.participation_contribution.toFixed(1)} pts</span>
         </div>

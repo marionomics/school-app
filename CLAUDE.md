@@ -239,13 +239,16 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 - Grade model also has optional `name` field (e.g., "Reto Semana 1")
 - Category average = mean of graded assignments only (variable count — doesn't matter if 4 or 15 assignments exist)
 - Grade-calculation response includes per-category: `graded_count`, `pending_count`, `total_assignments`
-- Grade-calculation response top-level: `participation_points` (class-only, for compat), `participation_points_class`, `participation_points_forum` (raw uncapped forum pts), `forum_points` (capped at 3.0), `final_grade`, `grading_mode`, `max_base_grade`
-- Student dashboard grade modal shows breakdown: categories, class participation (×0.1), forum pts, special pts, absence penalty, final grade
+- Grade-calculation response top-level: `participation_points` (class-only, for compat), `participation_points_class`, `participation_points_forum` (raw forum pts), `forum_points` (uncapped), `final_grade`, `grading_mode`, `max_base_grade`
+- Student dashboard grade modal shows breakdown: categories, class participation (1 pt per tap), forum pts, special pts, absence penalty, final grade
 - **Uncategorized grades fallback**: Grades with `category_id = NULL` (legacy/manual entries) are grouped into a "Sin categoría" bucket in grade-calculation. They get the remaining weight after defined categories (e.g., if categories sum to 0.8, uncategorized gets 0.2). This ensures legacy grades are never silently dropped.
 
 **Participation Points:**
-- No cap on participation points contribution
-- Each approved point adds 0.1 to final grade
+- Each approved participation tap = **1 full grade point** directly. No multiplier.
+- Teacher assigns weight live in class: 1 tap (normal), 2 taps ("¡doble!"), 3 taps ("¡triple!").
+- No cap. Natural ceiling ~100 pts for a consistently active student over the semester.
+- ~42 students, ~60 class hours — reaching 100 is earned, not gamed.
+- Formula: `participation_contribution = float(class_part_pts)` in `routes/students.py → get_grade_calculation()`
 
 **Special Points** (`special_points`):
 - Two categories: "english" and "notebook" (0.5 pts each)

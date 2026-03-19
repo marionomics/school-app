@@ -715,7 +715,7 @@ function renderStudentClassCard(cls, grade) {
                 <div>
                     <p class="text-xs text-gray-400">Participación</p>
                     <p class="font-semibold text-gray-700 text-sm">${hasGrade ? classPts : '--'} pts</p>
-                    ${pendingPts > 0 ? `<p class="text-xs text-violet-500">+${(pendingPts * 0.1).toFixed(1)} pendiente</p>` : ''}
+                    ${pendingPts > 0 ? `<p class="text-xs text-violet-500">+${pendingPts} pendiente</p>` : ''}
                     ${forumPtsRaw > 0 ? `<p class="text-xs text-amber-500">+${forumPtsRaw.toFixed(2)} foro</p>` : ''}
                 </div>
             </div>
@@ -775,8 +775,8 @@ function renderGradeModalContent(calc) {
     const classPts = calc.participation_points_class ?? calc.participation_points ?? 0;
     const pendingPts = calc.pending_participation_points ?? 0;
     const forumPtsRaw = calc.participation_points_forum ?? 0;
-    const forumContrib = calc.forum_points ?? 0; // already capped at 3.0
-    const partContrib = (classPts * 0.1).toFixed(2);
+    const forumContrib = calc.forum_points ?? 0;
+    const partContrib = parseFloat(classPts).toFixed(1);
 
     const categoriesHtml = (calc.categories || []).map(cat => {
         const pct = cat.average !== null && cat.average !== undefined ? cat.average.toFixed(1) : '--';
@@ -818,12 +818,12 @@ function renderGradeModalContent(calc) {
             <div class="bg-gray-50 rounded-lg px-4 py-3 space-y-2">
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-600">⭐ Participación aprobada</span>
-                    <span class="font-medium text-gray-700">${classPts} pts × 0.1 = <span class="text-green-600">+${partContrib}</span></span>
+                    <span class="font-medium text-gray-700">${classPts} pts = <span class="text-green-600">+${partContrib}</span></span>
                 </div>
                 ${pendingPts > 0 ? `
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-600">⏳ Pendiente de aprobación</span>
-                    <span class="font-medium text-violet-500">+${(pendingPts * 0.1).toFixed(1)} (pendiente)</span>
+                    <span class="font-medium text-violet-500">+${pendingPts} (pendiente)</span>
                 </div>` : ''}
                 ${forumPtsRaw > 0 ? `
                 <div class="flex justify-between text-sm">

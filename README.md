@@ -86,7 +86,7 @@ A FastAPI application for managing student attendance, participation, and grades
 The app uses a weighted grading formula:
 
 ```
-Final Grade = Σ(Category Weight × Category Average) + (Participation Points × 0.1) + Special Points + Forum Points - Unjustified Absences
+Final Grade = Σ(Category Weight × Category Average) + Participation Points + Forum Points + Special Points - Unjustified Absences
 ```
 
 Each unjustified absence (status = "absent") subtracts 1 point from the final grade. Students can upload justification documents; if the teacher approves, the absence becomes "excused" and the penalty is removed.
@@ -114,12 +114,13 @@ The default mode is `points`, which matches UJED's system where categories total
 
 ### Participation Points
 - Students submit participation entries describing their contributions
-- Teachers approve/reject and assign points (1-3)
-- Approved points × 0.1 added to final grade (no cap)
+- Teachers approve/reject and assign 1–3 taps per entry live in class (normal / "¡doble!" / "¡triple!")
+- Each approved tap = **1 grade point** directly added to final grade (no cap, no multiplier)
+- Natural ceiling ~100 pts for a consistently active student over a semester
 
 ### Forum Points
 - Students earn fractional points through forum engagement, added directly to final grade (hard cap: 3.0 pts per class)
-- **+0.01 pts** per post created (max 3 posts/day, global across classes)
+- **+0.01 pts** per post created (max 3 posts/day, global across classes) — values will be rebalanced in a future update
 - **Per-like earnings** (post needs ≥2 likes to qualify, once per author per day): +0.01 (≤10 likes), +0.02 (≤25), +0.03 (≤50), +0.05 (50+ likes)
 - **Casino bonus rolls** on each qualifying like: 0.2% jackpot (+0.50 pts), 2% double (×2 base), 5% mini (+0.02 flat)
 - Points are permanent — unliking does not remove earned points
