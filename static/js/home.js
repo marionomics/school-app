@@ -299,6 +299,7 @@ function renderPostCard(post) {
                 </div>
                 ${post.title ? `<p class="font-semibold text-gray-800 text-sm mb-1">${escHtml(post.title)}</p>` : ''}
                 <p class="text-gray-600 text-sm line-clamp-3 whitespace-pre-wrap">${linkify(post.content)}</p>
+                ${post.has_file ? `<button onclick="event.stopPropagation();downloadForumFile(${post.id})" class="mt-1 text-xs text-primary hover:underline flex items-center gap-1">📎 ${escHtml(post.file_name || 'Archivo adjunto')}</button>` : ''}
                 <div class="flex items-center gap-3 mt-3" onclick="event.stopPropagation()">
                     ${likeBtn}
                     <button onclick="openPost(${post.id})" class="flex items-center gap-1 text-xs text-gray-400 hover:text-primary transition">
@@ -318,6 +319,8 @@ function renderPostCard(post) {
 function openComposer() {
     document.getElementById('composer-trigger').classList.add('hidden');
     document.getElementById('composer-form').classList.remove('hidden');
+    const fileRow = document.getElementById('composer-file-row');
+    if (fileRow) fileRow.classList.toggle('hidden', !(currentUser?.role === 'teacher' && fileUploadsEnabled));
     document.getElementById('post-content').focus();
 }
 
@@ -326,19 +329,32 @@ function closeComposer() {
     document.getElementById('composer-form').classList.add('hidden');
     document.getElementById('post-title').value = '';
     document.getElementById('post-content').value = '';
+    const fi = document.getElementById('post-file-input');
+    if (fi) fi.value = '';
+    const lbl = document.getElementById('post-file-label');
+    if (lbl) lbl.textContent = 'Adjuntar archivo (opcional)';
+}
+
+function updatePostFileLabel(input) {
+    const lbl = document.getElementById('post-file-label');
+    if (lbl) lbl.textContent = input.files[0] ? input.files[0].name : 'Adjuntar archivo (opcional)';
 }
 
 async function submitPost() {
     const title = document.getElementById('post-title').value.trim();
     const content = document.getElementById('post-content').value.trim();
     const classId = parseInt(document.getElementById('composer-class-selector')?.value);
+    const fileInput = document.getElementById('post-file-input');
+    const file = fileInput?.files[0];
     if (!content) { alert('El contenido no puede estar vacío.'); return; }
     if (!classId) { alert('Selecciona una clase.'); return; }
     try {
-        const post = await apiCall('/forum/posts', {
-            method: 'POST',
-            body: JSON.stringify({ class_id: classId, title: title || null, content }),
-        });
+        const fd = new FormData();
+        fd.append('class_id', classId);
+        if (title) fd.append('title', title);
+        fd.append('content', content);
+        if (file) fd.append('file', file);
+        const post = await apiUpload('/forum/posts', fd);
         closeComposer();
         posts.unshift(post);
         document.getElementById('forum-empty').classList.add('hidden');
@@ -521,6 +537,7 @@ function renderModalPost(post) {
         </div>
         ${post.title ? `<h2 class="font-bold text-gray-900 text-lg mb-2">${escHtml(post.title)}</h2>` : ''}
         <p class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">${linkify(post.content)}</p>
+        ${post.has_file ? `<button onclick="downloadForumFile(${post.id})" class="mt-2 text-sm text-primary hover:underline flex items-center gap-1">📎 ${escHtml(post.file_name || 'Archivo adjunto')}</button>` : ''}
         <div class="flex items-center gap-3 mt-4 pt-3 border-t border-gray-100 flex-wrap">
             ${likeBtn}
             <span class="flex items-center gap-1 text-sm text-gray-400">
@@ -1342,6 +1359,13 @@ function toggleReto(cardId) {
     const isHidden = panel.classList.contains('hidden');
     panel.classList.toggle('hidden', !isHidden);
     chevron.style.transform = isHidden ? 'rotate(180deg)' : '';
+}
+
+async function downloadForumFile(postId) {
+    try {
+        const data = await apiCall(`/forum/posts/${postId}/file`);
+        window.open(data.download_url, '_blank');
+    } catch (e) { alert('Error al descargar archivo: ' + e.message); }
 }
 
 // ==================== Assignment Submission ====================

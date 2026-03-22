@@ -8,6 +8,7 @@ let currentPage = 1;
 let hasMorePosts = false;
 let openPostId = null; // currently open in modal
 let currentModalPost = null; // full post data for the open modal
+let fileUploadsEnabled = false;
 
 const API_BASE = '/api';
 
@@ -33,6 +34,20 @@ async function apiCall(endpoint, options = {}) {
     return response.json();
 }
 
+function apiUpload(endpoint, formData) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${API_BASE}${endpoint}`);
+        if (authToken) xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
+        xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
+            else { const err = JSON.parse(xhr.responseText || '{}'); reject(new Error(err.detail || `Error: ${xhr.status}`)); }
+        });
+        xhr.addEventListener('error', () => reject(new Error('Error de red')));
+        xhr.send(formData);
+    });
+}
+
 function logout() {
     apiCall('/auth/logout', { method: 'POST' }).catch(() => {});
     localStorage.removeItem('authToken');
@@ -47,7 +62,9 @@ async function init() {
         return;
     }
     try {
-        currentUser = await apiCall('/students/me');
+        const [cfg, me] = await Promise.all([apiCall('/config'), apiCall('/students/me')]);
+        fileUploadsEnabled = cfg.file_uploads_enabled || false;
+        currentUser = me;
         document.getElementById('user-name').textContent = currentUser.name;
         setAvatarInitials('composer-avatar', currentUser.name);
         setAvatarInitials('modal-avatar', currentUser.name);
@@ -208,6 +225,7 @@ function renderPostCard(post) {
                 </div>
                 ${post.title ? `<p class="font-semibold text-gray-800 text-sm mb-1">${escHtml(post.title)}</p>` : ''}
                 <p class="text-gray-600 text-sm line-clamp-3 whitespace-pre-wrap">${linkify(post.content)}</p>
+                ${post.has_file ? `<button onclick="event.stopPropagation();downloadForumFile(${post.id})" class="mt-1 text-xs text-primary hover:underline flex items-center gap-1">📎 ${escHtml(post.file_name || 'Archivo adjunto')}</button>` : ''}
                 <div class="flex items-center gap-3 mt-3" onclick="event.stopPropagation()">
                     ${likeBtn}
                     <button onclick="openPost(${post.id})"
@@ -233,6 +251,8 @@ function renderPostCard(post) {
 function openComposer() {
     document.getElementById('composer-trigger').classList.add('hidden');
     document.getElementById('composer-form').classList.remove('hidden');
+    const fileRow = document.getElementById('composer-file-row');
+    if (fileRow) fileRow.classList.toggle('hidden', !(currentUser?.role === 'teacher' && fileUploadsEnabled));
     document.getElementById('post-content').focus();
 }
 
@@ -241,21 +261,33 @@ function closeComposer() {
     document.getElementById('composer-form').classList.add('hidden');
     document.getElementById('post-title').value = '';
     document.getElementById('post-content').value = '';
+    const fi = document.getElementById('post-file-input');
+    if (fi) fi.value = '';
+    const lbl = document.getElementById('post-file-label');
+    if (lbl) lbl.textContent = 'Adjuntar archivo (opcional)';
+}
+
+function updatePostFileLabel(input) {
+    const lbl = document.getElementById('post-file-label');
+    if (lbl) lbl.textContent = input.files[0] ? input.files[0].name : 'Adjuntar archivo (opcional)';
 }
 
 async function submitPost() {
     const title = document.getElementById('post-title').value.trim();
     const content = document.getElementById('post-content').value.trim();
+    const fileInput = document.getElementById('post-file-input');
+    const file = fileInput?.files[0];
 
     if (!content) { alert('El contenido no puede estar vacío.'); return; }
 
     try {
-        const post = await apiCall('/forum/posts', {
-            method: 'POST',
-            body: JSON.stringify({ class_id: selectedClassId, title: title || null, content }),
-        });
+        const fd = new FormData();
+        fd.append('class_id', selectedClassId);
+        if (title) fd.append('title', title);
+        fd.append('content', content);
+        if (file) fd.append('file', file);
+        const post = await apiUpload('/forum/posts', fd);
         closeComposer();
-        // Prepend to list
         posts.unshift(post);
         const container = document.getElementById('posts-container');
         const emptyState = document.getElementById('empty-state');
@@ -264,6 +296,13 @@ async function submitPost() {
     } catch (e) {
         alert('Error al publicar: ' + e.message);
     }
+}
+
+async function downloadForumFile(postId) {
+    try {
+        const data = await apiCall(`/forum/posts/${postId}/file`);
+        window.open(data.download_url, '_blank');
+    } catch (e) { alert('Error al descargar archivo: ' + e.message); }
 }
 
 // ==================== Likes ====================
@@ -409,6 +448,7 @@ function renderModalPost(post) {
         </div>
         ${post.title ? `<h2 class="font-bold text-gray-900 text-lg mb-2">${escHtml(post.title)}</h2>` : ''}
         <p class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">${linkify(post.content)}</p>
+        ${post.has_file ? `<button onclick="downloadForumFile(${post.id})" class="mt-2 text-sm text-primary hover:underline flex items-center gap-1">📎 ${escHtml(post.file_name || 'Archivo adjunto')}</button>` : ''}
         <div class="flex items-center gap-3 mt-4 pt-3 border-t border-gray-100 flex-wrap">
             ${likeBtn}
             <span class="flex items-center gap-1 text-sm text-gray-400">

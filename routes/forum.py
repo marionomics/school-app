@@ -4,7 +4,7 @@ Forum routes — class-scoped posts, threaded replies (max 2 levels), likes, and
 import random
 from typing import Optional
 from datetime import datetime, timedelta, date as date_type
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -97,6 +97,9 @@ def _post_dict(post: ForumPost, user_id: int, db: Session) -> dict:
         "liked_by_me": liked,
         "author_role": post.author.role if post.author else "student",
         "points_earned": post.points_earned or 0.0,
+        "has_file": bool(post.file_key),
+        "file_name": post.file_name,
+        "file_size": post.file_size,
     }
 
 
@@ -190,16 +193,19 @@ async def list_posts(
 
 @router.post("/posts")
 async def create_post(
-    data: ForumPostCreate,
+    class_id: int = Form(...),
+    title: Optional[str] = Form(None),
+    content: str = Form(...),
+    file: Optional[UploadFile] = File(None),
     user: Student = Depends(get_current_student),
     db: Session = Depends(get_db),
 ):
-    """Create a new forum post."""
-    content = (data.content or "").strip()
+    """Create a new forum post (multipart/form-data; file is optional, teacher-only)."""
+    content = (content or "").strip()
     if not content:
         raise HTTPException(status_code=400, detail="El contenido no puede estar vacío")
 
-    _check_class_access(user, data.class_id, db)
+    _check_class_access(user, class_id, db)
 
     # Anti-spam: max 3 posts per day per student
     if user.role == "student":
@@ -213,11 +219,33 @@ async def create_post(
         if daily_count >= 3:
             raise HTTPException(status_code=429, detail="Máximo 3 publicaciones por día")
 
+    # File upload (teacher only)
+    file_key = None
+    file_name = None
+    file_size = None
+    if file and file.filename:
+        if user.role != "teacher":
+            raise HTTPException(status_code=403, detail="Solo profesores pueden adjuntar archivos")
+        from app.storage import is_r2_configured, validate_file, upload_file
+        if not is_r2_configured():
+            raise HTTPException(status_code=501, detail="Subida de archivos no configurada")
+        import time as _time
+        file_data = await file.read()
+        ext = validate_file(file.filename, file_data)
+        key = f"forum/post_{int(_time.time())}.{ext}"
+        upload_file(key, file_data, file.content_type)
+        file_key = key
+        file_name = file.filename
+        file_size = len(file_data)
+
     post = ForumPost(
         author_id=user.id,
-        class_id=data.class_id,
-        title=(data.title or "").strip() or None,
+        class_id=class_id,
+        title=(title or "").strip() or None,
         content=content,
+        file_key=file_key,
+        file_name=file_name,
+        file_size=file_size,
     )
     db.add(post)
     db.flush()  # get post.id before commit
@@ -393,6 +421,24 @@ async def toggle_like(
     }
 
 
+@router.get("/posts/{post_id}/file")
+async def get_forum_post_file(
+    post_id: int,
+    user: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    """Get a presigned download URL for a post's attached file."""
+    post = db.query(ForumPost).filter(ForumPost.id == post_id).first()
+    if not post or not post.file_key:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    _check_class_access(user, post.class_id, db)
+    from app.storage import is_r2_configured, generate_presigned_url
+    if not is_r2_configured():
+        raise HTTPException(status_code=501, detail="Almacenamiento no configurado")
+    url = generate_presigned_url(post.file_key)
+    return {"download_url": url, "file_name": post.file_name}
+
+
 @router.delete("/posts/{post_id}")
 async def delete_post(
     post_id: int,
@@ -406,6 +452,11 @@ async def delete_post(
 
     if post.author_id != user.id and user.role != "teacher":
         raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este post")
+
+    if post.file_key:
+        from app.storage import is_r2_configured, delete_file
+        if is_r2_configured():
+            delete_file(post.file_key)
 
     db.delete(post)
     db.commit()

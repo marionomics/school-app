@@ -199,6 +199,9 @@ class ForumPost(Base):
     pinned = Column(Boolean, nullable=False, default=False)
     locked = Column(Boolean, nullable=False, default=False)
     points_earned = Column(Float, nullable=False, default=0.0)
+    file_key = Column(String, nullable=True)
+    file_name = Column(String, nullable=True)
+    file_size = Column(Integer, nullable=True)
 
     # Relationships
     author = relationship("Student", foreign_keys=[author_id])

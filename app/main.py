@@ -93,6 +93,12 @@ def _ensure_columns():
                 conn.execute(text(
                     "ALTER TABLE forum_posts ADD COLUMN points_earned FLOAT DEFAULT 0.0 NOT NULL"
                 ))
+            if "file_key" not in existing_cols:
+                conn.execute(text("ALTER TABLE forum_posts ADD COLUMN file_key VARCHAR"))
+            if "file_name" not in existing_cols:
+                conn.execute(text("ALTER TABLE forum_posts ADD COLUMN file_name VARCHAR"))
+            if "file_size" not in existing_cols:
+                conn.execute(text("ALTER TABLE forum_posts ADD COLUMN file_size INTEGER"))
 
     # Data repair: assign a category to assignments that were saved without one
     if "assignments" in inspector.get_table_names() and "grade_categories" in inspector.get_table_names():
