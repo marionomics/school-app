@@ -128,6 +128,8 @@ class SpecialPointsResponse(BaseModel):
     awarded: bool
     points_value: float
     created_at: datetime
+    awarded_at: Optional[datetime] = None
+    awarded_by: Optional[int] = None
 
     class Config:
         from_attributes = True

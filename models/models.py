@@ -155,10 +155,13 @@ class SpecialPoints(Base):
     awarded = Column(Boolean, nullable=False, default=False)
     points_value = Column(Float, nullable=False, default=0.5)  # Default 0.5 points each
     created_at = Column(DateTime, default=datetime.utcnow)
+    awarded_at = Column(DateTime, nullable=True)
+    awarded_by = Column(Integer, ForeignKey("students.id"), nullable=True)
 
     # Relationships
-    student = relationship("Student", back_populates="special_points")
+    student = relationship("Student", back_populates="special_points", foreign_keys=[student_id])
     class_ = relationship("Class", back_populates="special_points")
+    awarded_by_teacher = relationship("Student", foreign_keys=[awarded_by])
 
     __table_args__ = (UniqueConstraint('student_id', 'class_id', 'category', name='unique_student_class_special'),)
 

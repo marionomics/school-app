@@ -695,6 +695,12 @@ async def update_special_points(
     if data.opted_in is not None:
         special.opted_in = data.opted_in
     if data.awarded is not None:
+        if data.awarded and not special.awarded:
+            special.awarded_at = dt.utcnow()
+            special.awarded_by = teacher.id
+        elif not data.awarded:
+            special.awarded_at = None
+            special.awarded_by = None
         special.awarded = data.awarded
 
     db.commit()
