@@ -22,7 +22,7 @@ class Student(Base):
     grades = relationship("Grade", back_populates="student", cascade="all, delete-orphan")
     taught_classes = relationship("Class", back_populates="teacher", cascade="all, delete-orphan")
     enrollments = relationship("StudentClass", back_populates="student", cascade="all, delete-orphan")
-    special_points = relationship("SpecialPoints", back_populates="student", cascade="all, delete-orphan")
+    special_points = relationship("SpecialPoints", back_populates="student", cascade="all, delete-orphan", foreign_keys="[SpecialPoints.student_id]")
     submissions = relationship("Submission", back_populates="student", cascade="all, delete-orphan", foreign_keys="[Submission.student_id]")
 
 
