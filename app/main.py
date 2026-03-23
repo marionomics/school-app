@@ -104,7 +104,7 @@ def _ensure_columns():
         existing_cols = {col["name"] for col in inspector.get_columns("special_points")}
         with engine.begin() as conn:
             if "awarded_at" not in existing_cols:
-                conn.execute(text("ALTER TABLE special_points ADD COLUMN awarded_at DATETIME"))
+                conn.execute(text("ALTER TABLE special_points ADD COLUMN awarded_at TIMESTAMP"))
             if "awarded_by" not in existing_cols:
                 conn.execute(text("ALTER TABLE special_points ADD COLUMN awarded_by INTEGER"))
 
