@@ -176,9 +176,14 @@ class Assignment(Base):
     description = Column(Text, nullable=True)
     due_date = Column(DateTime, nullable=False)
     max_points = Column(Float, nullable=False, default=100)
-    exam_type = Column(String(20), default='homework')  # 'homework' or 'exam'
+    exam_type = Column(String(20), default='homework')  # 'homework', 'exam', or 'online'
     allow_late = Column(Boolean, nullable=False, default=True)
     published = Column(Boolean, nullable=False, default=True)
+    available_from = Column(DateTime, nullable=True)    # online exam: when it becomes available
+    available_until = Column(DateTime, nullable=True)   # online exam: deadline to take it
+    time_limit_min = Column(Integer, nullable=True)     # online exam: time limit in minutes
+    allow_save = Column(Boolean, nullable=False, default=True)  # online exam: allow draft saving
+    exam_html_key = Column(String(500), nullable=True)  # R2 key for online exam HTML file
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -186,6 +191,7 @@ class Assignment(Base):
     class_ = relationship("Class", back_populates="assignments")
     grade_category = relationship("GradeCategory")
     submissions = relationship("Submission", back_populates="assignment", cascade="all, delete-orphan")
+    drafts = relationship("OnlineExamDraft", back_populates="assignment", cascade="all, delete-orphan")
 
 
 class ForumPost(Base):
@@ -275,6 +281,7 @@ class Submission(Base):
     is_late = Column(Boolean, nullable=False, default=False)
     penalty_pct = Column(Integer, nullable=False, default=100)
     resubmit_count = Column(Integer, nullable=False, default=0)
+    receipt_json = Column(Text, nullable=True)  # online exam: full receipt JSON
     grade = Column(Float, nullable=True)
     feedback = Column(Text, nullable=True)
     graded_at = Column(DateTime, nullable=True)
@@ -285,3 +292,20 @@ class Submission(Base):
     student = relationship("Student", back_populates="submissions", foreign_keys=[student_id])
 
     __table_args__ = (UniqueConstraint('assignment_id', 'student_id', name='unique_assignment_student'),)
+
+
+class OnlineExamDraft(Base):
+    __tablename__ = "online_exam_drafts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    assignment_id = Column(Integer, ForeignKey("assignments.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    draft_json = Column(Text, nullable=False)
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    saved_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    assignment = relationship("Assignment", back_populates="drafts")
+    student = relationship("Student")
+
+    __table_args__ = (UniqueConstraint('assignment_id', 'student_id', name='unique_exam_draft'),)

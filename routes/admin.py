@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 from models.database import get_db
 from models.models import (
     Student, Attendance, Participation, Grade, Class, StudentClass,
-    GradeCategory, SpecialPoints, Assignment, Submission
+    GradeCategory, SpecialPoints, Assignment, Submission, OnlineExamDraft
 )
 from models.schemas import (
     StudentResponse,
@@ -43,6 +43,8 @@ from models.schemas import (
     AttendanceWithStudent,
     ClassSettingsUpdate,
     ExamGradeRequest,
+    AssignmentSettingsUpdate,
+    OnlineSubmissionEntry,
 )
 from app.auth import get_current_teacher
 
@@ -1164,6 +1166,31 @@ async def update_class_settings(
 
 # ==================== Assignments ====================
 
+
+def _assignment_response(a, sub_count: int = 0, graded_count: int = 0) -> AssignmentResponse:
+    """Build an AssignmentResponse from an Assignment ORM object."""
+    return AssignmentResponse(
+        id=a.id,
+        class_id=a.class_id,
+        category_id=a.category_id,
+        title=a.title,
+        description=a.description,
+        due_date=a.due_date,
+        max_points=a.max_points,
+        exam_type=a.exam_type or 'homework',
+        allow_late=a.allow_late,
+        published=a.published,
+        available_from=a.available_from,
+        available_until=a.available_until,
+        time_limit_min=a.time_limit_min,
+        allow_save=a.allow_save if a.allow_save is not None else True,
+        has_exam_html=bool(a.exam_html_key),
+        created_at=a.created_at,
+        submission_count=sub_count,
+        graded_count=graded_count,
+    )
+
+
 @router.post("/assignments", response_model=AssignmentResponse)
 async def create_assignment(
     data: AssignmentCreate,
@@ -1231,26 +1258,16 @@ async def create_assignment(
         due_date=due_date,
         max_points=data.max_points or 100,
         exam_type=data.exam_type or 'homework',
+        available_from=data.available_from,
+        available_until=data.available_until,
+        time_limit_min=data.time_limit_min,
+        allow_save=data.allow_save if data.allow_save is not None else True,
     )
     db.add(assignment)
     db.commit()
     db.refresh(assignment)
 
-    return AssignmentResponse(
-        id=assignment.id,
-        class_id=assignment.class_id,
-        category_id=assignment.category_id,
-        title=assignment.title,
-        description=assignment.description,
-        due_date=assignment.due_date,
-        max_points=assignment.max_points,
-        exam_type=assignment.exam_type or 'homework',
-        allow_late=assignment.allow_late,
-        published=assignment.published,
-        created_at=assignment.created_at,
-        submission_count=0,
-        graded_count=0,
-    )
+    return _assignment_response(assignment, 0, 0)
 
 
 @router.get("/assignments", response_model=List[AssignmentResponse])
@@ -1283,21 +1300,7 @@ async def list_assignments(
             Submission.grade.isnot(None),
         ).scalar() or 0
 
-        results.append(AssignmentResponse(
-            id=a.id,
-            class_id=a.class_id,
-            category_id=a.category_id,
-            title=a.title,
-            description=a.description,
-            due_date=a.due_date,
-            max_points=a.max_points,
-            exam_type=a.exam_type or 'homework',
-            allow_late=a.allow_late,
-            published=a.published,
-            created_at=a.created_at,
-            submission_count=sub_count,
-            graded_count=graded_count,
-        ))
+        results.append(_assignment_response(a, sub_count, graded_count))
 
     return results
 
@@ -1747,3 +1750,165 @@ async def save_exam_grade(
 
     db.commit()
     return {"status": "ok", "student_id": data.student_id, "score": data.score}
+
+
+# ==================== Online Exam Admin ====================
+
+
+from fastapi import UploadFile, File as FastAPIFile
+
+
+@router.post("/assignments/{assignment_id}/upload-exam-html")
+async def upload_exam_html(
+    assignment_id: int,
+    file: UploadFile = FastAPIFile(...),
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Upload an HTML file for an online exam."""
+    from app.storage import is_r2_configured, upload_file, delete_file
+
+    if not is_r2_configured():
+        raise HTTPException(status_code=501, detail="Almacenamiento R2 no configurado")
+
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Examen no encontrado")
+
+    class_ = db.query(Class).filter(
+        Class.id == assignment.class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=403, detail="No eres profesor de esta clase")
+
+    # Validate file extension
+    if not file.filename or not file.filename.lower().endswith('.html'):
+        raise HTTPException(status_code=400, detail="Solo se permiten archivos .html")
+
+    file_bytes = await file.read()
+    if len(file_bytes) > 10 * 1024 * 1024:  # 10MB
+        raise HTTPException(status_code=400, detail="Archivo demasiado grande (máximo 10MB)")
+
+    # Delete old file if replacing
+    if assignment.exam_html_key:
+        delete_file(assignment.exam_html_key)
+
+    timestamp = int(dt.utcnow().timestamp())
+    file_key = f"online-exams/{assignment_id}_{timestamp}.html"
+    upload_file(file_bytes, file_key, "text/html")
+
+    assignment.exam_html_key = file_key
+    db.commit()
+
+    return {"exam_html_key": file_key, "message": "Archivo subido correctamente"}
+
+
+@router.patch("/assignments/{assignment_id}/settings", response_model=AssignmentResponse)
+async def update_assignment_settings(
+    assignment_id: int,
+    data: AssignmentSettingsUpdate,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Update online exam settings (available_from, available_until, time_limit, allow_save)."""
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Examen no encontrado")
+
+    class_ = db.query(Class).filter(
+        Class.id == assignment.class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=403, detail="No eres profesor de esta clase")
+
+    def _parse_datetime_field(value):
+        """Parse datetime string: ISO format, 'now' sentinel, or None to clear."""
+        if value is None:
+            return None  # don't update
+        if value == "now":
+            return dt.utcnow()
+        if value == "":
+            return None  # explicit clear
+        try:
+            return dt.fromisoformat(value.replace("Z", "+00:00").replace("+00:00", ""))
+        except (ValueError, AttributeError):
+            raise HTTPException(status_code=400, detail=f"Formato de fecha inválido: {value}")
+
+    if data.available_from is not None:
+        assignment.available_from = _parse_datetime_field(data.available_from)
+    if data.available_until is not None:
+        assignment.available_until = _parse_datetime_field(data.available_until)
+    if data.time_limit_min is not None:
+        assignment.time_limit_min = data.time_limit_min
+    if data.allow_save is not None:
+        assignment.allow_save = data.allow_save
+
+    db.commit()
+    db.refresh(assignment)
+
+    sub_count = db.query(func.count(Submission.id)).filter(
+        Submission.assignment_id == assignment.id,
+        Submission.submitted_at.isnot(None),
+    ).scalar() or 0
+    graded_count = db.query(func.count(Submission.id)).filter(
+        Submission.assignment_id == assignment.id,
+        Submission.submitted_at.isnot(None),
+        Submission.grade.isnot(None),
+    ).scalar() or 0
+
+    return _assignment_response(assignment, sub_count, graded_count)
+
+
+@router.get("/assignments/{assignment_id}/online-submissions", response_model=List[OnlineSubmissionEntry])
+async def get_online_submissions(
+    assignment_id: int,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """List all students with their online exam submission status."""
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Examen no encontrado")
+
+    class_ = db.query(Class).filter(
+        Class.id == assignment.class_id,
+        Class.teacher_id == teacher.id,
+    ).first()
+    if not class_:
+        raise HTTPException(status_code=403, detail="No eres profesor de esta clase")
+
+    # Get all enrolled students
+    enrollments = db.query(StudentClass).filter(
+        StudentClass.class_id == assignment.class_id,
+    ).all()
+    student_ids = [e.student_id for e in enrollments]
+    students = db.query(Student).filter(Student.id.in_(student_ids)).all()
+    student_map = {s.id: s for s in students}
+
+    # Get submissions
+    submissions = db.query(Submission).filter(
+        Submission.assignment_id == assignment_id,
+        Submission.submitted_at.isnot(None),
+    ).all()
+    sub_map = {s.student_id: s for s in submissions}
+
+    results = []
+    for sid in student_ids:
+        s = student_map.get(sid)
+        if not s:
+            continue
+        sub = sub_map.get(sid)
+        results.append(OnlineSubmissionEntry(
+            student_id=s.id,
+            student_name=s.name,
+            student_email=s.email,
+            submitted=sub is not None,
+            score=sub.grade if sub else None,
+            submitted_at=sub.submitted_at if sub else None,
+        ))
+
+    # Sort: unsubmitted first, then by score desc
+    results.sort(key=lambda x: (x.submitted, -(x.score or 0)))
+    return results

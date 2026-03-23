@@ -7,6 +7,8 @@ let studentsData = [];
 let categories = [];
 let classGradingMode = 'points';
 let currentAssignmentId = null;
+let fileUploadsEnabled = false;
+let onlineExamsData = [];
 
 // Extraer classId de la URL
 const pathParts = window.location.pathname.split('/');
@@ -491,8 +493,17 @@ function initGradesTab() {
     populateStudentSelect();
     populateCategorySelect();
     populateExamCategorySelect();
+    populateOnlineExamCategorySelect();
     renderGradeCategoriesList();
     loadExams();
+    loadOnlineExams();
+    // Show/hide online exam form based on R2 config
+    if (!fileUploadsEnabled) {
+        const formEl = document.getElementById('online-exam-form-section');
+        const noR2El = document.getElementById('online-exam-no-r2');
+        if (formEl) formEl.style.display = 'none';
+        if (noR2El) noR2El.classList.remove('hidden');
+    }
 }
 
 function populateExamCategorySelect() {
@@ -592,6 +603,206 @@ function closeExamGradingModal() {
     document.body.style.overflow = '';
     currentExamGrading = null;
     loadExams();
+}
+
+
+// ==================== Online Exams ====================
+
+function populateOnlineExamCategorySelect() {
+    const select = document.getElementById('online-exam-category');
+    if (!select) return;
+    select.innerHTML = '<option value="">Categoría (auto)</option>' +
+        categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+async function loadOnlineExams() {
+    const container = document.getElementById('online-exams-list');
+    try {
+        const allAssignments = await apiCall(`/admin/assignments?class_id=${classId}`);
+        onlineExamsData = allAssignments.filter(a => a.exam_type === 'online');
+        renderOnlineExamsList();
+    } catch (err) {
+        if (container) container.innerHTML = `<p class="text-red-500 text-xs">Error: ${err.message}</p>`;
+    }
+}
+
+function getOnlineExamStatus(exam) {
+    const now = new Date();
+    if (!exam.available_from) return { label: 'Inactivo', color: 'gray' };
+    const from = new Date(exam.available_from);
+    const until = exam.available_until ? new Date(exam.available_until) : null;
+    if (from > now) return { label: 'Programado', color: 'blue' };
+    if (!until || now <= until) return { label: 'Activo', color: 'green' };
+    return { label: 'Cerrado', color: 'red' };
+}
+
+function renderOnlineExamsList() {
+    const container = document.getElementById('online-exams-list');
+    if (!container) return;
+    if (!onlineExamsData.length) {
+        container.innerHTML = '<p class="text-gray-400 text-sm">No hay exámenes online.</p>';
+        return;
+    }
+    container.innerHTML = onlineExamsData.map(exam => {
+        const status = getOnlineExamStatus(exam);
+        const badgeColors = {
+            gray: 'bg-gray-100 text-gray-600',
+            blue: 'bg-blue-100 text-blue-700',
+            green: 'bg-green-100 text-green-700',
+            red: 'bg-red-100 text-red-600',
+        };
+        const htmlBadge = exam.has_exam_html
+            ? ''
+            : '<span class="text-xs text-amber-600 font-medium">Sin archivo HTML</span>';
+        const subCount = `${exam.graded_count}/${exam.submission_count > 0 ? exam.submission_count : '—'} entregados`;
+        return `
+        <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-2">
+            <div class="flex items-center justify-between">
+                <div class="min-w-0">
+                    <p class="font-medium text-gray-800 text-sm truncate">${exam.title}</p>
+                    <p class="text-xs text-gray-400 mt-0.5">${subCount} · Máx ${exam.max_points} pts ${htmlBadge}</p>
+                </div>
+                <span class="ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${badgeColors[status.color]}">${status.label}</span>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+                ${status.color === 'gray' ? `<button onclick="activateOnlineExam(${exam.id})" class="text-xs px-3 py-1 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition">Activar ahora</button>` : ''}
+                ${status.color === 'green' ? `<button onclick="closeOnlineExam(${exam.id})" class="text-xs px-3 py-1 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition">Cerrar</button>` : ''}
+                ${status.color !== 'gray' ? `<button onclick="extendOnlineExam(${exam.id})" class="text-xs px-3 py-1 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition">Extender plazo</button>` : ''}
+                <button onclick="viewOnlineSubmissions(${exam.id}, '${exam.title.replace(/'/g, "\\'")}')" class="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">Ver entregas</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function createOnlineExam() {
+    const titleEl = document.getElementById('online-exam-title');
+    const title = titleEl ? titleEl.value.trim() : '';
+    if (!title) { alert('Ingresa un título para el examen.'); return; }
+
+    const fileInput = document.getElementById('online-exam-file');
+    if (!fileInput || !fileInput.files.length) { alert('Selecciona el archivo HTML del examen.'); return; }
+
+    const maxPoints = parseFloat(document.getElementById('online-exam-max-points')?.value) || 100;
+    const categoryId = document.getElementById('online-exam-category')?.value || null;
+    const fromVal = document.getElementById('online-exam-from')?.value || null;
+    const untilVal = document.getElementById('online-exam-until')?.value || null;
+    const timeLimitMin = parseInt(document.getElementById('online-exam-time-limit')?.value) || 90;
+    const allowSave = document.getElementById('online-exam-allow-save')?.checked ?? true;
+
+    try {
+        // 1. Create assignment
+        const exam = await apiCall('/admin/assignments', {
+            method: 'POST',
+            body: JSON.stringify({
+                class_id: classId,
+                title,
+                max_points: maxPoints,
+                category_id: categoryId ? parseInt(categoryId) : null,
+                exam_type: 'online',
+                available_from: fromVal ? new Date(fromVal).toISOString() : null,
+                available_until: untilVal ? new Date(untilVal).toISOString() : null,
+                time_limit_min: timeLimitMin,
+                allow_save: allowSave,
+            })
+        });
+
+        // 2. Upload HTML file
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        const uploadRes = await fetch(`/api/admin/assignments/${exam.id}/upload-exam-html`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authToken}` },
+            body: formData,
+        });
+        if (!uploadRes.ok) {
+            const err = await uploadRes.json().catch(() => ({ detail: 'Error al subir archivo' }));
+            throw new Error(err.detail || 'Error al subir HTML');
+        }
+
+        // Clear form
+        if (titleEl) titleEl.value = '';
+        if (fileInput) fileInput.value = '';
+        await loadOnlineExams();
+    } catch (err) {
+        alert('Error al crear examen online: ' + err.message);
+    }
+}
+
+async function activateOnlineExam(examId) {
+    try {
+        await apiCall(`/admin/assignments/${examId}/settings`, {
+            method: 'PATCH',
+            body: JSON.stringify({ available_from: 'now' })
+        });
+        await loadOnlineExams();
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+async function closeOnlineExam(examId) {
+    if (!confirm('¿Cerrar el examen? Los estudiantes no podrán seguir contestando.')) return;
+    try {
+        await apiCall(`/admin/assignments/${examId}/settings`, {
+            method: 'PATCH',
+            body: JSON.stringify({ available_until: 'now' })
+        });
+        await loadOnlineExams();
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+async function extendOnlineExam(examId) {
+    const newUntil = prompt('Nueva fecha y hora de cierre (AAAA-MM-DD HH:MM):');
+    if (!newUntil) return;
+    try {
+        const parsed = new Date(newUntil.replace(' ', 'T'));
+        if (isNaN(parsed)) { alert('Formato de fecha inválido.'); return; }
+        await apiCall(`/admin/assignments/${examId}/settings`, {
+            method: 'PATCH',
+            body: JSON.stringify({ available_until: parsed.toISOString() })
+        });
+        await loadOnlineExams();
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+async function viewOnlineSubmissions(examId, examTitle) {
+    document.getElementById('online-subs-title').textContent = examTitle;
+    document.getElementById('online-subs-list').innerHTML = '<p class="text-gray-400 text-sm">Cargando...</p>';
+    document.getElementById('online-subs-modal').classList.remove('hidden');
+
+    try {
+        const subs = await apiCall(`/admin/assignments/${examId}/online-submissions`);
+        const container = document.getElementById('online-subs-list');
+        const submitted = subs.filter(s => s.submitted);
+        const pending = subs.filter(s => !s.submitted);
+        document.getElementById('online-subs-subtitle').textContent = `${submitted.length}/${subs.length} entregados`;
+
+        let html = '';
+        if (submitted.length) {
+            html += submitted.map(s => `
+                <div class="flex items-center justify-between p-2 bg-green-50 rounded-lg">
+                    <div>
+                        <p class="text-sm font-medium text-gray-800">${s.student_name}</p>
+                        <p class="text-xs text-gray-500">${new Date(s.submitted_at).toLocaleString('es-MX')}</p>
+                    </div>
+                    <span class="text-sm font-semibold text-green-700">${s.score ?? '—'} pts</span>
+                </div>`).join('');
+        }
+        if (pending.length) {
+            html += '<p class="text-xs text-gray-400 mt-3 mb-1 font-medium">Sin entregar:</p>';
+            html += pending.map(s => `
+                <div class="flex items-center p-2 bg-gray-50 rounded-lg">
+                    <p class="text-sm text-gray-500">${s.student_name}</p>
+                </div>`).join('');
+        }
+        container.innerHTML = html || '<p class="text-gray-400 text-sm">No hay estudiantes inscritos.</p>';
+    } catch (err) {
+        document.getElementById('online-subs-list').innerHTML = `<p class="text-red-500 text-sm">Error: ${err.message}</p>`;
+    }
 }
 
 function renderExamGradingModal() {
@@ -1666,6 +1877,12 @@ async function init() {
         }
         currentTeacher = result;
         document.getElementById('teacher-name').textContent = currentTeacher.name;
+
+        // Fetch config (file uploads flag)
+        try {
+            const config = await apiCall('/config');
+            fileUploadsEnabled = config.file_uploads_enabled || false;
+        } catch (e) { /* non-critical */ }
 
         // Load dashboard
         showSection('dashboard-section');

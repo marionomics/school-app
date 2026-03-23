@@ -11,7 +11,7 @@ load_dotenv()
 from sqlalchemy import inspect, text
 from models.database import Base, engine
 # Import all models to ensure they are registered with Base.metadata
-from models.models import Student, Attendance, Participation, Grade, Class, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission, ForumPost, ForumReply, ForumLike, ForumPoints
+from models.models import Student, Attendance, Participation, Grade, Class, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission, ForumPost, ForumReply, ForumLike, ForumPoints, OnlineExamDraft
 from routes import health, students, participation, auth, admin, classes, forum
 
 
@@ -60,7 +60,8 @@ def _ensure_columns():
                 conn.execute(text(
                     "ALTER TABLE submissions ADD COLUMN resubmit_count INTEGER DEFAULT 0 NOT NULL"
                 ))
-
+            if "receipt_json" not in existing_cols:
+                conn.execute(text("ALTER TABLE submissions ADD COLUMN receipt_json TEXT"))
 
     if "classes" in inspector.get_table_names():
         existing_cols = {col["name"] for col in inspector.get_columns("classes")}
@@ -77,6 +78,16 @@ def _ensure_columns():
                 conn.execute(text(
                     "ALTER TABLE assignments ADD COLUMN exam_type VARCHAR(20) DEFAULT 'homework'"
                 ))
+            if "available_from" not in existing_cols:
+                conn.execute(text("ALTER TABLE assignments ADD COLUMN available_from TIMESTAMP"))
+            if "available_until" not in existing_cols:
+                conn.execute(text("ALTER TABLE assignments ADD COLUMN available_until TIMESTAMP"))
+            if "time_limit_min" not in existing_cols:
+                conn.execute(text("ALTER TABLE assignments ADD COLUMN time_limit_min INTEGER"))
+            if "allow_save" not in existing_cols:
+                conn.execute(text("ALTER TABLE assignments ADD COLUMN allow_save BOOLEAN DEFAULT TRUE"))
+            if "exam_html_key" not in existing_cols:
+                conn.execute(text("ALTER TABLE assignments ADD COLUMN exam_html_key VARCHAR(500)"))
 
     if "participations" in inspector.get_table_names():
         existing_cols = {col["name"] for col in inspector.get_columns("participations")}
@@ -240,6 +251,12 @@ async def admin_page():
 async def class_dashboard_page(class_id: int):
     """Serve the class dashboard page."""
     return FileResponse("static/class-dashboard.html")
+
+
+@app.get("/exam/{assignment_id}")
+async def serve_exam(assignment_id: int):
+    """Serve the online exam shell page."""
+    return FileResponse("static/exam-shell.html")
 
 
 @app.get("/forum")

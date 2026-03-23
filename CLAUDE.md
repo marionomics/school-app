@@ -46,6 +46,7 @@ python seed_data.py
 - `static/js/admin.js` - Admin panel JavaScript (class list, quick stats)
 - `static/class-dashboard.html` - Per-class dashboard with tabs (Spanish)
 - `static/js/class-dashboard.js` - Class dashboard JavaScript (attendance, grades, participation, roster, assignment grading modal, file viewer, justification review)
+- `static/exam-shell.html` - Online exam shell page (authenticates, fetches exam HTML from R2, renders in iframe, handles postMessage for draft save and submit)
 - `static/forum.html` - Standalone forum page (accessible from admin nav; same content as landing page forum section)
 - `static/js/forum.js` - Standalone forum JavaScript (teacher moderation, likes, post modal, casino toasts)
 
@@ -83,8 +84,9 @@ python seed_data.py
 - `Grade` - Has `category_id` FK to `grade_categories`, `name` field, and legacy `category` string
 - `GradeCategory` - Weighted categories per class (name, weight as decimal e.g. 0.4)
 - `SpecialPoints` - Optional bonus points per student (english, notebook)
-- `Assignment` - Homework/retos and exams per class (title, description, due_date, max_points, allow_late, published, exam_type: 'homework'|'exam')
-- `Submission` - Student submissions (drive_url, file_key, file_name, file_size, penalty_pct, is_late, grade, feedback)
+- `Assignment` - Homework/retos and exams per class (title, description, due_date, max_points, allow_late, published, exam_type: 'homework'|'exam'|'online', available_from, available_until, time_limit_min, allow_save, exam_html_key)
+- `OnlineExamDraft` - Draft state for online exams (assignment_id, student_id, draft_json, started_at, saved_at)
+- `Submission` - Student submissions (drive_url, file_key, file_name, file_size, penalty_pct, is_late, grade, feedback, receipt_json)
 - `ForumPost` - Forum posts (class_id, author_id, title, content, pinned, locked, like_count, comment_count, points_earned)
 - `ForumReply` - Threaded replies (post_id, author_id, parent_reply_id, content)
 - `ForumLike` - Likes on posts (user_id, post_id; unique constraint)
@@ -167,6 +169,16 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `GET /api/admin/justifications?class_id=X&status_filter=` - List justifications (default: pending)
 - `PATCH /api/admin/justifications/{id}` - Approve/reject justification (approved → status becomes "excused")
 - `PATCH /api/admin/classes/{id}/settings` - Update class settings (grading_mode: 'points'|'percentage')
+- `POST /api/admin/assignments/{id}/upload-exam-html` - Upload HTML file for online exam (multipart, R2)
+- `PATCH /api/admin/assignments/{id}/settings` - Update online exam settings (available_from, available_until, time_limit_min, allow_save)
+- `GET /api/admin/assignments/{id}/online-submissions` - List students with online exam submission status
+
+### Online Exam Endpoints (Student)
+- `GET /exam/{assignment_id}` - Serves exam shell page (auth checked via JS)
+- `GET /api/students/me/assignments/{id}/exam-status` - Active window, time remaining, draft/submit state
+- `GET /api/students/me/assignments/{id}/exam-file` - Presigned R2 URL for exam HTML
+- `POST /api/students/me/assignments/{id}/exam-draft` - Save draft state (upsert, preserves started_at)
+- `POST /api/students/me/assignments/{id}/submit-online-exam` - Submit receipt JSON, auto-create grade
 
 ## Authentication
 
@@ -207,7 +219,8 @@ Uses Google OAuth with Google Identity Services (client-side Sign-In button).
 - `grades` - Scored assignments (category_id, name, score, max_score, class_id)
 - `grade_categories` - Weighted grade categories per class (name, weight)
 - `special_points` - Optional bonus points per student (english, notebook)
-- `assignments` - Homework/retos and exams (class_id, category_id, title, description, due_date, max_points, allow_late, published, exam_type)
+- `assignments` - Homework/retos and exams (class_id, category_id, title, description, due_date, max_points, allow_late, published, exam_type, available_from, available_until, time_limit_min, allow_save, exam_html_key)
+- `online_exam_drafts` - Draft state for online exams (assignment_id, student_id, draft_json, started_at, saved_at)
 - `submissions` - Student submissions (assignment_id, student_id, drive_url, file_key, file_name, file_size, penalty_pct, is_late, grade, feedback)
 - `forum_posts` - Forum posts (class_id, author_id, title, content, pinned, locked, like_count, comment_count, points_earned)
 - `forum_replies` - Threaded replies (post_id, author_id, parent_reply_id, content)
@@ -216,21 +229,31 @@ Uses Google OAuth with Google Identity Services (client-side Sign-In button).
 
 ### Grading System
 
+#### ⚠️ Core Philosophy — Grades Are Intentionally Incomplete
+
+**The category weights do NOT need to sum to 100%. This is by design.**
+
+The default setup is 40% + 40% = 80%. A student who only does required work (retos + exams) reaches ~80. The remaining ~20 points come from participation, which is **unlimited and uncapped**. This is intentional: the incentive structure is designed so that showing up and engaging in class is always worth it, and the grade ceiling never kills motivation. A student can exceed 100 (the DB stores the raw value; Railway/frontend cap display at 100 if needed, but the raw grade can go beyond). **Never "fix" the weights to sum to 100. Never add a warning that they don't. Do not suggest the teacher fill the remaining 20% with a category.** The gap is the participation incentive.
+
 **Grade Calculation Formula:**
 ```
-Final Grade = Σ(Category Weight × Category Average) + (Participation Points × 0.1) + Special Points + Forum Points - Unjustified Absences
+Final Grade = Σ(Category Weight × Category Average)
+            + participation_points   (1 pt per approved tap, no cap)
+            + forum_points           (casino system, no cap)
+            + special_points         (up to 1.0 pt)
+            - unjustified_absences   (1 pt each)
 ```
 
 **Grading Mode** (`classes.grading_mode`):
-- `'points'` (default) — Final grade is **uncapped**. Category weights don't need to sum to 100%. Extras (participation, special points) stack freely above the weighted base. No weight-sum warning shown in UI.
-- `'percentage'` — Final grade is **capped at 100**. UI warns if category weights don't sum to 100%.
+- `'points'` (default) — Final grade is **uncapped**. This is the intended mode. No weight-sum warning.
+- `'percentage'` — Final grade is **capped at 100**. UI warns if category weights don't sum to 100%. Available for teachers who prefer it, but not the default philosophy.
 - Grade-calculation responses include `grading_mode` and `max_base_grade` (= sum of category weights × 100).
 - The Grades tab → Categories section shows a radio toggle to switch modes per class.
 
 **Default Categories** (auto-created with new classes):
 - "Retos de la Semana" — 40%
 - "Exámenes y Proyectos" — 40%
-- Remaining 20% comes from participation + special points (no category needed)
+- The remaining ~20 points come from participation + forum + special points — **this gap is intentional** (see philosophy above)
 
 **Grade Categories** (`grade_categories`):
 - Teacher defines categories per class, can add/edit/delete
@@ -253,7 +276,7 @@ Final Grade = Σ(Category Weight × Category Average) + (Participation Points ×
 **Special Points** (`special_points`):
 - Two categories: "english" and "notebook" (0.5 pts each)
 - Students opt-in, teacher awards at end of semester
-- TODO: Add `awarded_at` and `awarded_by` columns for audit trail
+- `awarded_at` (DATETIME nullable) and `awarded_by` (INTEGER FK → students, nullable) record when and by whom points were awarded. Set when `awarded` transitions to `true`; cleared if award is revoked.
 
 **Forum Points** (`forum_points`):
 - Students earn points for forum engagement; included in final grade (hard cap: 3.0 pts per class)
@@ -332,6 +355,7 @@ The "Calificaciones" tab was renamed "Exámenes" and redesigned for fast in-pers
 **Assignment types (`exam_type` field on `Assignment`):**
 - `'homework'` (default) — online retos, students submit via Drive link or file upload
 - `'exam'` — in-person exams, teacher grades all students directly; no submissions required
+- `'online'` — Pyodide HTML exam; teacher uploads .html file to R2; student takes exam in-app via `/exam/{id}` shell page; auto-graded; receipt JSON stored in `submission.receipt_json`; supports draft saving (server-side) and time limits
 
 **Exam creation flow:**
 1. Teacher enters exam name, optionally selects category and max points
@@ -421,7 +445,7 @@ lesson_progress
 - Database file (`school.db`) is gitignored
 - Run `seed_data.py` to populate test data (creates teacher, 3 students, sample class, enrollments, and sample records)
 - `class_id` is nullable in attendance/participation/grades for backward compatibility
-- **Auto-migration on startup**: `Base.metadata.create_all()` always runs (creates missing tables), plus `_ensure_columns()` adds missing columns (`category_id`, `name` to `grades` table; `drive_url`, `penalty_pct`, `file_key`, `file_name`, `file_size`, `resubmit_count` to `submissions` table; `justification_file_key`, `justification_file_name`, `justification_text`, `justification_status`, `justification_submitted_at`, `justification_reviewed_at`, `justification_reviewed_by` to `attendances` table; `grading_mode` to `classes` table; `exam_type` to `assignments` table; `points_earned` to `forum_posts` table)
+- **Auto-migration on startup**: `Base.metadata.create_all()` always runs (creates missing tables), plus `_ensure_columns()` adds missing columns (`category_id`, `name` to `grades` table; `drive_url`, `penalty_pct`, `file_key`, `file_name`, `file_size`, `resubmit_count`, `receipt_json` to `submissions` table; `justification_file_key`, `justification_file_name`, `justification_text`, `justification_status`, `justification_submitted_at`, `justification_reviewed_at`, `justification_reviewed_by` to `attendances` table; `grading_mode` to `classes` table; `exam_type`, `available_from`, `available_until`, `time_limit_min`, `allow_save`, `exam_html_key` to `assignments` table; `points_earned` to `forum_posts` table). **Always use `TIMESTAMP` (not `DATETIME`) and `DEFAULT TRUE` (not `DEFAULT 1`) for PostgreSQL compatibility.**
 
 ## Railway Deployment
 

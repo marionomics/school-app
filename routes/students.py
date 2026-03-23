@@ -6,12 +6,13 @@ from datetime import datetime as _dt, timedelta
 import logging
 
 from models.database import get_db
-from models.models import Student, Attendance, Grade, Participation, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission, Class, ForumPoints, ForumPost
+from models.models import Student, Attendance, Grade, Participation, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission, Class, ForumPoints, ForumPost, OnlineExamDraft
 from models.schemas import (
     StudentResponse, AttendanceResponse, GradeResponse, ParticipationResponse,
     CategoryGradeBreakdown, SpecialPointsResponse,
     AssignmentStudentView, SubmissionCreate, SubmissionResponse,
     AttendanceWithStudent,
+    ExamStatusResponse, ExamDraftRequest, OnlineExamSubmitRequest, OnlineExamSubmitResponse,
 )
 from app.auth import get_current_student, get_student_or_impersonated, get_current_teacher
 
@@ -357,6 +358,14 @@ async def get_student_assignments(
         if submission:
             sub_response = _submission_response(submission)
 
+        now = _dt.utcnow()
+        is_active = (
+            a.exam_type == 'online'
+            and a.available_from is not None
+            and a.available_from <= now
+            and (a.available_until is None or now <= a.available_until)
+        )
+
         results.append(AssignmentStudentView(
             id=a.id,
             class_id=a.class_id,
@@ -365,6 +374,11 @@ async def get_student_assignments(
             due_date=a.due_date,
             max_points=a.max_points,
             allow_late=a.allow_late,
+            exam_type=a.exam_type or 'homework',
+            available_from=a.available_from,
+            available_until=a.available_until,
+            time_limit_min=a.time_limit_min,
+            is_active=is_active,
             created_at=a.created_at,
             submission=sub_response,
         ))
@@ -684,3 +698,217 @@ async def download_justification_file(
 
     download_url = generate_presigned_url(attendance.justification_file_key)
     return {"download_url": download_url, "file_name": attendance.justification_file_name}
+
+
+# ── Online Exam Endpoints ──────────────────────────────────────────────
+
+
+def _verify_exam_access(assignment_id: int, student, db):
+    """Verify assignment exists, is online, and student is enrolled. Returns assignment."""
+    assignment = db.query(Assignment).filter(
+        Assignment.id == assignment_id,
+        Assignment.published == True,
+    ).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Examen no encontrado")
+    if assignment.exam_type != 'online':
+        raise HTTPException(status_code=400, detail="Este no es un examen online")
+    enrollment = db.query(StudentClass).filter(
+        StudentClass.student_id == student.id,
+        StudentClass.class_id == assignment.class_id,
+    ).first()
+    if not enrollment:
+        raise HTTPException(status_code=403, detail="No estás inscrito en esta clase")
+    return assignment
+
+
+@router.get("/me/assignments/{assignment_id}/exam-status", response_model=ExamStatusResponse)
+async def get_exam_status(
+    assignment_id: int,
+    current_student: Student = Depends(get_student_or_impersonated),
+    db: Session = Depends(get_db),
+):
+    """Get online exam status: active window, time remaining, draft/submission state."""
+    assignment = _verify_exam_access(assignment_id, current_student, db)
+
+    now = _dt.utcnow()
+    is_active = (
+        assignment.available_from is not None
+        and assignment.available_from <= now
+        and (assignment.available_until is None or now <= assignment.available_until)
+    )
+
+    draft = db.query(OnlineExamDraft).filter(
+        OnlineExamDraft.assignment_id == assignment_id,
+        OnlineExamDraft.student_id == current_student.id,
+    ).first()
+
+    submission = db.query(Submission).filter(
+        Submission.assignment_id == assignment_id,
+        Submission.student_id == current_student.id,
+        Submission.submitted_at.isnot(None),
+    ).first()
+
+    time_remaining = None
+    if assignment.time_limit_min and draft:
+        elapsed = (now - draft.started_at).total_seconds()
+        time_remaining = max(0, int(assignment.time_limit_min * 60 - elapsed))
+
+    return ExamStatusResponse(
+        is_active=is_active,
+        available_from=assignment.available_from,
+        available_until=assignment.available_until,
+        time_remaining_sec=time_remaining,
+        draft_exists=draft is not None,
+        draft_json=draft.draft_json if draft else None,
+        submitted=submission is not None,
+        score=submission.grade if submission else None,
+    )
+
+
+@router.get("/me/assignments/{assignment_id}/exam-file")
+async def get_exam_file(
+    assignment_id: int,
+    current_student: Student = Depends(get_student_or_impersonated),
+    db: Session = Depends(get_db),
+):
+    """Get presigned URL for the online exam HTML file."""
+    from app.storage import is_r2_configured, generate_presigned_url
+
+    if not is_r2_configured():
+        raise HTTPException(status_code=501, detail="Almacenamiento no configurado")
+
+    assignment = _verify_exam_access(assignment_id, current_student, db)
+
+    if not assignment.exam_html_key:
+        raise HTTPException(status_code=404, detail="El examen no tiene archivo HTML cargado")
+
+    url = generate_presigned_url(assignment.exam_html_key)
+    return {"presigned_url": url}
+
+
+@router.post("/me/assignments/{assignment_id}/exam-draft")
+async def save_exam_draft(
+    assignment_id: int,
+    data: ExamDraftRequest,
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    """Save or update draft state for an online exam."""
+    assignment = _verify_exam_access(assignment_id, current_student, db)
+
+    now = _dt.utcnow()
+    is_active = (
+        assignment.available_from is not None
+        and assignment.available_from <= now
+        and (assignment.available_until is None or now <= assignment.available_until)
+    )
+    if not is_active:
+        raise HTTPException(status_code=400, detail="El examen no está activo")
+
+    # Check not already submitted
+    existing_sub = db.query(Submission).filter(
+        Submission.assignment_id == assignment_id,
+        Submission.student_id == current_student.id,
+        Submission.submitted_at.isnot(None),
+    ).first()
+    if existing_sub:
+        raise HTTPException(status_code=400, detail="Ya entregaste este examen")
+
+    # Upsert draft
+    draft = db.query(OnlineExamDraft).filter(
+        OnlineExamDraft.assignment_id == assignment_id,
+        OnlineExamDraft.student_id == current_student.id,
+    ).first()
+
+    if draft:
+        draft.draft_json = data.draft_json
+        draft.saved_at = now
+        # started_at is NOT updated — it stays at the first save
+    else:
+        draft = OnlineExamDraft(
+            assignment_id=assignment_id,
+            student_id=current_student.id,
+            draft_json=data.draft_json,
+            started_at=now,
+            saved_at=now,
+        )
+        db.add(draft)
+
+    db.commit()
+    return {"saved": True}
+
+
+@router.post("/me/assignments/{assignment_id}/submit-online-exam", response_model=OnlineExamSubmitResponse)
+async def submit_online_exam(
+    assignment_id: int,
+    data: OnlineExamSubmitRequest,
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    """Submit an online exam receipt and create the grade."""
+    assignment = _verify_exam_access(assignment_id, current_student, db)
+
+    # Check window (allow a small grace period of 60s after closing)
+    now = _dt.utcnow()
+    if assignment.available_until and now > assignment.available_until + timedelta(seconds=60):
+        raise HTTPException(status_code=400, detail="El periodo del examen ya cerró")
+
+    # Check not already submitted
+    existing_sub = db.query(Submission).filter(
+        Submission.assignment_id == assignment_id,
+        Submission.student_id == current_student.id,
+        Submission.submitted_at.isnot(None),
+    ).first()
+    if existing_sub:
+        raise HTTPException(status_code=400, detail="Ya entregaste este examen")
+
+    # Create Submission
+    submission = Submission(
+        assignment_id=assignment_id,
+        student_id=current_student.id,
+        receipt_json=data.receipt_json,
+        grade=data.total_score,
+        is_late=False,
+        penalty_pct=100,
+    )
+    db.add(submission)
+    db.flush()
+
+    # Upsert Grade (same pattern as in-person exam grading)
+    existing_grade = db.query(Grade).filter(
+        Grade.student_id == current_student.id,
+        Grade.class_id == assignment.class_id,
+        Grade.name == assignment.title,
+    ).first()
+
+    if existing_grade:
+        existing_grade.score = data.total_score
+        existing_grade.max_score = assignment.max_points
+        existing_grade.category_id = assignment.category_id
+        grade_obj = existing_grade
+    else:
+        grade_obj = Grade(
+            student_id=current_student.id,
+            class_id=assignment.class_id,
+            category_id=assignment.category_id,
+            name=assignment.title,
+            score=data.total_score,
+            max_score=assignment.max_points,
+        )
+        db.add(grade_obj)
+
+    # Delete draft if exists
+    db.query(OnlineExamDraft).filter(
+        OnlineExamDraft.assignment_id == assignment_id,
+        OnlineExamDraft.student_id == current_student.id,
+    ).delete()
+
+    db.commit()
+    db.refresh(grade_obj)
+
+    return OnlineExamSubmitResponse(
+        score=data.total_score,
+        max_points=assignment.max_points,
+        grade_id=grade_obj.id,
+    )

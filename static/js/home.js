@@ -1195,8 +1195,42 @@ function renderAssignmentsSection() {
 
     section.classList.remove('hidden');
 
-    list.innerHTML = enrolledClasses.map(cls => {
-        const assignments = assignmentsByClassId[cls.class_id] || [];
+    // Active online exams — show prominently at top
+    const activeOnlineExams = [];
+    enrolledClasses.forEach(cls => {
+        (assignmentsByClassId[cls.class_id] || []).forEach(a => {
+            if (a.exam_type === 'online' && a.is_active && !a.submission) {
+                activeOnlineExams.push({ ...a, class_name: cls.class_name });
+            }
+        });
+    });
+
+    let onlineExamHtml = '';
+    if (activeOnlineExams.length) {
+        onlineExamHtml = activeOnlineExams.map(a => {
+            const untilStr = a.available_until
+                ? new Date(a.available_until + 'Z').toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                : null;
+            return `
+            <div class="bg-gradient-to-r from-primary to-secondary rounded-xl p-4 text-white shadow-lg mb-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium opacity-80 uppercase tracking-wider">${escHtml(a.class_name)}</p>
+                        <p class="text-lg font-bold mt-1">${escHtml(a.title)}</p>
+                        ${untilStr ? `<p class="text-sm opacity-80 mt-1">Cierra: ${untilStr}</p>` : ''}
+                        ${a.time_limit_min ? `<p class="text-sm opacity-80">Tiempo límite: ${a.time_limit_min} min</p>` : ''}
+                    </div>
+                    <a href="/exam/${a.id}" class="shrink-0 px-5 py-3 bg-white text-primary font-bold rounded-lg hover:bg-cream transition text-sm">
+                        Iniciar examen
+                    </a>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // Regular assignments (filter out online exams from normal list)
+    const regularHtml = enrolledClasses.map(cls => {
+        const assignments = (assignmentsByClassId[cls.class_id] || []).filter(a => a.exam_type !== 'online');
         if (!assignments.length) return '';
         return `
         <div class="mb-5">
@@ -1204,6 +1238,35 @@ function renderAssignmentsSection() {
             <div class="space-y-3">${assignments.map(a => renderAssignmentCard(a)).join('')}</div>
         </div>`;
     }).join('');
+
+    // Submitted/closed online exams as simple cards
+    const closedOnlineExams = [];
+    enrolledClasses.forEach(cls => {
+        (assignmentsByClassId[cls.class_id] || []).forEach(a => {
+            if (a.exam_type === 'online' && (a.submission || !a.is_active)) {
+                closedOnlineExams.push({ ...a, class_name: cls.class_name });
+            }
+        });
+    });
+
+    let closedOnlineHtml = '';
+    if (closedOnlineExams.length) {
+        closedOnlineHtml = '<div class="mb-5">' + closedOnlineExams.map(a => {
+            const isGraded = a.submission?.grade !== null && a.submission?.grade !== undefined;
+            if (isGraded) {
+                return `<div class="bg-white border border-gray-200 rounded-lg px-4 py-3 flex items-center justify-between">
+                    <div><span class="font-medium text-gray-800 text-sm">${escHtml(a.title)}</span> <span class="text-xs text-gray-400">${escHtml(a.class_name)}</span></div>
+                    <span class="text-sm font-semibold text-green-700">${a.submission.grade}/${a.max_points} pts</span>
+                </div>`;
+            }
+            return `<div class="bg-white border border-gray-200 rounded-lg px-4 py-3 flex items-center justify-between opacity-60">
+                <div><span class="font-medium text-gray-800 text-sm">${escHtml(a.title)}</span> <span class="text-xs text-gray-400">${escHtml(a.class_name)}</span></div>
+                <span class="text-xs text-gray-500">${a.submission ? 'Entregado' : 'Cerrado'}</span>
+            </div>`;
+        }).join('') + '</div>';
+    }
+
+    list.innerHTML = onlineExamHtml + regularHtml + closedOnlineHtml;
 }
 
 function renderAssignmentCard(a) {

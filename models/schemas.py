@@ -297,7 +297,11 @@ class AssignmentCreate(BaseModel):
     due_date: Optional[datetime] = None
     max_points: Optional[float] = 100
     category_id: Optional[int] = None
-    exam_type: str = 'homework'  # 'homework' or 'exam'
+    exam_type: str = 'homework'  # 'homework', 'exam', or 'online'
+    available_from: Optional[datetime] = None
+    available_until: Optional[datetime] = None
+    time_limit_min: Optional[int] = None
+    allow_save: bool = True
 
 
 class ExamGradeRequest(BaseModel):
@@ -337,6 +341,11 @@ class AssignmentResponse(BaseModel):
     exam_type: str = 'homework'
     allow_late: bool
     published: bool
+    available_from: Optional[datetime] = None
+    available_until: Optional[datetime] = None
+    time_limit_min: Optional[int] = None
+    allow_save: bool = True
+    has_exam_html: bool = False
     created_at: datetime
     submission_count: int = 0
     graded_count: int = 0
@@ -353,6 +362,11 @@ class AssignmentStudentView(BaseModel):
     due_date: datetime
     max_points: float
     allow_late: bool
+    exam_type: str = 'homework'
+    available_from: Optional[datetime] = None
+    available_until: Optional[datetime] = None
+    time_limit_min: Optional[int] = None
+    is_active: bool = False  # computed: online exam is currently available
     created_at: datetime
     submission: Optional[SubmissionResponse] = None
 
@@ -399,3 +413,46 @@ class JustificationReviewRequest(BaseModel):
 class AttendanceWithStudent(AttendanceResponse):
     student_name: str
     student_email: str
+
+
+# Online Exam schemas
+class ExamStatusResponse(BaseModel):
+    is_active: bool
+    available_from: Optional[datetime] = None
+    available_until: Optional[datetime] = None
+    time_remaining_sec: Optional[int] = None
+    draft_exists: bool = False
+    draft_json: Optional[str] = None
+    submitted: bool = False
+    score: Optional[float] = None
+
+
+class ExamDraftRequest(BaseModel):
+    draft_json: str
+
+
+class OnlineExamSubmitRequest(BaseModel):
+    receipt_json: str
+    total_score: float
+
+
+class OnlineExamSubmitResponse(BaseModel):
+    score: float
+    max_points: float
+    grade_id: int
+
+
+class AssignmentSettingsUpdate(BaseModel):
+    available_from: Optional[str] = None   # ISO datetime string or "now" or null
+    available_until: Optional[str] = None  # ISO datetime string or "now" or null
+    time_limit_min: Optional[int] = None
+    allow_save: Optional[bool] = None
+
+
+class OnlineSubmissionEntry(BaseModel):
+    student_id: int
+    student_name: str
+    student_email: str
+    submitted: bool = False
+    score: Optional[float] = None
+    submitted_at: Optional[datetime] = None
