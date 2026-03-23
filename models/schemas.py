@@ -425,6 +425,7 @@ class ExamStatusResponse(BaseModel):
     draft_json: Optional[str] = None
     submitted: bool = False
     score: Optional[float] = None
+    is_preview: bool = False
 
 
 class ExamDraftRequest(BaseModel):
@@ -440,6 +441,7 @@ class OnlineExamSubmitResponse(BaseModel):
     score: float
     max_points: float
     grade_id: int
+    is_preview: bool = False
 
 
 class AssignmentSettingsUpdate(BaseModel):

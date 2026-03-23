@@ -704,7 +704,7 @@ async def download_justification_file(
 
 
 def _verify_exam_access(assignment_id: int, student, db):
-    """Verify assignment exists, is online, and student is enrolled. Returns assignment."""
+    """Verify assignment exists, is online, and student is enrolled (or teacher owns it). Returns assignment."""
     assignment = db.query(Assignment).filter(
         Assignment.id == assignment_id,
         Assignment.published == True,
@@ -713,6 +713,18 @@ def _verify_exam_access(assignment_id: int, student, db):
         raise HTTPException(status_code=404, detail="Examen no encontrado")
     if assignment.exam_type != 'online':
         raise HTTPException(status_code=400, detail="Este no es un examen online")
+
+    # Teachers who own the class can access for preview
+    if student.role == 'teacher':
+        cls = db.query(Class).filter(
+            Class.id == assignment.class_id,
+            Class.teacher_id == student.id,
+        ).first()
+        if not cls:
+            raise HTTPException(status_code=403, detail="No tienes acceso a este examen")
+        return assignment
+
+    # Students must be enrolled
     enrollment = db.query(StudentClass).filter(
         StudentClass.student_id == student.id,
         StudentClass.class_id == assignment.class_id,
@@ -731,8 +743,11 @@ async def get_exam_status(
     """Get online exam status: active window, time remaining, draft/submission state."""
     assignment = _verify_exam_access(assignment_id, current_student, db)
 
+    # Teachers always get is_active=True (preview mode)
+    is_preview = current_student.role == 'teacher'
+
     now = _dt.utcnow()
-    is_active = (
+    is_active = is_preview or (
         assignment.available_from is not None
         and assignment.available_from <= now
         and (assignment.available_until is None or now <= assignment.available_until)
@@ -750,7 +765,7 @@ async def get_exam_status(
     ).first()
 
     time_remaining = None
-    if assignment.time_limit_min and draft:
+    if not is_preview and assignment.time_limit_min and draft:
         elapsed = (now - draft.started_at).total_seconds()
         time_remaining = max(0, int(assignment.time_limit_min * 60 - elapsed))
 
@@ -761,8 +776,9 @@ async def get_exam_status(
         time_remaining_sec=time_remaining,
         draft_exists=draft is not None,
         draft_json=draft.draft_json if draft else None,
-        submitted=submission is not None,
+        submitted=False if is_preview else submission is not None,
         score=submission.grade if submission else None,
+        is_preview=is_preview,
     )
 
 
@@ -796,6 +812,10 @@ async def save_exam_draft(
 ):
     """Save or update draft state for an online exam."""
     assignment = _verify_exam_access(assignment_id, current_student, db)
+
+    # Teachers in preview mode — no draft saved
+    if current_student.role == 'teacher':
+        return {"saved": True}
 
     now = _dt.utcnow()
     is_active = (
@@ -848,6 +868,15 @@ async def submit_online_exam(
 ):
     """Submit an online exam receipt and create the grade."""
     assignment = _verify_exam_access(assignment_id, current_student, db)
+
+    # Teachers in preview mode — skip submission entirely
+    if current_student.role == 'teacher':
+        return OnlineExamSubmitResponse(
+            score=data.total_score,
+            max_points=assignment.max_points,
+            grade_id=0,
+            is_preview=True,
+        )
 
     # Check window (allow a small grace period of 60s after closing)
     now = _dt.utcnow()

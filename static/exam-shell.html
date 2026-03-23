@@ -21,7 +21,7 @@
     </script>
     <style>
         body { margin: 0; padding: 0; background: #1F2020; overflow: hidden; height: 100vh; }
-        #exam-frame { border: none; width: 100%; height: calc(100vh - 48px); display: block; }
+        #exam-frame { border: none; width: 100%; display: block; }
         #top-bar { height: 48px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; background: #1F2020; border-bottom: 1px solid #333; color: #F2F0E4; font-family: system-ui, sans-serif; }
         #top-bar .title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #top-bar .timer { font-family: 'IBM Plex Mono', monospace, monospace; font-size: 14px; font-weight: 600; padding: 4px 12px; border-radius: 6px; }
@@ -34,6 +34,11 @@
         .spinner { width: 40px; height: 40px; border: 3px solid rgba(234,130,81,0.2); border-top-color: #EA8251; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 20px; }
         @keyframes spin { to { transform: rotate(360deg); } }
         #status-screen { display: none; position: fixed; inset: 0; background: #F2F0E4; z-index: 100; font-family: system-ui, sans-serif; }
+        /* Preview banner */
+        #preview-banner { display: none; height: 32px; background: #9C4927; color: #F2F0E4; font-family: system-ui, sans-serif; font-size: 12px; font-weight: 600; text-align: center; line-height: 32px; letter-spacing: 0.05em; }
+        body.is-preview #preview-banner { display: block; }
+        body.is-preview #exam-frame { height: calc(100vh - 48px - 32px); }
+        body:not(.is-preview) #exam-frame { height: calc(100vh - 48px); }
     </style>
 </head>
 <body>
@@ -61,6 +66,7 @@
 
 <!-- Top bar + iframe (hidden until ready) -->
 <div id="exam-container" style="display:none;">
+    <div id="preview-banner">👁 VISTA PREVIA — Las respuestas NO se guardarán ni calificarán</div>
     <div id="top-bar">
         <div class="title" id="exam-title-bar">Examen</div>
         <div class="flex items-center gap-3">
@@ -78,6 +84,7 @@ const authToken = localStorage.getItem('authToken');
 const assignmentId = parseInt(window.location.pathname.split('/exam/')[1]);
 
 let examStatus = null;
+let isPreview = false;
 let timerInterval = null;
 let timeRemainingSec = null;
 let draftSaveInProgress = false;
@@ -144,7 +151,7 @@ function startTimer(seconds) {
 
 // ── Draft save ──
 async function saveDraft(draftData) {
-    if (draftSaveInProgress) return;
+    if (isPreview || draftSaveInProgress) return;
     draftSaveInProgress = true;
     try {
         await api(`/students/me/assignments/${assignmentId}/exam-draft`, {
@@ -166,8 +173,13 @@ async function submitExam(receiptJson, score) {
             body: JSON.stringify({ receipt_json: receiptJson, total_score: score }),
         });
         clearInterval(timerInterval);
-        showStatus('✅', `Examen entregado — ${result.score}/${result.max_points}`,
-            'Tu calificación ya está registrada. Puedes regresar al dashboard.');
+        if (result.is_preview) {
+            showStatus('👁', `Vista previa completada — ${result.score}/${result.max_points}`,
+                'Esta fue una vista previa. No se registró ninguna calificación. Puedes regresar al panel.');
+        } else {
+            showStatus('✅', `Examen entregado — ${result.score}/${result.max_points}`,
+                'Tu calificación ya está registrada. Puedes regresar al dashboard.');
+        }
         document.getElementById('exam-container').style.display = 'none';
     } catch (e) {
         alert('Error al entregar: ' + e.message);
@@ -176,8 +188,11 @@ async function submitExam(receiptJson, score) {
 
 // ── Confirm exit ──
 function confirmExit() {
-    if (confirm('¿Salir del examen? Tu progreso guardado se mantendrá.')) {
-        window.location.href = '/';
+    const msg = isPreview
+        ? '¿Salir de la vista previa?'
+        : '¿Salir del examen? Tu progreso guardado se mantendrá.';
+    if (confirm(msg)) {
+        window.location.href = isPreview ? `/admin/class/${window._examClassId || ''}` : '/';
     }
 }
 
@@ -211,8 +226,14 @@ async function init() {
         document.getElementById('loading-msg').textContent = 'Verificando examen...';
         examStatus = await api(`/students/me/assignments/${assignmentId}/exam-status`);
 
-        // Already submitted?
-        if (examStatus.submitted) {
+        isPreview = examStatus.is_preview === true;
+
+        if (isPreview) {
+            document.body.classList.add('is-preview');
+        }
+
+        // Already submitted? (not shown to teacher in preview)
+        if (!isPreview && examStatus.submitted) {
             showStatus('📝', 'Examen ya entregado',
                 `Tu calificación: ${examStatus.score ?? '—'} pts. No puedes volver a presentarlo.`);
             return;
@@ -226,7 +247,7 @@ async function init() {
         }
 
         // Time expired? (draft exists but timer ran out)
-        if (examStatus.time_remaining_sec !== null && examStatus.time_remaining_sec <= 0) {
+        if (!isPreview && examStatus.time_remaining_sec !== null && examStatus.time_remaining_sec <= 0) {
             showStatus('⏰', 'Tiempo agotado',
                 'El tiempo para este examen ha terminado.');
             return;
@@ -239,13 +260,12 @@ async function init() {
         if (!examHtmlResp.ok) throw new Error('No se pudo descargar el archivo del examen');
         let examHtml = await examHtmlResp.text();
 
-        // 4. Compute time limit
+        // 4. Compute time limit (no timer in preview)
         let timeLimit = null;
-        if (examStatus.time_remaining_sec !== null) {
-            timeLimit = examStatus.time_remaining_sec;
-        } else if (examStatus.draft_exists) {
-            // Draft exists but no time_remaining — no time limit
-            timeLimit = null;
+        if (!isPreview) {
+            if (examStatus.time_remaining_sec !== null) {
+                timeLimit = examStatus.time_remaining_sec;
+            }
         }
 
         // 5. Prepare auth injection
@@ -255,7 +275,8 @@ async function init() {
             studentId: student.id,
             assignmentId: assignmentId,
             timeLimit: timeLimit,
-            draft: examStatus.draft_json || null,
+            draft: isPreview ? null : (examStatus.draft_json || null),
+            isPreview: isPreview,
         };
 
         // Inject __EXAM_AUTH__ before closing </body> tag
@@ -267,15 +288,16 @@ async function init() {
         }
 
         // 6. Show exam
-        document.getElementById('exam-title-bar').textContent = `Examen — ${student.name}`;
+        const titlePrefix = isPreview ? '👁 Vista Previa' : 'Examen';
+        document.getElementById('exam-title-bar').textContent = `${titlePrefix} — ${student.name}`;
         document.getElementById('exam-container').style.display = 'block';
         document.getElementById('loading-msg').textContent = 'Iniciando Pyodide...';
 
         const iframe = document.getElementById('exam-frame');
         iframe.srcdoc = examHtml;
 
-        // 7. Start timer if applicable
-        if (timeLimit !== null && timeLimit > 0) {
+        // 7. Start timer if applicable (never in preview)
+        if (!isPreview && timeLimit !== null && timeLimit > 0) {
             startTimer(timeLimit);
         }
 

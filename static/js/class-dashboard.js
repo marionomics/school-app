@@ -668,6 +668,7 @@ function renderOnlineExamsList() {
                 ${status.color === 'gray' ? `<button onclick="activateOnlineExam(${exam.id})" class="text-xs px-3 py-1 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition">Activar ahora</button>` : ''}
                 ${status.color === 'green' ? `<button onclick="closeOnlineExam(${exam.id})" class="text-xs px-3 py-1 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition">Cerrar</button>` : ''}
                 ${status.color !== 'gray' ? `<button onclick="extendOnlineExam(${exam.id})" class="text-xs px-3 py-1 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition">Extender plazo</button>` : ''}
+                ${exam.has_exam_html ? `<a href="/exam/${exam.id}" target="_blank" class="text-xs px-3 py-1 bg-primary-10 text-secondary rounded-lg hover:bg-primary-5 transition font-medium">👁 Vista previa</a>` : ''}
                 <button onclick="viewOnlineSubmissions(${exam.id}, '${exam.title.replace(/'/g, "\\'")}')" class="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">Ver entregas</button>
             </div>
         </div>`;
