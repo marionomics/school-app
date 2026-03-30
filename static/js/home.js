@@ -96,6 +96,8 @@ async function handleGoogleCredentialResponse(response) {
         authToken = result.token;
         currentUser = result.student;
         localStorage.setItem('authToken', authToken);
+        // Clear any POST state from browser history (prevents "Quieres llenar este formulario otra vez?" dialog)
+        history.replaceState(null, '', '/');
         await boot();
     } catch (e) {
         err.textContent = 'Error de autenticacion. Por favor intenta de nuevo.';

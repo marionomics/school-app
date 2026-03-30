@@ -38,3 +38,6 @@ htmlcov/
 
 # Logs
 *.log
+
+# Internal documents
+planning/

@@ -433,7 +433,7 @@ class ExamDraftRequest(BaseModel):
 
 
 class OnlineExamSubmitRequest(BaseModel):
-    receipt_json: str
+    receipt_json: Optional[str] = None
     total_score: float
 
 

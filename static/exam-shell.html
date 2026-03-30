@@ -182,7 +182,7 @@ async function submitExam(receiptJson, score) {
         }
         document.getElementById('exam-container').style.display = 'none';
     } catch (e) {
-        alert('Error al entregar: ' + e.message);
+        alert('❌ Error al entregar el examen: ' + e.message + '\n\nPor favor avisa a tu profesor AHORA con este mensaje de error para que pueda registrar tu calificación manualmente.');
     }
 }
 
@@ -210,7 +210,8 @@ window.addEventListener('message', (event) => {
             saveDraft(msg.data);
             break;
         case 'SUBMIT':
-            submitExam(msg.receipt, msg.score);
+            // Accept both naming conventions from exam HTML authors
+            submitExam(msg.receipt ?? msg.receipt_json ?? null, msg.score ?? msg.total_score ?? 0);
             break;
     }
 });

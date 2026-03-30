@@ -898,6 +898,7 @@ async def submit_online_exam(
         student_id=current_student.id,
         receipt_json=data.receipt_json,
         grade=data.total_score,
+        submitted_at=_dt.utcnow(),
         is_late=False,
         penalty_pct=100,
     )
