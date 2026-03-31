@@ -8,13 +8,14 @@ A FastAPI application for managing student attendance, participation, and grades
 - **Class Dashboard**: Comprehensive per-class view with stats, roster, attendance, grades, and participation tabs
 - **Flexible Grading System**: Configurable grade categories with weights; per-class grading mode — "Puntos" (uncapped, extras stack freely) or "Porcentajes" (capped at 100)
 - **Assignment System (Retos)**: Create assignments with category selection, students submit Google Drive links or upload files (via Cloudflare R2), teacher grading modal with auto-grade support
+- **Online Exams**: Teacher uploads a single-file Pyodide HTML exam to R2; sets an activation window and optional time limit; students take the exam in a sandboxed full-screen shell page; auto-graded on submit; receipt JSON stored; draft state saved server-side so students can resume on any device. Teacher can also "Calificar" manually if auto-submit fails.
 - **Exam Grading (Exámenes)**: Create in-person exams and grade all students in a fast keyboard-driven modal — search by name, Tab to score, Enter to save and move to next student
 - **File Uploads**: Optional Cloudflare R2 integration for direct file submissions (PDF, DOCX, ZIP, images, max 10MB) with upload progress and presigned download URLs
 - **Attendance Justifications**: Students submit justifications (text explanation and/or uploaded document) for absences/lates directly from their dashboard; teachers approve/reject; approved justifications change status to "excused" and remove the -1 point grade penalty. Student dashboard shows "Justificar →" button on absence cards, a persistent link when unjustified absences exist, and "⏳ en revisión" badge for pending submissions.
 - **Student Preview Mode**: Teachers can preview the student dashboard as any enrolled student via impersonation
 - **Combined Landing Page**: Unified page for students — class progress cards (with full grade breakdown modal) → participation form → assignments → forum feed. No separate navigation needed.
 - **Forum**: Unified class discussion board showing posts from all enrolled classes, with threaded replies, likes, teacher moderation (pin/lock/delete), and a casino-style engagement points system
-- **Forum Points (Casino System)**: Students earn fractional grade points for posting (+0.01/post, max 3/day) and receiving likes (0.01–0.05/like based on post popularity, with jackpot/double/mini bonus rolls). Anti-exploit: post needs ≥2 likes before awarding; user can only award points to same author once per day. Hard cap: 3.0 pts per class.
+- **Forum Points (Casino System)**: Students earn fractional grade points for posting (+0.1/post, max 3/day) and receiving likes (+0.1–0.5/like based on post popularity, with jackpot/double/mini bonus rolls). Anti-exploit: post needs ≥2 likes before awarding; user can only award points to same author once per day. Points add 1:1 to final grade (uncapped, same as participation).
 - **Teacher Admin Panel**: Simple class overview with quick stats, click any class to open detailed dashboard
 - **Google OAuth**: Secure authentication via Google accounts
 - **Spanish UI**: Full Spanish language interface
@@ -26,7 +27,7 @@ A FastAPI application for managing student attendance, participation, and grades
 - **Backend**: FastAPI, SQLAlchemy, Pydantic
 - **Database**: SQLite (dev) / PostgreSQL (production)
 - **Storage**: Cloudflare R2 (S3-compatible, optional for file uploads)
-- **Frontend**: Vanilla JS, Tailwind CSS (CDN), warm cream/orange palette
+- **Frontend**: Vanilla JS, Tailwind CSS (CDN), Inter font (Google Fonts), warm cream/orange palette
 - **Auth**: Google OAuth 2.0
 - **Deployment**: Railway
 
@@ -119,7 +120,7 @@ The default mode is `points`, which matches UJED's system where categories total
 - Natural ceiling ~100 pts for a consistently active student over a semester
 
 ### Forum Points
-- Students earn fractional points through forum engagement, added directly to final grade (hard cap: 3.0 pts per class)
+- Students earn fractional points through forum engagement, added directly to final grade (uncapped — same 1:1 ratio as participation points)
 - **+0.1 pts** per post created (max 3 posts/day, global across classes)
 - **Per-like earnings** (post needs ≥2 likes to qualify, once per author per day): +0.1 (≤10 likes), +0.2 (≤25), +0.3 (≤50), +0.5 (50+ likes)
 - **Casino bonus rolls** on each qualifying like: 0.2% jackpot (+5.0 pts), 2% double (×2 base), 5% mini (+0.2 flat)
@@ -196,6 +197,10 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 | POST | `/api/students/me/attendance/:id/justify` | Submit justification for absence (multipart: optional file + optional text; at least one required) |
 | GET | `/api/students/attendance/:id/justification-file` | Get presigned URL for justification file |
 | POST | `/api/participation` | Submit participation (requires class_id) |
+| GET | `/api/students/me/assignments/:id/exam-status` | Active window, time remaining, draft/submit state |
+| GET | `/api/students/me/assignments/:id/exam-file` | Presigned R2 URL for exam HTML |
+| POST | `/api/students/me/assignments/:id/exam-draft` | Save draft state (upsert) |
+| POST | `/api/students/me/assignments/:id/submit-online-exam` | Submit receipt JSON, auto-create grade |
 
 > Student endpoints support teacher impersonation via `X-Impersonate: {student_id}` header.
 
@@ -229,6 +234,9 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 | PATCH | `/api/admin/classes/:id/settings` | Update class settings (grading_mode) |
 | GET | `/api/admin/assignments/:id/exam-grading` | All enrolled students with current exam grade |
 | POST | `/api/admin/assignments/:id/exam-grade` | Save/update one student's exam grade (no submission) |
+| POST | `/api/admin/assignments/:id/upload-exam-html` | Upload HTML file for online exam (multipart, R2) |
+| PATCH | `/api/admin/assignments/:id/settings` | Update online exam settings (window, time limit) |
+| GET | `/api/admin/assignments/:id/online-submissions` | List students with online exam submission status |
 
 ### Forum (requires auth)
 | Method | Endpoint | Description |
@@ -248,53 +256,25 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 
 ## Database Migrations
 
-This project uses **Alembic** for database migrations to safely manage schema changes without data loss.
+This project uses a lightweight **auto-migration** approach instead of Alembic. On every startup, `app/main.py` runs two steps:
 
-### Creating a New Migration
+1. **`Base.metadata.create_all()`** — creates any tables that don't exist yet (safe, never drops)
+2. **`_ensure_columns()`** — adds missing columns to existing tables via `ALTER TABLE`
 
-After modifying models in `models/models.py`:
+To add a new column to an existing table:
 
-```bash
-# Generate migration automatically from model changes
-alembic revision --autogenerate -m "Add new_field to students"
-
-# Review the generated migration in alembic/versions/
-# Then apply it
-alembic upgrade head
+```python
+# In app/main.py → _ensure_columns()
+if "my_new_column" not in existing_cols:
+    conn.execute(text(
+        "ALTER TABLE my_table ADD COLUMN my_new_column VARCHAR(100)"
+    ))
 ```
 
-### Applying Migrations
-
-```bash
-# Apply all pending migrations
-alembic upgrade head
-
-# Or use the migration script
-python scripts/migrate.py
-
-# Check migration status
-python scripts/migrate.py --check
-```
-
-### Rolling Back
-
-```bash
-# Rollback last migration
-alembic downgrade -1
-
-# Or use the script
-python scripts/migrate.py --rollback
-
-# Rollback to specific revision
-alembic downgrade <revision_id>
-```
-
-### Important Notes
-
-- **Never use `drop_all()`** - it deletes all data
-- Always review auto-generated migrations before applying
-- Test migrations on a copy of production data first
-- Migrations run automatically on Railway deployment (via Procfile)
+**PostgreSQL compatibility rules:**
+- Use `TIMESTAMP` not `DATETIME`
+- Use `DEFAULT TRUE` not `DEFAULT 1` for booleans
+- Always check `existing_cols` before running ALTER TABLE
 
 ## Railway Deployment
 
@@ -334,6 +314,7 @@ school-app/
 │   ├── index.html        # Combined Forum + Dashboard landing page (Spanish)
 │   ├── admin.html        # Admin panel - class overview (Spanish)
 │   ├── class-dashboard.html  # Per-class dashboard (Spanish)
+│   ├── exam-shell.html   # Online exam shell (auth, timer, iframe, postMessage)
 │   ├── forum.html        # Standalone forum page
 │   └── js/
 │       ├── home.js       # Combined landing page JS (forum + dashboard + casino toasts)
@@ -353,9 +334,12 @@ school-app/
 
 ### Planned Features
 
+- **Extra Points Redesign**: Replace boolean special-points flags with a student-driven submission system (teacher creates opportunities, students submit proof, teacher approves)
 - **Lessons/Classroom**: Rich content lessons with video embeds, attachments, and progress tracking
+- **QR Attendance**: Time-windowed QR codes for automatic attendance, with peer-to-peer chain propagation
+- **In-App Notifications**: Bell icon with unread count; triggers on new assignments, participation reviews, etc.
 
-See `CLAUDE.md` for detailed schema designs.
+See `planning/ROADMAP.md` for full details and `planning/NEXT_STEPS.md` for current priority queue.
 
 ## License
 

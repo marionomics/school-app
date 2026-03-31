@@ -172,6 +172,10 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `POST /api/admin/assignments/{id}/upload-exam-html` - Upload HTML file for online exam (multipart, R2)
 - `PATCH /api/admin/assignments/{id}/settings` - Update online exam settings (available_from, available_until, time_limit_min, allow_save)
 - `GET /api/admin/assignments/{id}/online-submissions` - List students with online exam submission status
+- Online exam cards in the Exámenes tab have a **"Calificar"** button that opens the keyboard-first grading modal (same as in-person exams) — useful for manual grade entry when auto-submit fails
+- `submitted_at` is always set explicitly in `submit_online_exam` (never rely on ORM default for this field)
+- `receipt_json` is Optional in `OnlineExamSubmitRequest` — the exam can submit even if receipt format differs
+- The shell's `SUBMIT` postMessage handler accepts both `{receipt, score}` and `{receipt_json, total_score}` naming conventions
 
 ### Online Exam Endpoints (Student)
 - `GET /exam/{assignment_id}` - Serves exam shell page (auth checked via JS)
@@ -441,6 +445,10 @@ lesson_progress
 
 - Frontend uses Tailwind CSS via CDN (no build step) with custom color palette defined in each HTML file's `<script>` (Tailwind config) and `<style>` blocks (opacity variants like `.bg-primary-5`, `.bg-primary-10`, `.hover\:bg-primary-5:hover` etc.)
 - **Theme colors**: `primary: #EA8251` (orange), `secondary: #9C4927` (rust), `cream: #F2F0E4` (background), `dark: #1F2020` (near-black). Body uses `bg-cream`. Buttons use `bg-primary hover:bg-secondary`. Opacity variants defined as plain CSS classes (Tailwind CDN doesn't support `/opacity` syntax with custom colors).
+- **Typography**: All pages load Inter via Google Fonts (`<link>` in `<head>`) and set `body { font-family: 'Inter', system-ui, sans-serif; }` in the `<style>` block. Do not use other fonts.
+- **Icons**: Use inline Heroicons-style SVGs (stroke-based, `fill="none" stroke="currentColor"`). **No emoji icons** in UI elements — emoji only acceptable inside user-generated content.
+- **Focus rings**: Always `focus:ring-primary` on form inputs/selects/textareas. Never `focus:ring-violet-*` or other off-brand colors.
+- **No purple/violet in UI**: The participation section and all interactive elements use the warm orange/rust palette. No `#667eea`, `#764ba2`, or Tailwind violet classes in structural UI.
 - Frontend is fully translated to Spanish (UI labels, messages, date formatting uses es-MX locale)
 - Database file (`school.db`) is gitignored
 - Run `seed_data.py` to populate test data (creates teacher, 3 students, sample class, enrollments, and sample records)
