@@ -41,3 +41,6 @@ htmlcov/
 
 # Internal documents
 planning/
+
+# Superpowers brainstorm sessions
+.superpowers/
