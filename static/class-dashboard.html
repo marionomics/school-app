@@ -1,730 +1,760 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard de Clase</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#EA8251',
-                        secondary: '#9C4927',
-                        cream: '#F2F0E4',
-                        dark: '#1F2020'
-                    }
-                }
-            }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel del Profesor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            dark: '#2b2b2b',
+            surface: '#1e1e1e',
+            lime: '#c8f135',
+            warning: '#f5a623',
+            danger: '#ff6060',
+            cream: '#f0ede6',
+          }
         }
-    </script>
-    <style>
-        .bg-primary-5 { background-color: rgba(234,130,81,0.05); }
-        .bg-primary-10 { background-color: rgba(234,130,81,0.1); }
-        .bg-primary-20 { background-color: rgba(234,130,81,0.2); }
-        .border-primary-30 { border-color: rgba(234,130,81,0.3); }
-        .hover\:bg-primary-5:hover { background-color: rgba(234,130,81,0.05); }
-        .hover\:bg-primary-10:hover { background-color: rgba(234,130,81,0.1); }
-        .hover\:bg-primary-20:hover { background-color: rgba(234,130,81,0.2); }
-        .hover\:border-primary-30:hover { border-color: rgba(234,130,81,0.3); }
-        body { font-family: 'Inter', system-ui, sans-serif; }
-        .tab-active { border-color: #EA8251; color: #EA8251; }
-        .status-good { background-color: #dcfce7; color: #166534; }
-        .status-warning { background-color: #fef9c3; color: #854d0e; }
-        .status-at_risk { background-color: #fee2e2; color: #991b1b; }
-    </style>
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/static/css/brand.css">
+  <style>
+    body { background: #2b2b2b; color: #fff; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    /* Status badges (kept structural) */
+    .status-good { background-color: rgba(200,241,53,0.15); color: #c8f135; }
+    .status-warning { background-color: rgba(245,166,35,0.15); color: #f5a623; }
+    .status-at_risk { background-color: rgba(255,96,96,0.15); color: #ff6060; }
+    /* Table styles for dark mode */
+    .dark-table thead { background: rgba(255,255,255,0.04); }
+    .dark-table th { color: rgba(255,255,255,0.4); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; padding: 10px 14px; text-align: left; }
+    .dark-table td { padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.85); }
+    .dark-table tr:last-child td { border-bottom: none; }
+    /* Form inputs */
+    .dark-input {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: #fff;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: var(--font-brand);
+      width: 100%;
+      font-size: 13px;
+    }
+    .dark-input:focus { outline: 2px solid var(--lime); outline-offset: 2px; border-color: transparent; }
+    .dark-input::placeholder { color: rgba(255,255,255,0.25); }
+    select.dark-input option { background: #2b2b2b; color: #fff; }
+    /* Section heading */
+    .section-heading { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 14px; }
+  </style>
 </head>
-<body class="bg-cream min-h-screen">
-    <!-- Loading State -->
-    <div id="loading-section" class="min-h-screen flex items-center justify-center">
-        <div class="text-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-            <p class="mt-4 text-gray-500">Cargando...</p>
+<body>
+
+  <!-- Loading State -->
+  <div id="loading-section" style="min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column">
+    <div style="text-align:center">
+      <div style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--lime);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto"></div>
+      <p style="margin-top:14px;color:rgba(255,255,255,0.4);font-size:13px">Cargando...</p>
+    </div>
+  </div>
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+  <!-- Login Required -->
+  <div id="login-section" class="hidden" style="min-height:100vh;display:none;align-items:center;justify-content:center">
+    <div class="teacher-card" style="padding:32px;max-width:380px;width:100%;margin:0 16px;text-align:center">
+      <div class="brand-mark" style="margin:0 auto 16px">M↗</div>
+      <h1 style="font-size:20px;font-weight:700;margin-bottom:8px">Acceso Requerido</h1>
+      <p style="color:rgba(255,255,255,0.4);margin-bottom:20px;font-size:14px">Debes iniciar sesion como profesor para ver este dashboard.</p>
+      <a href="/admin" class="btn-lime" style="display:inline-block;text-decoration:none">Ir a Panel de Admin</a>
+    </div>
+  </div>
+
+  <!-- Main Dashboard -->
+  <div id="dashboard-section" class="hidden">
+
+    <!-- Header -->
+    <header style="background:var(--surface);border-bottom:1px solid rgba(255,255,255,0.07);position:sticky;top:0;z-index:30">
+      <div style="max-width:1200px;margin:0 auto;padding:0 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="brand-mark">M↗</div>
+            <div>
+              <div class="micro-label">Panel del Profesor</div>
+              <div id="class-name" style="font-weight:600;font-size:16px;color:#fff;margin-top:2px">—</div>
+              <div id="class-code" style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:1px"></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span id="teacher-name" style="font-size:13px;color:rgba(255,255,255,0.35)"></span>
+            <button onclick="openStudentPreview()" class="btn-ghost" style="font-size:13px;padding:7px 14px">Vista de Estudiante</button>
+            <a href="/admin" class="btn-ghost" style="font-size:13px;padding:7px 14px;text-decoration:none">← Clases</a>
+          </div>
         </div>
+        <nav style="display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none" id="tabNav">
+          <button class="teacher-tab active" data-tab="hoy" onclick="showTab('hoy')">Hoy</button>
+          <button class="teacher-tab" data-tab="alumnos" onclick="showTab('alumnos')">Alumnos</button>
+          <button class="teacher-tab" data-tab="evaluaciones" onclick="showTab('evaluaciones')">Evaluaciones</button>
+          <button class="teacher-tab" data-tab="historial" onclick="showTab('historial')">
+            Historial
+            <span id="justification-badge" class="hidden" style="background:var(--danger);color:#fff;border-radius:9999px;padding:1px 7px;font-size:11px;margin-left:4px;vertical-align:middle"></span>
+          </button>
+          <button class="teacher-tab" data-tab="foro" onclick="showTab('foro')">Foro</button>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Stats strip -->
+    <div style="background:var(--surface);border-bottom:1px solid rgba(255,255,255,0.06)">
+      <div style="max-width:1200px;margin:0 auto;padding:10px 16px;display:flex;gap:24px;overflow-x:auto">
+        <div style="white-space:nowrap">
+          <div class="micro-label">Estudiantes</div>
+          <div id="stat-students" style="font-size:20px;font-weight:700;color:var(--lime)">--</div>
+        </div>
+        <div style="white-space:nowrap">
+          <div class="micro-label">Asistencia</div>
+          <div id="stat-attendance" style="font-size:20px;font-weight:700;color:#fff">--%</div>
+        </div>
+        <div style="white-space:nowrap">
+          <div class="micro-label">Promedio</div>
+          <div id="stat-grade" style="font-size:20px;font-weight:700;color:#fff">--</div>
+        </div>
+        <div style="white-space:nowrap">
+          <div class="micro-label">En Riesgo</div>
+          <div id="stat-at-risk" style="font-size:20px;font-weight:700;color:var(--danger)">--</div>
+        </div>
+        <div style="white-space:nowrap">
+          <div class="micro-label">Destacados</div>
+          <div id="stat-top" style="font-size:20px;font-weight:700;color:var(--lime)">--</div>
+        </div>
+        <div style="white-space:nowrap">
+          <div class="micro-label">Pendientes</div>
+          <div id="stat-pending" style="font-size:20px;font-weight:700;color:var(--warning)">--</div>
+        </div>
+      </div>
     </div>
 
-    <!-- Login Required -->
-    <div id="login-section" class="hidden min-h-screen flex items-center justify-center">
-        <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full mx-4 text-center">
-            <h1 class="text-2xl font-bold text-gray-800 mb-4">Acceso Requerido</h1>
-            <p class="text-gray-500 mb-6">Debes iniciar sesion como profesor para ver este dashboard.</p>
-            <a href="/admin" class="inline-block bg-primary hover:bg-secondary text-white font-medium py-2 px-6 rounded-lg transition">
-                Ir a Panel de Admin
-            </a>
-        </div>
-    </div>
+    <!-- Tab Content -->
+    <main style="max-width:1200px;margin:0 auto;padding:20px 16px">
 
-    <!-- Main Dashboard -->
-    <div id="dashboard-section" class="hidden">
-        <!-- Header -->
-        <header class="bg-white shadow-sm border-b border-gray-200">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between items-center h-16">
-                    <div class="flex items-center gap-4">
-                        <a href="/admin" class="text-gray-400 hover:text-gray-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                            </svg>
-                        </a>
-                        <div>
-                            <h1 id="class-name" class="text-xl font-bold text-gray-800">Cargando...</h1>
-                            <p id="class-code" class="text-sm text-gray-500"></p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-4">
-                        <span id="teacher-name" class="text-gray-600 hidden sm:block"></span>
-                        <a href="/admin" class="text-gray-500 hover:text-gray-700 text-sm font-medium">
-                            Volver al Panel
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </header>
+      <!-- HOY TAB -->
+      <div id="tab-hoy" class="tab-panel" style="display:block">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:8px">
 
-        <!-- Stats Cards -->
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                    <p class="text-sm text-gray-500">Estudiantes</p>
-                    <p id="stat-students" class="text-2xl font-bold text-primary">--</p>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                    <p class="text-sm text-gray-500">Asistencia</p>
-                    <p id="stat-attendance" class="text-2xl font-bold text-blue-600">--%</p>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                    <p class="text-sm text-gray-500">Promedio</p>
-                    <p id="stat-grade" class="text-2xl font-bold text-green-600">--</p>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                    <p class="text-sm text-gray-500">En Riesgo</p>
-                    <p id="stat-at-risk" class="text-2xl font-bold text-red-600">--</p>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                    <p class="text-sm text-gray-500">Top Performers</p>
-                    <p id="stat-top" class="text-2xl font-bold text-primary">--</p>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                    <p class="text-sm text-gray-500">Pendientes</p>
-                    <p id="stat-pending" class="text-2xl font-bold text-amber-600">--</p>
-                </div>
+          <div class="teacher-card" style="padding:20px">
+            <div class="micro-label" style="margin-bottom:12px">Asistencia de hoy</div>
+            <div id="hoy-attendance-summary" style="font-size:28px;font-weight:700;color:var(--lime)">—</div>
+            <div id="hoy-attendance-detail" style="font-size:13px;color:rgba(255,255,255,0.4);margin-top:4px"></div>
+            <button onclick="showTab('alumnos');setAlumnosMode('asistencia')" class="btn-lime" style="width:100%;margin-top:14px;font-size:13px">Tomar Asistencia</button>
+          </div>
+
+          <div class="teacher-card" style="padding:20px">
+            <div class="micro-label" style="margin-bottom:12px">Participación en vivo</div>
+            <div id="hoy-participation-count" style="font-size:28px;font-weight:700;color:var(--warning)">—</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.4);margin-top:4px">participaciones pendientes</div>
+            <div style="display:flex;gap:8px;margin-top:14px">
+              <button onclick="bulkApproveParticipation()" class="btn-lime" style="flex:1;font-size:13px">Aprobar Todo</button>
+              <button onclick="showTab('evaluaciones')" class="btn-ghost" style="flex:1;font-size:13px">Revisar</button>
             </div>
+          </div>
+
+          <div class="teacher-card" style="padding:20px">
+            <div class="micro-label" style="margin-bottom:12px">Foro — actividad reciente</div>
+            <div id="hoy-forum-activity" style="font-size:13px;color:rgba(255,255,255,0.3)">Cargando...</div>
+            <button onclick="showTab('foro')" class="btn-ghost" style="width:100%;margin-top:14px;font-size:13px">Ir al Foro</button>
+          </div>
+
         </div>
 
-        <!-- Tabs -->
-        <div class="bg-white border-b border-gray-200">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <nav class="flex space-x-8 overflow-x-auto">
-                    <button onclick="showTab('overview')" id="tab-overview"
-                            class="tab-btn tab-active border-b-2 py-4 px-1 text-sm font-medium whitespace-nowrap">
-                        Vista General
-                    </button>
-                    <button onclick="showTab('roster')" id="tab-roster"
-                            class="tab-btn border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
-                        Lista de Alumnos
-                    </button>
-                    <button onclick="showTab('attendance')" id="tab-attendance"
-                            class="tab-btn border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
-                        Asistencia
-                    </button>
-                    <button onclick="showTab('grades')" id="tab-grades"
-                            class="tab-btn border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
-                        Exámenes
-                    </button>
-                    <button onclick="showTab('participation')" id="tab-participation"
-                            class="tab-btn border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
-                        Participacion
-                    </button>
-                    <button onclick="showTab('assignments')" id="tab-assignments"
-                            class="tab-btn border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
-                        Retos
-                    </button>
-                    <button onclick="showTab('justifications')" id="tab-justifications"
-                            class="tab-btn border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap relative">
-                        Justificaciones
-                        <span id="justification-badge" class="hidden absolute -top-1 -right-2 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">0</span>
-                    </button>
-                </nav>
+        <!-- Overview: At Risk + Recent Activity -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:16px">
+          <div class="teacher-card" style="padding:20px">
+            <div class="section-heading">Estudiantes en Riesgo</div>
+            <div id="at-risk-list" style="space-y:8px">
+              <p style="color:rgba(255,255,255,0.3);font-size:13px">Cargando...</p>
             </div>
+          </div>
+          <div class="teacher-card" style="padding:20px">
+            <div class="section-heading">Actividad Reciente</div>
+            <div id="recent-activity">
+              <p style="color:rgba(255,255,255,0.3);font-size:13px">Cargando...</p>
+            </div>
+          </div>
         </div>
 
-        <!-- Tab Content -->
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <!-- Overview Tab -->
-            <div id="panel-overview" class="tab-panel">
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- Quick Actions -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Acciones Rapidas</h3>
-                        <div class="space-y-3">
-                            <button onclick="showTab('attendance')" class="w-full text-left px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition">
-                                <span class="font-medium">Tomar Asistencia</span>
-                                <span class="text-sm block text-blue-600">Registrar asistencia de hoy</span>
-                            </button>
-                            <button onclick="showTab('grades')" class="w-full text-left px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition">
-                                <span class="font-medium">Exámenes</span>
-                                <span class="text-sm block text-green-600">Calificar exámenes y ver categorías</span>
-                            </button>
-                            <button onclick="showTab('participation')" class="w-full text-left px-4 py-3 bg-primary-5 text-secondary rounded-lg hover:bg-primary-10 transition">
-                                <span class="font-medium">Revisar Participaciones</span>
-                                <span class="text-sm block text-primary" id="pending-count">-- pendientes</span>
-                            </button>
-                            <button onclick="showTab('justifications')" class="w-full text-left px-4 py-3 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition">
-                                <span class="font-medium">Justificaciones</span>
-                                <span class="text-sm block text-amber-600" id="pending-justifications-count">-- pendientes</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Students at Risk -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Estudiantes en Riesgo</h3>
-                        <div id="at-risk-list" class="space-y-3">
-                            <p class="text-gray-500 text-sm">Cargando...</p>
-                        </div>
-                    </div>
-
-                    <!-- Recent Activity -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Actividad Reciente</h3>
-                        <div id="recent-activity" class="space-y-3">
-                            <p class="text-gray-500 text-sm">Cargando...</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Grade Categories -->
-                <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Categorias de Calificacion</h3>
-                    <div id="categories-overview" class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <p class="text-gray-500 text-sm">Cargando...</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Roster Tab -->
-            <div id="panel-roster" class="tab-panel hidden">
-                <!-- Filters -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-                    <div class="flex flex-col md:flex-row gap-4">
-                        <div class="flex-1">
-                            <input type="text" id="search-input" placeholder="Buscar por nombre o email..."
-                                   oninput="applyFilters()"
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
-                        </div>
-                        <div class="flex gap-2 flex-wrap">
-                            <select id="sort-select" onchange="applyFilters()"
-                                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                <option value="name-asc">Nombre A-Z</option>
-                                <option value="name-desc">Nombre Z-A</option>
-                                <option value="grade-desc">Calificacion (Mayor)</option>
-                                <option value="grade-asc">Calificacion (Menor)</option>
-                                <option value="attendance-desc">Asistencia (Mayor)</option>
-                                <option value="attendance-asc">Asistencia (Menor)</option>
-                                <option value="participation-desc">Participacion (Mayor)</option>
-                            </select>
-                            <select id="status-select" onchange="applyFilters()"
-                                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                <option value="all">Todos</option>
-                                <option value="good">Buen estado</option>
-                                <option value="warning">Advertencia</option>
-                                <option value="at_risk">En riesgo</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Student Table -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estudiante</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Estado</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Asistencia</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Participacion</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Calificacion</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ultima Actividad</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="roster-table" class="divide-y divide-gray-100">
-                                <tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Cargando...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Attendance Tab -->
-            <div id="panel-attendance" class="tab-panel hidden">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                        <h2 class="text-lg font-semibold text-gray-800">Asistencia del Dia</h2>
-                        <div class="flex items-center gap-3">
-                            <input type="date" id="attendance-date"
-                                   class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                            <button onclick="loadAttendanceForDate()"
-                                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50">
-                                Cargar
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estudiante</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Presente</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ausente</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Tarde</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notas</th>
-                                </tr>
-                            </thead>
-                            <tbody id="attendance-table" class="divide-y divide-gray-100">
-                                <tr><td colspan="5" class="px-4 py-4 text-center text-gray-500">Cargando...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="mt-6 flex justify-end">
-                        <button onclick="saveAttendance()"
-                                class="bg-primary hover:bg-secondary text-white font-medium py-2 px-6 rounded-lg transition">
-                            Guardar Asistencia
-                        </button>
-                    </div>
-                    <div id="attendance-success" class="hidden mt-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm">
-                        Asistencia guardada exitosamente!
-                    </div>
-                </div>
-            </div>
-
-            <!-- Exámenes Tab -->
-            <div id="panel-grades" class="tab-panel hidden">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Exam List + Create -->
-                    <div class="space-y-4">
-                        <!-- Exam List -->
-                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <div class="flex items-center justify-between mb-4">
-                                <h2 class="text-lg font-semibold text-gray-800">Exámenes Presenciales</h2>
-                            </div>
-                            <div id="exams-list" class="space-y-2 mb-4">
-                                <p class="text-gray-400 text-sm">Cargando...</p>
-                            </div>
-                            <!-- Create Exam Form -->
-                            <div class="border-t pt-4">
-                                <h3 class="text-sm font-medium text-gray-700 mb-3">Nuevo Examen Presencial</h3>
-                                <div class="space-y-2">
-                                    <input type="text" id="exam-title" placeholder="Nombre del examen (ej: Parcial 1)"
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                    <div class="flex gap-2">
-                                        <select id="exam-category"
-                                                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                            <option value="">Categoria (auto)</option>
-                                        </select>
-                                        <input type="number" id="exam-max-points" placeholder="pts" min="1" step="0.5" value="100"
-                                               class="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                    </div>
-                                    <button onclick="createExam()"
-                                            class="w-full px-4 py-2 bg-primary hover:bg-secondary text-white rounded-lg text-sm font-medium transition">
-                                        Crear y Calificar
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Online Exams -->
-                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <div class="flex items-center justify-between mb-4">
-                                <h2 class="text-lg font-semibold text-gray-800">Exámenes Online</h2>
-                            </div>
-                            <div id="online-exams-list" class="space-y-2 mb-4">
-                                <p class="text-gray-400 text-sm">Cargando...</p>
-                            </div>
-                            <!-- Create Online Exam Form -->
-                            <div class="border-t pt-4" id="online-exam-form-section">
-                                <h3 class="text-sm font-medium text-gray-700 mb-3">Nuevo Examen Online</h3>
-                                <div class="space-y-2">
-                                    <input type="text" id="online-exam-title" placeholder="Nombre del examen"
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                    <div class="flex gap-2">
-                                        <select id="online-exam-category"
-                                                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                            <option value="">Categoría (auto)</option>
-                                        </select>
-                                        <input type="number" id="online-exam-max-points" placeholder="pts" min="1" step="0.5" value="100"
-                                               class="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-medium text-gray-600 mb-1">Archivo HTML del examen</label>
-                                        <input type="file" id="online-exam-file" accept=".html"
-                                               class="w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-10 file:text-primary hover:file:bg-primary-20">
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <label class="block text-xs text-gray-500 mb-1">Disponible desde</label>
-                                            <input type="datetime-local" id="online-exam-from"
-                                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs text-gray-500 mb-1">Cierra el</label>
-                                            <input type="datetime-local" id="online-exam-until"
-                                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                        </div>
-                                    </div>
-                                    <div class="flex gap-2 items-center">
-                                        <div class="flex-1">
-                                            <label class="block text-xs text-gray-500 mb-1">Tiempo límite (min)</label>
-                                            <input type="number" id="online-exam-time-limit" placeholder="90" min="1" value="90"
-                                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                        </div>
-                                        <label class="flex items-center gap-2 mt-4 text-sm text-gray-600 cursor-pointer">
-                                            <input type="checkbox" id="online-exam-allow-save" checked class="rounded">
-                                            Guardar progreso
-                                        </label>
-                                    </div>
-                                    <button onclick="createOnlineExam()"
-                                            class="w-full px-4 py-2 bg-primary hover:bg-secondary text-white rounded-lg text-sm font-medium transition">
-                                        Crear Examen Online
-                                    </button>
-                                </div>
-                            </div>
-                            <div id="online-exam-no-r2" class="hidden border-t pt-4">
-                                <p class="text-gray-400 text-sm">Subida de archivos no configurada. Configura R2 para usar exámenes online.</p>
-                            </div>
-                        </div>
-
-                        <!-- Manual Grade (secondary) -->
-                        <details class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <summary class="text-sm font-medium text-gray-600 cursor-pointer select-none">
-                                Agregar Calificacion Individual
-                            </summary>
-                            <form id="grade-form" class="space-y-3 mt-4">
-                                <div>
-                                    <label class="block text-xs font-medium text-gray-600 mb-1">Estudiante</label>
-                                    <select id="grade-student" required
-                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                        <option value="">Selecciona un estudiante...</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-medium text-gray-600 mb-1">Categoria</label>
-                                    <select id="grade-category" required
-                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                        <option value="">Selecciona una categoria...</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-medium text-gray-600 mb-1">Nombre (opcional)</label>
-                                    <input type="text" id="grade-name" placeholder="Ej: Parcial 2"
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                </div>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="block text-xs font-medium text-gray-600 mb-1">Calificacion</label>
-                                        <input type="number" id="grade-score" required min="0" step="0.5"
-                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-medium text-gray-600 mb-1">Maximo</label>
-                                        <input type="number" id="grade-max" required min="1" step="0.5" value="100"
-                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                    </div>
-                                </div>
-                                <button type="submit"
-                                        class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg text-sm transition">
-                                    Agregar Calificacion
-                                </button>
-                            </form>
-                            <div id="grade-success" class="hidden mt-3 p-2 bg-green-50 text-green-700 rounded-lg text-xs">
-                                Calificacion agregada!
-                            </div>
-                        </details>
-                    </div>
-
-                    <!-- Grade Categories -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Categorias de Calificacion</h2>
-                        <div id="grade-categories-list" class="space-y-3 mb-6">
-                            <p class="text-gray-500 text-sm">Cargando...</p>
-                        </div>
-                        <div class="border-t pt-4">
-                            <h3 class="text-sm font-medium text-gray-700 mb-3">Agregar Categoria</h3>
-                            <div class="flex gap-2">
-                                <input type="text" id="new-category-name" placeholder="Nombre"
-                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                <input type="number" id="new-category-weight" placeholder="%" min="1" max="100"
-                                       class="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                <button onclick="addCategory()"
-                                        class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm">
-                                    Agregar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Exam Grading Modal -->
-            <div id="exam-grading-modal" class="hidden fixed inset-0 z-50 flex items-stretch bg-black bg-opacity-50">
-                <div class="bg-white w-full max-w-2xl mx-auto flex flex-col shadow-2xl overflow-hidden rounded-xl my-6">
-                    <!-- Modal Header -->
-                    <div class="flex items-start justify-between p-5 border-b border-gray-200 bg-gray-50">
-                        <div>
-                            <h2 id="exam-modal-title" class="text-lg font-semibold text-gray-900">Calificando examen</h2>
-                            <p id="exam-modal-subtitle" class="text-sm text-gray-500 mt-0.5"></p>
-                        </div>
-                        <button onclick="closeExamGradingModal()" class="text-gray-400 hover:text-gray-600 ml-4 mt-0.5">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                        </button>
-                    </div>
-                    <!-- Search -->
-                    <div class="p-4 border-b border-gray-100">
-                        <input type="text" id="exam-search" placeholder="Buscar alumno por nombre..."
-                               oninput="filterExamStudents(this.value)"
-                               onkeydown="handleExamSearchKey(event)"
-                               class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none">
-                        <p class="text-xs text-gray-400 mt-1.5">Escribe el nombre → Tab al puntaje → Enter para guardar y seguir</p>
-                    </div>
-                    <!-- Student Lists -->
-                    <div class="flex-1 overflow-y-auto">
-                        <!-- Por Calificar -->
-                        <div class="border-b border-gray-100">
-                            <button onclick="toggleExamSection('ungraded')"
-                                    class="w-full flex items-center justify-between px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">
-                                <span>Por Calificar <span id="exam-ungraded-count" class="ml-1.5 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">0</span></span>
-                                <svg id="exam-ungraded-chevron" class="w-4 h-4 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                            </button>
-                            <div id="exam-ungraded-body" class="px-5 pb-3">
-                                <div id="exam-ungraded-list"></div>
-                            </div>
-                        </div>
-                        <!-- Calificados -->
-                        <div>
-                            <button onclick="toggleExamSection('graded')"
-                                    class="w-full flex items-center justify-between px-5 py-3 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition">
-                                <span>Calificados <span id="exam-graded-count" class="ml-1.5 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">0</span></span>
-                                <svg id="exam-graded-chevron" class="w-4 h-4 text-gray-400 transition-transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                            </button>
-                            <div id="exam-graded-body" class="px-5 pb-3 hidden">
-                                <div id="exam-graded-list"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Participation Tab -->
-            <div id="panel-participation" class="tab-panel hidden">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                        <h2 class="text-lg font-semibold text-gray-800">Registros de Participacion</h2>
-                        <div class="flex items-center gap-2">
-                            <button id="btn-approve-all" onclick="bulkApproveAll()" class="hidden px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium">
-                                Aprobar Todo
-                            </button>
-                            <select id="participation-filter" onchange="loadParticipation()"
-                                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                <option value="">Todos</option>
-                                <option value="pending" selected>Pendientes</option>
-                                <option value="approved">Aprobados</option>
-                                <option value="rejected">Rechazados</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div id="participation-list" class="space-y-4">
-                        <p class="text-center text-gray-500 py-4">Cargando...</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Justifications Tab -->
-            <div id="panel-justifications" class="tab-panel hidden">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                        <h2 class="text-lg font-semibold text-gray-800">Justificaciones de Asistencia</h2>
-                        <select id="justification-filter" onchange="loadJustifications()"
-                                class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                            <option value="pending" selected>Pendientes</option>
-                            <option value="approved">Aprobadas</option>
-                            <option value="rejected">Rechazadas</option>
-                            <option value="">Todas</option>
-                        </select>
-                    </div>
-
-                    <div id="justifications-list" class="space-y-4">
-                        <p class="text-center text-gray-500 py-4">Cargando...</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Assignments (Retos) Tab -->
-            <div id="panel-assignments" class="tab-panel hidden">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                        <h2 class="text-lg font-semibold text-gray-800">Retos</h2>
-                        <button onclick="toggleAssignmentForm()" id="btn-new-assignment"
-                                class="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-secondary transition font-medium">
-                            + Nuevo Reto
-                        </button>
-                    </div>
-
-                    <!-- Create Assignment Form (hidden by default) -->
-                    <div id="assignment-form-container" class="hidden mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <h3 class="text-sm font-medium text-gray-700 mb-3">Crear Nuevo Reto</h3>
-                        <form id="assignment-form" class="space-y-3">
-                            <div>
-                                <label class="block text-sm text-gray-600 mb-1">Titulo</label>
-                                <input type="text" id="assignment-title" required placeholder="Ej: Reto Semana 1"
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-sm text-gray-600 mb-1">Descripcion (opcional)</label>
-                                <textarea id="assignment-description" rows="3" placeholder="Instrucciones del reto..."
-                                          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none resize-none"></textarea>
-                            </div>
-                            <div class="grid grid-cols-3 gap-3">
-                                <div>
-                                    <label class="block text-sm text-gray-600 mb-1">Categoria</label>
-                                    <select id="assignment-category"
-                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-sm text-gray-600 mb-1">Fecha limite</label>
-                                    <input type="datetime-local" id="assignment-due-date"
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-sm text-gray-600 mb-1">Puntos maximos</label>
-                                    <input type="number" id="assignment-max-points" value="100" min="1"
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                                </div>
-                            </div>
-                            <div class="flex justify-end gap-2">
-                                <button type="button" onclick="toggleAssignmentForm()"
-                                        class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50">
-                                    Cancelar
-                                </button>
-                                <button type="submit"
-                                        class="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-secondary transition">
-                                    Crear Reto
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <div id="assignments-list" class="space-y-4">
-                        <p class="text-center text-gray-500 py-4">Cargando...</p>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Student Detail Modal -->
-    <div id="student-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-xl shadow-lg max-w-2xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <h2 id="modal-student-name" class="text-xl font-bold text-gray-800"></h2>
-                    <p id="modal-student-email" class="text-sm text-gray-500"></p>
-                </div>
-                <button onclick="closeStudentModal()" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
-            <div id="modal-content" class="space-y-4">
-                <!-- Dynamic content -->
-            </div>
+        <!-- Categories overview -->
+        <div class="teacher-card" style="padding:20px;margin-top:16px">
+          <div class="section-heading">Categorías de Calificación</div>
+          <div id="categories-overview" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
+            <p style="color:rgba(255,255,255,0.3);font-size:13px">Cargando...</p>
+          </div>
         </div>
-    </div>
 
-    <!-- Submissions Modal -->
-    <div id="submissions-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <h2 id="submissions-modal-title" class="text-xl font-bold text-gray-800"></h2>
-                    <p id="submissions-modal-subtitle" class="text-sm text-gray-500"></p>
-                </div>
-                <button onclick="closeSubmissionsModal()" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
+        <!-- Quick action links for pending items -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+          <button onclick="showTab('historial')" class="btn-ghost" style="font-size:13px">
+            Justificaciones <span id="pending-justifications-count" style="color:var(--warning)">--</span>
+          </button>
+          <button onclick="showTab('evaluaciones')" class="btn-ghost" style="font-size:13px">
+            Participaciones <span id="pending-count" style="color:var(--warning)">--</span>
+          </button>
+        </div>
+      </div>
 
-            <!-- Filter bar -->
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-                <select id="submissions-filter" onchange="filterSubmissions()"
-                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
-                    <option value="">Todos</option>
-                    <option value="ungraded">Sin calificar</option>
-                    <option value="graded">Calificados</option>
-                    <option value="late">Entrega tardia</option>
+      <!-- ALUMNOS TAB -->
+      <div id="tab-alumnos" class="tab-panel">
+        <div style="display:flex;align-items:center;gap:4px;margin:16px 0;background:rgba(255,255,255,0.06);border-radius:8px;padding:4px;width:fit-content">
+          <button id="modeToggleLista" onclick="setAlumnosMode('lista')"
+            style="padding:8px 20px;border-radius:6px;font-size:13px;font-weight:600;border:none;background:var(--lime);color:var(--dark);cursor:pointer;font-family:var(--font-brand)">Lista</button>
+          <button id="modeToggleAsistencia" onclick="setAlumnosMode('asistencia')"
+            style="padding:8px 20px;border-radius:6px;font-size:13px;font-weight:600;border:none;background:transparent;color:rgba(255,255,255,0.5);cursor:pointer;font-family:var(--font-brand)">Asistencia</button>
+        </div>
+
+        <!-- Lista sub-panel -->
+        <div id="alumnos-lista-panel">
+          <!-- Filters -->
+          <div class="teacher-card" style="padding:16px;margin-bottom:16px">
+            <div style="display:flex;flex-wrap:wrap;gap:12px">
+              <div style="flex:1;min-width:200px">
+                <input type="text" id="search-input" placeholder="Buscar por nombre o email..."
+                       oninput="applyFilters()"
+                       class="dark-input">
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <select id="sort-select" onchange="applyFilters()" class="dark-input" style="width:auto">
+                  <option value="name-asc">Nombre A-Z</option>
+                  <option value="name-desc">Nombre Z-A</option>
+                  <option value="grade-desc">Calificacion (Mayor)</option>
+                  <option value="grade-asc">Calificacion (Menor)</option>
+                  <option value="attendance-desc">Asistencia (Mayor)</option>
+                  <option value="attendance-asc">Asistencia (Menor)</option>
+                  <option value="participation-desc">Participacion (Mayor)</option>
                 </select>
-                <button onclick="autoGradeAll()"
-                        class="px-4 py-2 text-sm bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition font-medium">
-                    Aceptar auto-calificaciones
-                </button>
+                <select id="status-select" onchange="applyFilters()" class="dark-input" style="width:auto">
+                  <option value="all">Todos</option>
+                  <option value="good">Buen estado</option>
+                  <option value="warning">Advertencia</option>
+                  <option value="at_risk">En riesgo</option>
+                </select>
+              </div>
             </div>
+          </div>
 
-            <!-- Submissions list -->
-            <div id="submissions-list" class="space-y-3">
-                <p class="text-center text-gray-500 py-4">Cargando...</p>
+          <!-- Student Table -->
+          <div class="teacher-card" style="overflow:hidden">
+            <div style="overflow-x:auto">
+              <table class="dark-table" style="width:100%;border-collapse:collapse">
+                <thead>
+                  <tr>
+                    <th>Estudiante</th>
+                    <th style="text-align:center">Estado</th>
+                    <th style="text-align:center">Asistencia</th>
+                    <th style="text-align:center">Participacion</th>
+                    <th style="text-align:center">Calificacion</th>
+                    <th style="text-align:center">Ultima Actividad</th>
+                    <th style="text-align:center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="roster-table">
+                  <tr><td colspan="7" style="text-align:center;color:rgba(255,255,255,0.3);padding:32px">Cargando...</td></tr>
+                </tbody>
+              </table>
             </div>
-
-            <!-- Not submitted section -->
-            <div id="not-submitted-section" class="hidden mt-6">
-                <button onclick="document.getElementById('not-submitted-list').classList.toggle('hidden')"
-                        class="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-800 mb-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                    </svg>
-                    <span id="not-submitted-title">Sin entregar (0)</span>
-                </button>
-                <div id="not-submitted-list" class="hidden space-y-1">
-                </div>
-            </div>
+          </div>
         </div>
-    </div>
 
-    <!-- Online Exam Submissions Modal -->
-    <div id="online-subs-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-        <div class="bg-white w-full max-w-lg mx-4 rounded-xl shadow-2xl overflow-hidden">
-            <div class="flex items-center justify-between p-5 border-b bg-gray-50">
-                <div>
-                    <h2 id="online-subs-title" class="text-lg font-semibold text-gray-900">Entregas</h2>
-                    <p id="online-subs-subtitle" class="text-sm text-gray-500 mt-0.5"></p>
-                </div>
-                <button onclick="document.getElementById('online-subs-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        <!-- Asistencia sub-panel -->
+        <div id="alumnos-asistencia-panel" style="display:none">
+          <div class="teacher-card" style="padding:20px">
+            <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px">
+              <div class="section-heading" style="margin-bottom:0">Asistencia del Día</div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <input type="date" id="attendance-date" class="dark-input" style="width:auto">
+                <button onclick="loadAttendanceForDate()" class="btn-ghost" style="font-size:13px;padding:8px 14px">
+                  Cargar
                 </button>
+              </div>
             </div>
-            <div id="online-subs-list" class="p-4 max-h-96 overflow-y-auto space-y-2">
-                <p class="text-gray-400 text-sm">Cargando...</p>
-            </div>
-        </div>
-    </div>
 
-    <script src="/static/js/class-dashboard.js"></script>
+            <div style="overflow-x:auto">
+              <table class="dark-table" style="width:100%;border-collapse:collapse">
+                <thead>
+                  <tr>
+                    <th>Estudiante</th>
+                    <th style="text-align:center">Presente</th>
+                    <th style="text-align:center">Ausente</th>
+                    <th style="text-align:center">Tarde</th>
+                    <th>Notas</th>
+                  </tr>
+                </thead>
+                <tbody id="attendance-table">
+                  <tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,0.3);padding:32px">Cargando...</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div style="margin-top:20px;display:flex;justify-content:flex-end">
+              <button onclick="saveAttendance()" class="btn-lime">Guardar Asistencia</button>
+            </div>
+            <div id="attendance-success" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(200,241,53,0.1);color:var(--lime);border-radius:8px;font-size:13px">
+              Asistencia guardada exitosamente!
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EVALUACIONES TAB -->
+      <div id="tab-evaluaciones" class="tab-panel">
+        <div id="evaluaciones-content">
+
+          <!-- Participation section -->
+          <div class="teacher-card" style="padding:20px;margin-bottom:16px">
+            <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px">
+              <div class="section-heading" style="margin-bottom:0">Registros de Participacion</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <button id="btn-approve-all" onclick="bulkApproveAll()" style="display:none;padding:8px 14px;font-size:13px;background:rgba(200,241,53,0.15);color:var(--lime);border:1px solid rgba(200,241,53,0.3);border-radius:8px;cursor:pointer;font-family:var(--font-brand)">
+                  Aprobar Todo
+                </button>
+                <select id="participation-filter" onchange="loadParticipation()" class="dark-input" style="width:auto">
+                  <option value="">Todos</option>
+                  <option value="pending" selected>Pendientes</option>
+                  <option value="approved">Aprobados</option>
+                  <option value="rejected">Rechazados</option>
+                </select>
+              </div>
+            </div>
+            <div id="participation-list">
+              <p style="text-align:center;color:rgba(255,255,255,0.3);padding:20px;font-size:13px">Cargando...</p>
+            </div>
+          </div>
+
+          <!-- Exams + Online Exams + Categories grid -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+
+            <!-- Left column: Exams -->
+            <div style="display:flex;flex-direction:column;gap:16px">
+
+              <!-- Presencial Exams -->
+              <div class="teacher-card" style="padding:20px">
+                <div class="section-heading">Exámenes Presenciales</div>
+                <div id="exams-list" style="margin-bottom:16px">
+                  <p style="color:rgba(255,255,255,0.3);font-size:13px">Cargando...</p>
+                </div>
+                <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:16px">
+                  <div class="micro-label" style="margin-bottom:10px">Nuevo Examen Presencial</div>
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <input type="text" id="exam-title" placeholder="Nombre del examen (ej: Parcial 1)" class="dark-input">
+                    <div style="display:flex;gap:8px">
+                      <select id="exam-category" class="dark-input" style="flex:1">
+                        <option value="">Categoria (auto)</option>
+                      </select>
+                      <input type="number" id="exam-max-points" placeholder="pts" min="1" step="0.5" value="100" class="dark-input" style="width:80px">
+                    </div>
+                    <button onclick="createExam()" class="btn-lime" style="width:100%;font-size:13px">Crear y Calificar</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Online Exams -->
+              <div class="teacher-card" style="padding:20px">
+                <div class="section-heading">Exámenes Online</div>
+                <div id="online-exams-list" style="margin-bottom:16px">
+                  <p style="color:rgba(255,255,255,0.3);font-size:13px">Cargando...</p>
+                </div>
+                <div id="online-exam-form-section" style="border-top:1px solid rgba(255,255,255,0.07);padding-top:16px">
+                  <div class="micro-label" style="margin-bottom:10px">Nuevo Examen Online</div>
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    <input type="text" id="online-exam-title" placeholder="Nombre del examen" class="dark-input">
+                    <div style="display:flex;gap:8px">
+                      <select id="online-exam-category" class="dark-input" style="flex:1">
+                        <option value="">Categoría (auto)</option>
+                      </select>
+                      <input type="number" id="online-exam-max-points" placeholder="pts" min="1" step="0.5" value="100" class="dark-input" style="width:80px">
+                    </div>
+                    <div>
+                      <div class="micro-label" style="margin-bottom:6px">Archivo HTML del examen</div>
+                      <input type="file" id="online-exam-file" accept=".html"
+                             style="width:100%;font-size:13px;color:rgba(255,255,255,0.5)">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                      <div>
+                        <div class="micro-label" style="margin-bottom:4px">Disponible desde</div>
+                        <input type="datetime-local" id="online-exam-from" class="dark-input">
+                      </div>
+                      <div>
+                        <div class="micro-label" style="margin-bottom:4px">Cierra el</div>
+                        <input type="datetime-local" id="online-exam-until" class="dark-input">
+                      </div>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:flex-end">
+                      <div style="flex:1">
+                        <div class="micro-label" style="margin-bottom:4px">Tiempo límite (min)</div>
+                        <input type="number" id="online-exam-time-limit" placeholder="90" min="1" value="90" class="dark-input">
+                      </div>
+                      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:rgba(255,255,255,0.5);cursor:pointer;padding-bottom:10px">
+                        <input type="checkbox" id="online-exam-allow-save" checked>
+                        Guardar progreso
+                      </label>
+                    </div>
+                    <button onclick="createOnlineExam()" class="btn-lime" style="width:100%;font-size:13px">Crear Examen Online</button>
+                  </div>
+                </div>
+                <div id="online-exam-no-r2" style="display:none;border-top:1px solid rgba(255,255,255,0.07);padding-top:16px">
+                  <p style="color:rgba(255,255,255,0.3);font-size:13px">Subida de archivos no configurada. Configura R2 para usar exámenes online.</p>
+                </div>
+              </div>
+
+              <!-- Manual Grade (secondary) -->
+              <details class="teacher-card" style="padding:20px">
+                <summary style="font-size:13px;color:rgba(255,255,255,0.4);cursor:pointer;list-style:none">
+                  + Agregar Calificacion Individual
+                </summary>
+                <form id="grade-form" style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+                  <div>
+                    <div class="micro-label" style="margin-bottom:5px">Estudiante</div>
+                    <select id="grade-student" required class="dark-input">
+                      <option value="">Selecciona un estudiante...</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div class="micro-label" style="margin-bottom:5px">Categoria</div>
+                    <select id="grade-category" required class="dark-input">
+                      <option value="">Selecciona una categoria...</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div class="micro-label" style="margin-bottom:5px">Nombre (opcional)</div>
+                    <input type="text" id="grade-name" placeholder="Ej: Parcial 2" class="dark-input">
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <div>
+                      <div class="micro-label" style="margin-bottom:5px">Calificacion</div>
+                      <input type="number" id="grade-score" required min="0" step="0.5" class="dark-input">
+                    </div>
+                    <div>
+                      <div class="micro-label" style="margin-bottom:5px">Maximo</div>
+                      <input type="number" id="grade-max" required min="1" step="0.5" value="100" class="dark-input">
+                    </div>
+                  </div>
+                  <button type="submit" class="btn-ghost" style="font-size:13px">Agregar Calificacion</button>
+                </form>
+                <div id="grade-success" style="display:none;margin-top:10px;padding:8px 12px;background:rgba(200,241,53,0.1);color:var(--lime);border-radius:6px;font-size:12px">
+                  Calificacion agregada!
+                </div>
+              </details>
+            </div>
+
+            <!-- Right column: Categories + Retos -->
+            <div style="display:flex;flex-direction:column;gap:16px">
+
+              <!-- Grade Categories -->
+              <div class="teacher-card" style="padding:20px">
+                <div class="section-heading">Categorias de Calificacion</div>
+                <div id="grade-categories-list" style="margin-bottom:16px">
+                  <p style="color:rgba(255,255,255,0.3);font-size:13px">Cargando...</p>
+                </div>
+                <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:16px">
+                  <div class="micro-label" style="margin-bottom:10px">Agregar Categoria</div>
+                  <div style="display:flex;gap:8px">
+                    <input type="text" id="new-category-name" placeholder="Nombre" class="dark-input" style="flex:1">
+                    <input type="number" id="new-category-weight" placeholder="%" min="1" max="100" class="dark-input" style="width:60px">
+                    <button onclick="addCategory()" class="btn-ghost" style="font-size:13px;padding:8px 14px">+</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Retos -->
+              <div class="teacher-card" style="padding:20px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                  <div class="section-heading" style="margin-bottom:0">Retos</div>
+                  <button onclick="toggleAssignmentForm()" id="btn-new-assignment" class="btn-lime" style="font-size:13px;padding:8px 14px">
+                    + Nuevo Reto
+                  </button>
+                </div>
+
+                <!-- Create Assignment Form (hidden by default) -->
+                <div id="assignment-form-container" style="display:none;margin-bottom:16px;padding:14px;background:rgba(255,255,255,0.04);border-radius:8px;border:1px solid rgba(255,255,255,0.08)">
+                  <div class="micro-label" style="margin-bottom:10px">Crear Nuevo Reto</div>
+                  <form id="assignment-form" style="display:flex;flex-direction:column;gap:10px">
+                    <div>
+                      <div class="micro-label" style="margin-bottom:5px">Titulo</div>
+                      <input type="text" id="assignment-title" required placeholder="Ej: Reto Semana 1" class="dark-input">
+                    </div>
+                    <div>
+                      <div class="micro-label" style="margin-bottom:5px">Descripcion (opcional)</div>
+                      <textarea id="assignment-description" rows="3" placeholder="Instrucciones del reto..."
+                                class="dark-input" style="resize:none"></textarea>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+                      <div>
+                        <div class="micro-label" style="margin-bottom:5px">Categoria</div>
+                        <select id="assignment-category" class="dark-input"></select>
+                      </div>
+                      <div>
+                        <div class="micro-label" style="margin-bottom:5px">Fecha limite</div>
+                        <input type="datetime-local" id="assignment-due-date" class="dark-input">
+                      </div>
+                      <div>
+                        <div class="micro-label" style="margin-bottom:5px">Puntos max</div>
+                        <input type="number" id="assignment-max-points" value="100" min="1" class="dark-input">
+                      </div>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;gap:8px">
+                      <button type="button" onclick="toggleAssignmentForm()" class="btn-ghost" style="font-size:13px;padding:8px 14px">Cancelar</button>
+                      <button type="submit" class="btn-lime" style="font-size:13px">Crear Reto</button>
+                    </div>
+                  </form>
+                </div>
+
+                <div id="assignments-list">
+                  <p style="text-align:center;color:rgba(255,255,255,0.3);padding:20px;font-size:13px">Cargando...</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTORIAL TAB -->
+      <div id="tab-historial" class="tab-panel">
+        <div style="margin-bottom:24px">
+          <div class="micro-label" style="margin-bottom:8px">Revisar asistencia por fecha (solo lectura)</div>
+          <input type="date" id="historialDate" onchange="loadHistorialAttendance(this.value)"
+            style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#fff;border-radius:8px;padding:10px 14px;font-family:var(--font-brand)">
+          <p style="font-size:12px;color:rgba(255,255,255,0.3);margin-top:6px">Para corregir: ve a Alumnos → Asistencia</p>
+        </div>
+        <div id="historial-attendance-view" style="margin-bottom:32px"></div>
+
+        <div class="micro-label" style="margin-bottom:12px">Justificaciones</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <button onclick="loadJustificaciones('pending')" class="btn-ghost" style="font-size:12px;padding:6px 12px">Pendientes</button>
+          <button onclick="loadJustificaciones('approved')" class="btn-ghost" style="font-size:12px;padding:6px 12px">Aprobadas</button>
+          <button onclick="loadJustificaciones('rejected')" class="btn-ghost" style="font-size:12px;padding:6px 12px">Rechazadas</button>
+        </div>
+        <div id="justificaciones-list"></div>
+      </div>
+
+      <!-- FORO TAB -->
+      <div id="tab-foro" class="tab-panel">
+        <div id="forum-embedded-content">
+          <div style="text-align:center;padding:48px;color:rgba(255,255,255,0.4)">
+            <a href="/forum.html" class="btn-ghost" style="display:inline-block;text-decoration:none">Abrir Foro en página completa →</a>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ===== MODALS (preserved exactly) ===== -->
+
+  <!-- Exam Grading Modal -->
+  <div id="exam-grading-modal" class="hidden fixed inset-0 z-50 flex items-stretch bg-black bg-opacity-50">
+    <div class="bg-white w-full max-w-2xl mx-auto flex flex-col shadow-2xl overflow-hidden rounded-xl my-6">
+      <div class="flex items-start justify-between p-5 border-b border-gray-200 bg-gray-50">
+        <div>
+          <h2 id="exam-modal-title" class="text-lg font-semibold text-gray-900">Calificando examen</h2>
+          <p id="exam-modal-subtitle" class="text-sm text-gray-500 mt-0.5"></p>
+        </div>
+        <button onclick="closeExamGradingModal()" class="text-gray-400 hover:text-gray-600 ml-4 mt-0.5">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="p-4 border-b border-gray-100">
+        <input type="text" id="exam-search" placeholder="Buscar alumno por nombre..."
+               oninput="filterExamStudents(this.value)"
+               onkeydown="handleExamSearchKey(event)"
+               class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-lime-400 outline-none">
+        <p class="text-xs text-gray-400 mt-1.5">Escribe el nombre → Tab al puntaje → Enter para guardar y seguir</p>
+      </div>
+      <div class="flex-1 overflow-y-auto">
+        <div class="border-b border-gray-100">
+          <button onclick="toggleExamSection('ungraded')"
+                  class="w-full flex items-center justify-between px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">
+            <span>Por Calificar <span id="exam-ungraded-count" class="ml-1.5 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">0</span></span>
+            <svg id="exam-ungraded-chevron" class="w-4 h-4 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div id="exam-ungraded-body" class="px-5 pb-3">
+            <div id="exam-ungraded-list"></div>
+          </div>
+        </div>
+        <div>
+          <button onclick="toggleExamSection('graded')"
+                  class="w-full flex items-center justify-between px-5 py-3 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition">
+            <span>Calificados <span id="exam-graded-count" class="ml-1.5 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">0</span></span>
+            <svg id="exam-graded-chevron" class="w-4 h-4 text-gray-400 transition-transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div id="exam-graded-body" class="px-5 pb-3 hidden">
+            <div id="exam-graded-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Student Detail Modal -->
+  <div id="student-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-lg max-w-2xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <h2 id="modal-student-name" class="text-xl font-bold text-gray-800"></h2>
+          <p id="modal-student-email" class="text-sm text-gray-500"></p>
+        </div>
+        <button onclick="closeStudentModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div id="modal-content" class="space-y-4">
+        <!-- Dynamic content -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Submissions Modal -->
+  <div id="submissions-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <h2 id="submissions-modal-title" class="text-xl font-bold text-gray-800"></h2>
+          <p id="submissions-modal-subtitle" class="text-sm text-gray-500"></p>
+        </div>
+        <button onclick="closeSubmissionsModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+        <select id="submissions-filter" onchange="filterSubmissions()"
+                class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-lime-400 outline-none">
+          <option value="">Todos</option>
+          <option value="ungraded">Sin calificar</option>
+          <option value="graded">Calificados</option>
+          <option value="late">Entrega tardia</option>
+        </select>
+        <button onclick="autoGradeAll()"
+                class="px-4 py-2 text-sm bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition font-medium">
+          Aceptar auto-calificaciones
+        </button>
+      </div>
+      <div id="submissions-list" class="space-y-3">
+        <p class="text-center text-gray-500 py-4">Cargando...</p>
+      </div>
+      <div id="not-submitted-section" class="hidden mt-6">
+        <button onclick="document.getElementById('not-submitted-list').classList.toggle('hidden')"
+                class="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-800 mb-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+          <span id="not-submitted-title">Sin entregar (0)</span>
+        </button>
+        <div id="not-submitted-list" class="hidden space-y-1"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Online Exam Submissions Modal -->
+  <div id="online-subs-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white w-full max-w-lg mx-4 rounded-xl shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between p-5 border-b bg-gray-50">
+        <div>
+          <h2 id="online-subs-title" class="text-lg font-semibold text-gray-900">Entregas</h2>
+          <p id="online-subs-subtitle" class="text-sm text-gray-500 mt-0.5"></p>
+        </div>
+        <button onclick="document.getElementById('online-subs-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div id="online-subs-list" class="p-4 max-h-96 overflow-y-auto space-y-2">
+        <p class="text-gray-400 text-sm">Cargando...</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/class-dashboard.js"></script>
+
+  <!-- ===== Tab + Mode JS (overrides class-dashboard.js showTab) ===== -->
+  <script>
+  // Old-name → new-tab remapping
+  var _TAB_REMAP = {
+    'overview': 'hoy',
+    'roster': 'alumnos',
+    'attendance': 'alumnos',
+    'grades': 'evaluaciones',
+    'participation': 'evaluaciones',
+    'assignments': 'evaluaciones',
+    'justifications': 'historial'
+  };
+
+  // Single showTab that handles both old names and new names
+  function showTab(name) {
+    var tabName = _TAB_REMAP[name] || name;
+    document.querySelectorAll('.tab-panel').forEach(function(p) { p.style.display = 'none'; });
+    document.querySelectorAll('.teacher-tab').forEach(function(t) { t.classList.remove('active'); });
+    var panel = document.getElementById('tab-' + tabName);
+    if (panel) panel.style.display = 'block';
+    var btn = document.querySelector('[data-tab="' + tabName + '"]');
+    if (btn) btn.classList.add('active');
+    // Sub-panel mode for alumnos
+    if (name === 'attendance') {
+      setAlumnosMode('asistencia');
+    } else if (name === 'roster' || tabName === 'alumnos') {
+      setAlumnosMode('lista');
+    }
+    // Data loading hooks
+    if (tabName === 'evaluaciones') {
+      if (name === 'participation' && typeof loadParticipation === 'function') loadParticipation();
+      if (name === 'assignments' && typeof loadAssignments === 'function') loadAssignments();
+      if (name === 'grades' && typeof initGradesTab === 'function') initGradesTab();
+    }
+    if (tabName === 'alumnos' && name === 'roster' && typeof loadRoster === 'function') loadRoster();
+    if (tabName === 'historial' && typeof loadJustifications === 'function') loadJustifications();
+    if (name === 'attendance' && typeof initAttendanceTab === 'function') initAttendanceTab();
+  }
+
+  function setAlumnosMode(mode) {
+    var listaPanel = document.getElementById('alumnos-lista-panel');
+    var asistPanel = document.getElementById('alumnos-asistencia-panel');
+    var btnLista = document.getElementById('modeToggleLista');
+    var btnAsist = document.getElementById('modeToggleAsistencia');
+    if (!listaPanel || !asistPanel) return;
+    if (mode === 'lista') {
+      listaPanel.style.display = 'block';
+      asistPanel.style.display = 'none';
+      if (btnLista) { btnLista.style.background = 'var(--lime)'; btnLista.style.color = 'var(--dark)'; }
+      if (btnAsist) { btnAsist.style.background = 'transparent'; btnAsist.style.color = 'rgba(255,255,255,0.5)'; }
+    } else {
+      listaPanel.style.display = 'none';
+      asistPanel.style.display = 'block';
+      if (btnAsist) { btnAsist.style.background = 'var(--lime)'; btnAsist.style.color = 'var(--dark)'; }
+      if (btnLista) { btnLista.style.background = 'transparent'; btnLista.style.color = 'rgba(255,255,255,0.5)'; }
+      var dateInput = document.getElementById('attendance-date');
+      if (dateInput && !dateInput.value) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+        if (typeof loadAttendanceForDate === 'function') loadAttendanceForDate(dateInput.value);
+      }
+    }
+  }
+
+  // Alias for bulkApproveParticipation — Hoy tab calls this
+  function bulkApproveParticipation() {
+    if (typeof bulkApproveAll === 'function') bulkApproveAll();
+  }
+  </script>
+
 </body>
 </html>
