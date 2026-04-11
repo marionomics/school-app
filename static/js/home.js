@@ -158,6 +158,8 @@ async function boot() {
 
     if (currentUser.role === 'teacher') {
         document.getElementById('nav-admin-link').classList.remove('hidden');
+        const fab = document.getElementById('bugFab');
+        if (fab) fab.style.display = 'none';
     }
 
     // Hide composer in preview mode
@@ -730,23 +732,26 @@ function renderStudentClassCard(cls, grade) {
         </div>
         <div class="px-5 py-4 grid grid-cols-3 gap-4">
             <div class="flex items-center gap-2">
-                <span class="text-lg">⭐</span>
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
                 <div>
                     <p class="text-xs text-gray-400">Participación</p>
                     <p class="font-semibold text-gray-700 text-sm">${hasGrade ? classPts : '--'} pts</p>
-                    ${pendingPts > 0 ? `<p class="text-xs text-violet-500">+${pendingPts} pendiente</p>` : ''}
+                    ${pendingPts > 0 ? `<p class="text-xs" style="color:#f5a623">+${pendingPts} pendiente</p>` : ''}
                     ${forumPtsRaw > 0 ? `<p class="text-xs text-amber-500">+${forumPtsRaw.toFixed(2)} foro</p>` : ''}
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <span class="text-lg">✨</span>
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                 <div>
                     <p class="text-xs text-gray-400">Pts. Extra</p>
                     <p class="font-semibold text-gray-700 text-sm">${spTotal > 0 ? '+' + spTotal.toFixed(1) : '0'} pts</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <span class="text-lg">${absences > 0 ? '⚠️' : '✅'}</span>
+                ${absences > 0
+                    ? `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`
+                    : `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`
+                }
                 <div>
                     <p class="text-xs text-gray-400">Faltas</p>
                     <p class="font-semibold ${absences > 0 ? 'text-red-500' : 'text-green-600'} text-sm">${absences}${absences > 0 ? ` (-${absences})` : ''}</p>
@@ -981,7 +986,7 @@ async function _doSubmitParticipation(multiplier) {
         tapDescription = '';
         if (btn) { btn.disabled = true; btn.textContent = 'ENVIAR'; }
 
-        _showToast(`✅ Participación enviada (+${multiplier} pts pendiente)`, '#7C3AED', 4000);
+        _showToast(`Participación enviada (+${multiplier} pts pendiente)`, '#2b2b2b', 4000);
 
         // Refresh cards to show pending count
         await _refreshGradeCards();
@@ -1214,15 +1219,15 @@ function renderAssignmentsSection() {
                 ? new Date(a.available_until + 'Z').toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
                 : null;
             return `
-            <div class="bg-gradient-to-r from-primary to-secondary rounded-xl p-4 text-white shadow-lg mb-4">
+            <div class="bg-gradient-to-r from-primary to-secondary rounded-xl p-4 text-dark shadow-lg mb-4">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-xs font-medium opacity-80 uppercase tracking-wider">${escHtml(a.class_name)}</p>
+                        <p class="text-xs font-medium uppercase tracking-wider" style="opacity:0.7">${escHtml(a.class_name)}</p>
                         <p class="text-lg font-bold mt-1">${escHtml(a.title)}</p>
-                        ${untilStr ? `<p class="text-sm opacity-80 mt-1">Cierra: ${untilStr}</p>` : ''}
-                        ${a.time_limit_min ? `<p class="text-sm opacity-80">Tiempo límite: ${a.time_limit_min} min</p>` : ''}
+                        ${untilStr ? `<p class="text-sm mt-1" style="opacity:0.7">Cierra: ${untilStr}</p>` : ''}
+                        ${a.time_limit_min ? `<p class="text-sm" style="opacity:0.7">Tiempo límite: ${a.time_limit_min} min</p>` : ''}
                     </div>
-                    <a href="/exam/${a.id}" class="shrink-0 px-5 py-3 bg-white text-primary font-bold rounded-lg hover:bg-cream transition text-sm">
+                    <a href="/exam/${a.id}" class="shrink-0 px-5 py-3 bg-dark text-primary font-bold rounded-lg hover:opacity-90 transition text-sm">
                         Iniciar examen
                     </a>
                 </div>
@@ -1578,7 +1583,7 @@ function _showLikeToast(result) {
     if (result.bonus_type === 'jackpot') {
         msg = `💰 ¡JACKPOT! Le diste +${pts} pts a ${name}`; bg = 'linear-gradient(135deg,#f59e0b,#d97706)'; duration = 5000;
     } else if (result.bonus_type === 'double') {
-        msg = `🎰 ¡DOBLE! Le diste +${pts} pts a ${name}`; bg = 'linear-gradient(135deg,#EA8251,#9C4927)'; duration = 4000;
+        msg = `🎰 ¡DOBLE! Le diste +${pts} pts a ${name}`; bg = 'linear-gradient(135deg,#c8f135,#a8d020)'; duration = 4000;
     } else if (result.bonus_type === 'mini') {
         msg = `✨ Le diste +${pts} pts a ${name}`; bg = '#059669';
     } else {
@@ -1594,6 +1599,19 @@ function _showToast(msg, bg, duration = 3000) {
     document.body.appendChild(el);
     requestAnimationFrame(() => { el.style.opacity = '1'; el.style.transform = 'translateX(-50%) translateY(0)'; });
     setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(-50%) translateY(1rem)'; setTimeout(() => el.remove(), 350); }, duration);
+}
+
+// ==================== Bug Report FAB ====================
+
+async function reportBug() {
+    let teacherEmail = '';
+    try {
+        const cfg = await fetch('/api/config').then(r => r.json());
+        teacherEmail = cfg.teacher_email || '';
+    } catch(e) {}
+    const subject = encodeURIComponent('Bug en Portal del Estudiante');
+    const body = encodeURIComponent('Página: ' + window.location.href + '\n\nDescripción del bug:\n');
+    window.location.href = 'mailto:' + teacherEmail + '?subject=' + subject + '&body=' + body;
 }
 
 // ==================== Utilities ====================
