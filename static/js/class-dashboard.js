@@ -1877,9 +1877,13 @@ function renderHoyTab(dashData) {
     if (summaryEl) {
         summaryEl.textContent = todayPresent != null ? todayPresent : '—';
     }
-    if (detailEl && todayPresent != null) {
-        const unrecorded = totalStudents - (todayPresent + (todayAbsent || 0));
-        detailEl.textContent = `${todayAbsent || 0} ausentes · ${Math.max(0, unrecorded)} sin registrar`;
+    if (detailEl) {
+        if (todayPresent != null) {
+            const unrecorded = totalStudents - (todayPresent + (todayAbsent || 0));
+            detailEl.textContent = `${todayAbsent || 0} ausentes · ${Math.max(0, unrecorded)} sin registrar`;
+        } else {
+            detailEl.textContent = '—';
+        }
     }
 
     // Participation card

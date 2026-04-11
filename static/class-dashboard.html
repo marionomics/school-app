@@ -716,7 +716,7 @@
     }
     // Data loading hooks
     if (tabName === 'evaluaciones') {
-      if (name === 'evaluaciones' && typeof loadEvaluaciones === 'function') { loadEvaluaciones(); }
+      if (tabName === name && typeof loadEvaluaciones === 'function') { loadEvaluaciones(); }
       else if (name === 'participation' && typeof loadParticipation === 'function') loadParticipation();
       else if (name === 'assignments' && typeof loadAssignments === 'function') loadAssignments();
       else if (name === 'grades' && typeof initGradesTab === 'function') initGradesTab();
