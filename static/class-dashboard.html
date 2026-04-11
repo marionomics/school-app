@@ -716,14 +716,18 @@
     }
     // Data loading hooks
     if (tabName === 'evaluaciones') {
-      if (name === 'participation' && typeof loadParticipation === 'function') loadParticipation();
-      if (name === 'assignments' && typeof loadAssignments === 'function') loadAssignments();
-      if (name === 'grades' && typeof initGradesTab === 'function') initGradesTab();
+      if (name === 'evaluaciones' && typeof loadEvaluaciones === 'function') { loadEvaluaciones(); }
+      else if (name === 'participation' && typeof loadParticipation === 'function') loadParticipation();
+      else if (name === 'assignments' && typeof loadAssignments === 'function') loadAssignments();
+      else if (name === 'grades' && typeof initGradesTab === 'function') initGradesTab();
     }
     if (tabName === 'alumnos' && name === 'roster' && typeof loadRoster === 'function') loadRoster();
-    if (tabName === 'historial' && typeof loadJustifications === 'function') loadJustifications();
+    if (tabName === 'historial' && typeof initHistorial === 'function') initHistorial();
+    if (tabName === 'foro' && typeof loadForumEmbedded === 'function') loadForumEmbedded();
     if (name === 'attendance' && typeof initAttendanceTab === 'function') initAttendanceTab();
   }
+  // Expose for backward compat stub in class-dashboard.js
+  window._dashboardShowTab = showTab;
 
   function setAlumnosMode(mode) {
     var listaPanel = document.getElementById('alumnos-lista-panel');

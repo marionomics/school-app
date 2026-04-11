@@ -78,31 +78,11 @@ function showSection(sectionId) {
     document.getElementById(sectionId).classList.remove('hidden');
 }
 
+// showTab is now defined inline in class-dashboard.html (5-tab dark mode layout).
+// This stub forwards old callers so existing code that calls showTab() still works.
 function showTab(tabName) {
-    // Update tab buttons
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('tab-active');
-        btn.classList.add('border-transparent', 'text-gray-500');
-    });
-    const activeTab = document.getElementById(`tab-${tabName}`);
-    activeTab.classList.add('tab-active');
-    activeTab.classList.remove('border-transparent', 'text-gray-500');
-
-    // Update tab panels
-    document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
-    document.getElementById(`panel-${tabName}`).classList.remove('hidden');
-
-    // Load tab-specific data
-    if (tabName === 'attendance') {
-        initAttendanceTab();
-    } else if (tabName === 'grades') {
-        initGradesTab();
-    } else if (tabName === 'participation') {
-        loadParticipation();
-    } else if (tabName === 'assignments') {
-        loadAssignments();
-    } else if (tabName === 'justifications') {
-        loadJustifications();
+    if (typeof window._dashboardShowTab === 'function') {
+        window._dashboardShowTab(tabName);
     }
 }
 
@@ -140,6 +120,7 @@ async function loadDashboard() {
         classGradingMode = dashboardData.stats.grading_mode || 'points';
 
         updateDashboardUI();
+        renderHoyTab(dashboardData);
     } catch (error) {
         console.error('Dashboard load error:', error);
         console.error('Error message:', error.message);
@@ -1478,10 +1459,13 @@ document.getElementById('assignment-form').addEventListener('submit', async (e) 
 
 async function loadAssignments() {
     const container = document.getElementById('assignments-list');
+    if (!container) return;
     container.innerHTML = '<p class="text-center text-gray-500 py-4">Cargando...</p>';
 
     try {
-        const assignments = await apiCall(`/admin/assignments?class_id=${classId}`);
+        const allAssignments = await apiCall(`/admin/assignments?class_id=${classId}`);
+        // Only show homework (retos) — exams appear in their own sections
+        const assignments = allAssignments.filter(a => !a.exam_type || a.exam_type === 'homework');
         const totalStudents = dashboardData?.stats?.total_students || 0;
 
         if (assignments.length === 0) {
@@ -1722,8 +1706,11 @@ async function autoGradeAll() {
 // ==================== Justifications Tab ====================
 
 async function loadJustifications() {
+    // Legacy function — new UI uses loadJustificaciones(status) with #justificaciones-list
     const container = document.getElementById('justifications-list');
-    const filter = document.getElementById('justification-filter').value;
+    if (!container) { loadJustificaciones('pending'); return; }
+    const filterEl = document.getElementById('justification-filter');
+    const filter = filterEl ? filterEl.value : '';
     container.innerHTML = '<p class="text-center text-gray-500 py-4">Cargando...</p>';
 
     try {
@@ -1820,7 +1807,12 @@ async function reviewJustification(attendanceId, status) {
             body: JSON.stringify({ status })
         });
 
-        loadJustifications();
+        // Reload whichever list container is in the DOM
+        if (document.getElementById('justificaciones-list')) {
+            loadJustificaciones('pending');
+        } else {
+            loadJustifications();
+        }
         loadDashboard();
     } catch (error) {
         alert('Error al revisar justificacion: ' + error.message);
@@ -1852,6 +1844,192 @@ async function viewSubmissionFileAdmin(submissionId) {
         alert('Error al abrir archivo: ' + error.message);
     }
 }
+
+// ==================== 5-Tab Wiring ====================
+
+// Alias: called from Alumnos tab "Tomar Asistencia" flow
+function loadRoster() {
+    renderRosterTable();
+}
+
+// Alias: Hoy tab "Aprobar Todo" button calls this
+async function bulkApproveParticipation() {
+    await bulkApproveAll();
+}
+
+// Evaluaciones tab: load all subsections
+async function loadEvaluaciones() {
+    loadParticipation();
+    initGradesTab();     // loads exams, online exams, categories
+    loadAssignments();   // loads homework retos
+}
+
+// Hoy tab: populate attendance + participation + forum cards from dashboard data
+function renderHoyTab(dashData) {
+    const stats = dashData ? dashData.stats : null;
+
+    // Attendance card
+    const todayPresent = dashData && dashData.today_present != null ? dashData.today_present : null;
+    const todayAbsent = dashData && dashData.today_absent != null ? dashData.today_absent : null;
+    const totalStudents = stats ? (stats.total_students || 0) : 0;
+    const summaryEl = document.getElementById('hoy-attendance-summary');
+    const detailEl = document.getElementById('hoy-attendance-detail');
+    if (summaryEl) {
+        summaryEl.textContent = todayPresent != null ? todayPresent : '—';
+    }
+    if (detailEl && todayPresent != null) {
+        const unrecorded = totalStudents - (todayPresent + (todayAbsent || 0));
+        detailEl.textContent = `${todayAbsent || 0} ausentes · ${Math.max(0, unrecorded)} sin registrar`;
+    }
+
+    // Participation card
+    const pendingCount = stats ? (stats.pending_participation || 0) : 0;
+    const partCountEl = document.getElementById('hoy-participation-count');
+    if (partCountEl) {
+        partCountEl.textContent = pendingCount;
+        partCountEl.style.color = pendingCount > 0 ? 'var(--warning)' : 'rgba(255,255,255,0.3)';
+    }
+
+    // Forum activity card
+    const forumEl = document.getElementById('hoy-forum-activity');
+    if (forumEl) {
+        const posts = dashData && dashData.recent_forum_posts ? dashData.recent_forum_posts : [];
+        if (posts.length === 0) {
+            forumEl.innerHTML = '<div style="font-size:13px;color:rgba(255,255,255,0.3)">Sin actividad reciente.</div>';
+        } else {
+            forumEl.innerHTML = posts.slice(0, 3).map(function(p) {
+                return '<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06)">'
+                    + '<div style="font-size:13px;font-weight:500;color:#fff">' + (p.title || '') + '</div>'
+                    + '<div style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:2px">'
+                    + (p.author_name || '') + ' · ' + (p.like_count || 0) + ' ♥</div>'
+                    + '</div>';
+            }).join('');
+        }
+    }
+}
+
+// Historial tab: initialize date + load justificaciones
+function initHistorial() {
+    const dateInput = document.getElementById('historialDate');
+    if (dateInput && !dateInput.value) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+    }
+    if (dateInput && dateInput.value) {
+        loadHistorialAttendance(dateInput.value);
+    }
+    loadJustificaciones('pending');
+}
+
+// Historial tab: read-only attendance view for a specific date
+async function loadHistorialAttendance(date) {
+    const container = document.getElementById('historial-attendance-view');
+    if (!container || !date) return;
+    container.innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:13px">Cargando...</div>';
+
+    try {
+        const [students, records] = await Promise.all([
+            apiCall(`/admin/roster/${classId}`),
+            apiCall(`/admin/attendance?class_id=${classId}&date=${date}`)
+        ]);
+
+        const recordMap = {};
+        records.forEach(function(r) { recordMap[r.student_id] = r.status; });
+
+        if (!students || students.length === 0) {
+            container.innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:13px">No hay alumnos.</div>';
+            return;
+        }
+
+        const statusColor = { present: '#c8f135', absent: '#ff6060', late: '#f5a623', excused: '#c8f135' };
+        const statusLabel = { present: 'Presente', absent: 'Ausente', late: 'Tarde', excused: 'Justificada' };
+
+        const rows = students.map(function(s) {
+            const st = recordMap[s.id] || 'sin registro';
+            const color = statusColor[st] || 'rgba(255,255,255,0.3)';
+            const label = statusLabel[st] || st;
+            return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06)">'
+                + '<span style="font-size:14px">' + s.name + '</span>'
+                + '<span style="font-size:12px;font-weight:600;color:' + color + '">' + label + '</span>'
+                + '</div>';
+        }).join('');
+
+        container.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,0.3);margin-bottom:8px">Solo lectura. Para corregir: Alumnos → Asistencia.</div>' + rows;
+    } catch (e) {
+        container.innerHTML = '<div style="color:#ff6060;font-size:13px">Error cargando asistencia.</div>';
+    }
+}
+
+// Historial tab: load justifications into new #justificaciones-list container
+async function loadJustificaciones(statusFilter) {
+    const container = document.getElementById('justificaciones-list');
+    if (!container) return;
+    container.innerHTML = '<p style="text-align:center;color:rgba(255,255,255,0.3);padding:20px;font-size:13px">Cargando...</p>';
+
+    try {
+        let url = `/admin/justifications?class_id=${classId}`;
+        if (statusFilter) url += `&status_filter=${statusFilter}`;
+        const justifications = await apiCall(url);
+
+        if (justifications.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:rgba(255,255,255,0.3);padding:20px;font-size:13px">No hay justificaciones para mostrar</p>';
+            return;
+        }
+
+        const statusNames = { pending: 'Pendiente', approved: 'Aprobada', rejected: 'Rechazada' };
+        const statusColors = {
+            pending: 'background:rgba(245,166,35,0.15);color:#f5a623',
+            approved: 'background:rgba(200,241,53,0.12);color:#c8f135',
+            rejected: 'background:rgba(255,96,96,0.15);color:#ff6060'
+        };
+        const attStatusNames = { absent: 'Ausente', late: 'Tarde', excused: 'Justificado' };
+
+        container.innerHTML = justifications.map(function(j) {
+            const sColor = statusColors[j.justification_status] || 'background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.5)';
+            const sName = statusNames[j.justification_status] || j.justification_status;
+            const attStatus = attStatusNames[j.status] || j.status;
+            const submittedDate = j.justification_submitted_at
+                ? new Date(j.justification_submitted_at + 'Z').toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                : '';
+            const fileBtn = j.has_justification_file
+                ? '<button onclick="viewJustificationFileAdmin(' + j.id + ')" style="font-size:12px;color:var(--lime);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline">Ver archivo (' + (j.justification_file_name || 'archivo') + ')</button>'
+                : '';
+            const actionBtns = j.justification_status === 'pending'
+                ? '<div style="display:flex;gap:8px;margin-top:10px">'
+                    + '<button onclick="reviewJustification(' + j.id + ', \'approved\')" style="padding:6px 14px;font-size:12px;background:rgba(200,241,53,0.15);color:var(--lime);border:1px solid rgba(200,241,53,0.3);border-radius:6px;cursor:pointer;font-family:var(--font-brand)">Aprobar</button>'
+                    + '<button onclick="reviewJustification(' + j.id + ', \'rejected\')" style="padding:6px 14px;font-size:12px;background:rgba(255,96,96,0.12);color:#ff6060;border:1px solid rgba(255,96,96,0.25);border-radius:6px;cursor:pointer;font-family:var(--font-brand)">Rechazar</button>'
+                    + '</div>'
+                : '';
+            return '<div style="border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:14px;margin-bottom:10px;background:rgba(255,255,255,0.02)">'
+                + '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:6px">'
+                + '<span style="font-size:14px;font-weight:600;color:#fff">' + j.student_name + '</span>'
+                + '<span style="font-size:11px;padding:2px 8px;border-radius:9999px;' + sColor + '">' + sName + '</span>'
+                + '<span style="font-size:11px;color:rgba(255,255,255,0.35)">' + attStatus + ' — ' + formatDate(j.date) + '</span>'
+                + '</div>'
+                + (submittedDate ? '<div style="font-size:11px;color:rgba(255,255,255,0.3);margin-bottom:4px">Enviado: ' + submittedDate + '</div>' : '')
+                + (j.justification_text ? '<p style="font-size:13px;color:rgba(255,255,255,0.6);margin:6px 0">' + j.justification_text + '</p>' : '')
+                + '<div>' + fileBtn + '</div>'
+                + actionBtns
+                + '</div>';
+        }).join('');
+    } catch (e) {
+        container.innerHTML = '<p style="text-align:center;color:#ff6060;padding:20px;font-size:13px">Error al cargar: ' + e.message + '</p>';
+    }
+}
+
+// Foro tab: show forum link fallback (forum.js is not loaded on this page)
+function loadForumEmbedded() {
+    const container = document.getElementById('forum-embedded-content');
+    if (!container) return;
+    if (typeof loadForumPosts === 'function') {
+        loadForumPosts('forum-embedded-content');
+    } else {
+        container.innerHTML = '<div style="padding:24px;text-align:center">'
+            + '<p style="font-size:14px;color:rgba(255,255,255,0.4);margin-bottom:16px">El foro completo está disponible en la página dedicada.</p>'
+            + '<a href="/forum.html" class="btn-ghost" style="display:inline-block;text-decoration:none">Abrir Foro →</a>'
+            + '</div>';
+    }
+}
+
 
 // ==================== Initialization ====================
 
