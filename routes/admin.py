@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 from models.database import get_db
 from models.models import (
     Student, Attendance, Participation, Grade, Class, StudentClass,
-    GradeCategory, SpecialPoints, Assignment, Submission, OnlineExamDraft
+    GradeCategory, SpecialPoints, Assignment, Submission, OnlineExamDraft, ForumPost
 )
 from models.schemas import (
     StudentResponse,
@@ -1095,7 +1095,29 @@ async def get_class_dashboard(
         recent.sort(key=lambda x: x["date"], reverse=True)
         recent = recent[:10]
 
-        # 9. Load categories for this class
+        # 9. Today's attendance counts
+        today_str = date.today().isoformat()
+        today_records = db.query(Attendance).filter(
+            Attendance.class_id == class_id,
+            Attendance.date == today_str,
+        ).all()
+        today_present = sum(1 for r in today_records if r.status in ('present', 'late', 'excused'))
+        today_absent = sum(1 for r in today_records if r.status == 'absent')
+
+        # 9b. Recent forum posts (last 3)
+        recent_posts = db.query(ForumPost).filter(
+            ForumPost.class_id == class_id,
+        ).order_by(ForumPost.created_at.desc()).limit(3).all()
+        recent_forum_posts = [
+            {
+                "title": p.title,
+                "author_name": p.author.name if p.author else "Desconocido",
+                "like_count": p.like_count or 0,
+            }
+            for p in recent_posts
+        ]
+
+        # 10. Load categories for this class
         class_categories = db.query(GradeCategory).filter(
             GradeCategory.class_id == class_id
         ).all()
@@ -1125,6 +1147,9 @@ async def get_class_dashboard(
             },
             "students": students_data,
             "recent_activity": recent,
+            "today_present": today_present,
+            "today_absent": today_absent,
+            "recent_forum_posts": recent_forum_posts,
         }
 
     except HTTPException:
