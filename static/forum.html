@@ -4,36 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Foro</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/brand.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        primary: '#EA8251',
-                        secondary: '#9C4927',
-                        cream: '#F2F0E4',
-                        dark: '#1F2020'
+                        primary: '#c8f135',
+                        secondary: '#a8d020',
+                        dark: '#2b2b2b',
+                        cream: '#f0ede6',
+                        surface: '#1e1e1e',
+                        warning: '#f5a623',
+                        danger: '#e53935',
                     }
                 }
             }
         }
     </script>
     <style>
-        .bg-primary-5  { background-color: rgba(234,130,81,0.05); }
-        .bg-primary-10 { background-color: rgba(234,130,81,0.1); }
-        .hover\:bg-primary-5:hover  { background-color: rgba(234,130,81,0.05); }
-        .hover\:bg-primary-10:hover { background-color: rgba(234,130,81,0.1); }
+        .bg-primary-5  { background-color: rgba(200,241,53,0.05); }
+        .bg-primary-10 { background-color: rgba(200,241,53,0.1); }
+        .hover\:bg-primary-5:hover  { background-color: rgba(200,241,53,0.05); }
+        .hover\:bg-primary-10:hover { background-color: rgba(200,241,53,0.1); }
         .line-clamp-3 {
             display: -webkit-box;
             -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
-        body { font-family: 'Inter', system-ui, sans-serif; }
         .reply-indent { border-left: 2px solid #e5e7eb; padding-left: 1rem; margin-left: 0.5rem; }
         .avatar {
             width: 2rem; height: 2rem;
