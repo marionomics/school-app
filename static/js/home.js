@@ -699,6 +699,8 @@ async function loadStudentDashboard() {
 
     container.innerHTML = enrolledClasses.map(c => renderStudentClassCard(c, gradesByClassId[c.class_id])).join('');
     renderAssignmentsSection();
+    const allAssignments = enrolledClasses.flatMap(c => assignmentsByClassId[c.class_id] || []);
+    renderPendingWork(allAssignments);
 
     // Show justification link if any class has unjustified absences with no pending review
     const anyAbsences = enrolledClasses.some(c => {
@@ -1192,6 +1194,35 @@ async function submitJustification() {
     }
 }
 
+function renderPendingWork(assignments) {
+  const pending = (assignments || []).filter(a => !a.submission && a.due_date);
+  const section = document.getElementById('pending-work-section');
+  if (!section) return;
+  if (pending.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+  const now = new Date();
+  const listEl = section.querySelector('.pending-list');
+  if (!listEl) return;
+  const rows = pending.map(a => {
+    const due = new Date(a.due_date);
+    const isOverdue = due < now;
+    const isToday = due.toDateString() === now.toDateString();
+    const urgentColor = (isOverdue || isToday) ? '#ff6060' : 'rgba(255,255,255,0.5)';
+    const dueStr = due.toLocaleDateString('es-MX', { month: 'short', day: 'numeric' });
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07)">
+      <span style="font-weight:500">${escHtml(a.title)}</span>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="color:${urgentColor};font-size:13px">Vence ${dueStr}</span>
+        <a href="#upcoming-section" style="color:#c8f135;font-size:13px;font-weight:600;text-decoration:none">Entregar →</a>
+      </div>
+    </div>`;
+  }).join('');
+  listEl.innerHTML = rows;
+}
+
 function renderAssignmentsSection() {
     const section = document.getElementById('upcoming-section');
     const list = document.getElementById('upcoming-list');
@@ -1503,6 +1534,8 @@ async function refreshAssignments() {
     );
     enrolledClasses.forEach((c, i) => { assignmentsByClassId[c.class_id] = results[i] || []; });
     renderAssignmentsSection();
+    const allAssignments = enrolledClasses.flatMap(c => assignmentsByClassId[c.class_id] || []);
+    renderPendingWork(allAssignments);
 }
 
 async function loadTeacherDashboard() {
