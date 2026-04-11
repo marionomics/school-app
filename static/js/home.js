@@ -1,3 +1,15 @@
+// ===== In-memory API cache (30s TTL) =====
+const _cache = {};
+async function cachedCall(key, fn, ttlMs = 30000) {
+  if (_cache[key] && Date.now() - _cache[key].ts < ttlMs) return _cache[key].data;
+  const data = await fn();
+  _cache[key] = { data, ts: Date.now() };
+  return data;
+}
+function invalidateCache(keyPrefix) {
+  Object.keys(_cache).forEach(k => { if (k.startsWith(keyPrefix)) delete _cache[k]; });
+}
+
 // ==================== State ====================
 let authToken = localStorage.getItem('authToken');
 let currentUser = null;
@@ -782,7 +794,9 @@ async function openGradeModal(classId) {
     document.getElementById('grade-modal-body').innerHTML = '<p class="text-center text-gray-400 text-sm py-6">Cargando...</p>';
 
     try {
-        const calc = await apiCall(`/students/me/grade-calculation/${classId}`);
+        const calc = await cachedCall(`grade-calc-${classId}`, () =>
+            apiCall(`/students/me/grade-calculation/${classId}`)
+        );
         gradesByClassId[classId] = calc;
         document.getElementById('grade-modal-body').innerHTML = renderGradeModalContent(calc);
     } catch (e) {
@@ -981,6 +995,8 @@ async function _doSubmitParticipation(multiplier) {
             method: 'POST',
             body: JSON.stringify({ class_id: classId, description, points: multiplier }),
         });
+
+        invalidateCache('grade-calc-');
 
         // Reset form
         const textarea = document.getElementById('participation-description');
