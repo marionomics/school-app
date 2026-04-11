@@ -39,8 +39,6 @@ async function apiCall(endpoint, options = {}) {
         headers['Authorization'] = `Bearer ${authToken}`;
     }
 
-    console.log(`API Call: ${options.method || 'GET'} ${endpoint}`, options.body ? JSON.parse(options.body) : '');
-
     const response = await fetch(`${API_BASE}${endpoint}`, {
         ...options,
         headers
@@ -452,14 +450,11 @@ async function saveAttendance() {
         class_id: parseInt(classId),  // Ensure it's an integer
         records: records
     };
-    console.log('Saving attendance payload:', JSON.stringify(payload, null, 2));
-
     try {
-        const result = await apiCall('/admin/attendance', {
+        await apiCall('/admin/attendance', {
             method: 'POST',
             body: JSON.stringify(payload)
         });
-        console.log('Attendance save result:', result);
 
         const successEl = document.getElementById('attendance-success');
         successEl.classList.remove('hidden');
