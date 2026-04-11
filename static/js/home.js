@@ -847,7 +847,7 @@ function renderGradeModalContent(calc) {
                 ${pendingPts > 0 ? `
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-600">⏳ Pendiente de aprobación</span>
-                    <span class="font-medium text-violet-500">+${pendingPts} (pendiente)</span>
+                    <span class="font-medium" style="color:#f5a623">+${pendingPts} (pendiente)</span>
                 </div>` : ''}
                 ${forumPtsRaw > 0 ? `
                 <div class="flex justify-between text-sm">
