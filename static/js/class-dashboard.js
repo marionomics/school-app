@@ -1857,11 +1857,11 @@ async function bulkApproveParticipation() {
     await bulkApproveAll();
 }
 
-// Evaluaciones tab: load all subsections
-async function loadEvaluaciones() {
-    loadParticipation();
-    initGradesTab();     // loads exams, online exams, categories
-    loadAssignments();   // loads homework retos
+// Evaluaciones tab: load all subsections (fire-and-forget, independent containers)
+function loadEvaluaciones() {
+    loadParticipation().catch(function(e) { console.error('loadParticipation:', e); });
+    initGradesTab();     // synchronous setup + fires async loadExams/loadOnlineExams internally
+    loadAssignments().catch(function(e) { console.error('loadAssignments:', e); });
 }
 
 // Hoy tab: populate attendance + participation + forum cards from dashboard data
@@ -1931,18 +1931,16 @@ async function loadHistorialAttendance(date) {
     container.innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:13px">Cargando...</div>';
 
     try {
-        const [students, records] = await Promise.all([
-            apiCall(`/admin/roster/${classId}`),
-            apiCall(`/admin/attendance?class_id=${classId}&date=${date}`)
-        ]);
-
-        const recordMap = {};
-        records.forEach(function(r) { recordMap[r.student_id] = r.status; });
-
-        if (!students || students.length === 0) {
+        // Use already-loaded studentsData (flat {id, name}) to avoid extra roster fetch
+        const students = studentsData && studentsData.length > 0 ? studentsData : null;
+        if (!students) {
             container.innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:13px">No hay alumnos.</div>';
             return;
         }
+
+        const records = await apiCall(`/admin/attendance?class_id=${classId}&date=${date}`);
+        const recordMap = {};
+        records.forEach(function(r) { recordMap[r.student_id] = r.status; });
 
         const statusColor = { present: '#c8f135', absent: '#ff6060', late: '#f5a623', excused: '#c8f135' };
         const statusLabel = { present: 'Presente', absent: 'Ausente', late: 'Tarde', excused: 'Justificada' };
