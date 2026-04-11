@@ -30,7 +30,7 @@
   --surface: #1e1e1e;
   --lime-dim: rgba(200, 241, 53, 0.12);
   --danger: #ff6060;
-  --danger-light: #e53935;
+  --danger-dark: #e53935;
   --warning: #f5a623;
   --white: #ffffff;
   --font-brand: 'Graphik', system-ui, -apple-system, sans-serif;
@@ -57,7 +57,7 @@ body {
   background: var(--lime);
   border-radius: 50%;
   color: var(--dark);
-  font-weight: 800;
+  font-weight: 600;
   font-size: 12px;
   flex-shrink: 0;
 }
@@ -113,7 +113,7 @@ body {
 .btn-lime {
   background: var(--lime);
   color: var(--dark);
-  font-weight: 800;
+  font-weight: 600;
   border: none;
   border-radius: 8px;
   padding: 10px 18px;
@@ -187,6 +187,6 @@ body {
 
 /* ===== Participation Gradient (lime override) ===== */
 .participation-gradient {
-  background: linear-gradient(135deg, #c8f135 0%, #a8d020 100%);
+  background: linear-gradient(135deg, var(--lime) 0%, #a8d020 100%);
   color: var(--dark);
 }
