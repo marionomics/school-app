@@ -273,7 +273,7 @@ function renderPosts(reset) {
 function renderPostCard(post) {
     const isTeacherPost = post.author_role === 'teacher';
     const initials = nameInitials(post.author_name);
-    const avatarColor = isTeacherPost ? '#9C4927' : stringToColor(post.author_name);
+    const avatarColor = isTeacherPost ? '#2b2b2b' : stringToColor(post.author_name);
     const timeStr = timeAgo(post.created_at);
     const isOwn = post.author_id === currentUser.id;
     const canDelete = isOwn || currentUser.role === 'teacher';
@@ -518,7 +518,7 @@ function closePostModal() {
 function renderModalPost(post) {
     currentModalPost = post;
     const isTeacherPost = post.author_role === 'teacher';
-    const avatarColor = isTeacherPost ? '#9C4927' : stringToColor(post.author_name);
+    const avatarColor = isTeacherPost ? '#2b2b2b' : stringToColor(post.author_name);
     const initials = nameInitials(post.author_name);
     const timeStr = timeAgo(post.created_at);
     const isOwn = post.author_id === currentUser.id;
@@ -581,7 +581,7 @@ function renderModalReplies(replies) {
 
 function renderReply(reply, isNested) {
     const isTeacher = reply.author_role === 'teacher';
-    const avatarColor = isTeacher ? '#9C4927' : stringToColor(reply.author_name);
+    const avatarColor = isTeacher ? '#2b2b2b' : stringToColor(reply.author_name);
     const initials = nameInitials(reply.author_name);
     const canDelete = reply.author_id === currentUser.id || currentUser.role === 'teacher';
     const showReplyBtn = !isNested;
@@ -1636,7 +1636,7 @@ function _showLikeToast(result) {
     } else if (result.bonus_type === 'mini') {
         msg = `✨ Le diste +${pts} pts a ${name}`; bg = '#059669';
     } else {
-        msg = `Le diste +${pts} pts a ${name}`; bg = '#1F2020';
+        msg = `Le diste +${pts} pts a ${name}`; bg = '#2b2b2b';
     }
     _showToast(msg, bg, duration);
 }
@@ -1699,7 +1699,7 @@ function setAvatarInitials(id, name) {
 }
 
 function stringToColor(str) {
-    const colors = ['#EA8251','#9C4927','#2563EB','#059669','#7C3AED','#DC2626','#0891B2','#D97706','#4F46E5','#BE185D'];
+    const colors = ['#c8f135','#2b2b2b','#2563EB','#059669','#f5a623','#DC2626','#0891B2','#D97706','#10B981','#BE185D'];
     let hash = 0;
     for (let i = 0; i < (str || '').length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
     return colors[Math.abs(hash) % colors.length];
