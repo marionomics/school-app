@@ -257,11 +257,10 @@
                     <th style="text-align:center">Participacion</th>
                     <th style="text-align:center">Calificacion</th>
                     <th style="text-align:center">Ultima Actividad</th>
-                    <th style="text-align:center">Acciones</th>
                   </tr>
                 </thead>
                 <tbody id="roster-table">
-                  <tr><td colspan="7" style="text-align:center;color:rgba(255,255,255,0.3);padding:32px">Cargando...</td></tr>
+                  <tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.3);padding:32px">Cargando...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -755,6 +754,37 @@
     if (typeof bulkApproveAll === 'function') bulkApproveAll();
   }
   </script>
+
+<!-- Student detail drawer -->
+<div id="studentDrawer" style="position:fixed;top:0;right:-400px;width:360px;max-width:100vw;height:100vh;background:var(--surface);border-left:1px solid rgba(255,255,255,0.1);z-index:50;padding:24px;overflow-y:auto;transition:right 0.25s ease;box-shadow:-8px 0 32px rgba(0,0,0,0.4)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+    <h3 id="drawerStudentName" style="font-size:18px;font-weight:600;color:#fff;margin:0"></h3>
+    <button onclick="closeStudentDrawer()" style="background:transparent;border:none;color:rgba(255,255,255,0.4);font-size:24px;cursor:pointer;line-height:1;padding:4px">×</button>
+  </div>
+  <div id="drawerContent">
+    <div class="micro-label" style="margin-bottom:4px">Calificación final</div>
+    <div id="drawerGrade" style="font-size:40px;font-weight:700;color:var(--lime);margin-bottom:24px">—</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="teacher-card" style="padding:14px">
+        <div class="micro-label" style="margin-bottom:6px">Participación</div>
+        <div id="drawerParticipation" style="font-size:22px;font-weight:600;color:#fff">—</div>
+      </div>
+      <div class="teacher-card" style="padding:14px">
+        <div class="micro-label" style="margin-bottom:6px">Faltas</div>
+        <div id="drawerAbsences" style="font-size:22px;font-weight:600;color:var(--danger)">—</div>
+      </div>
+      <div class="teacher-card" style="padding:14px">
+        <div class="micro-label" style="margin-bottom:6px">Asistencia</div>
+        <div id="drawerAttendancePct" style="font-size:22px;font-weight:600;color:#fff">—</div>
+      </div>
+      <div class="teacher-card" style="padding:14px">
+        <div class="micro-label" style="margin-bottom:6px">Foro pts</div>
+        <div id="drawerForumPts" style="font-size:22px;font-weight:600;color:#fff">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="drawerOverlay" onclick="closeStudentDrawer()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:49"></div>
 
 </body>
 </html>

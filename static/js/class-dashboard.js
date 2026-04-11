@@ -286,7 +286,7 @@ function renderRosterTable() {
     const tbody = document.getElementById('roster-table');
 
     if (studentsData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">No se encontraron estudiantes</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">No se encontraron estudiantes</td></tr>';
         return;
     }
 
@@ -305,7 +305,9 @@ function renderRosterTable() {
         return `
             <tr class="hover:bg-gray-50">
                 <td class="px-4 py-3">
-                    <div class="font-medium text-gray-800">${s.name}</div>
+                    <div class="font-medium">
+                        <span onclick="openStudentDrawer(${s.id}, '${(s.name || '').replace(/'/g, "\\'")}')" style="cursor:pointer;color:var(--lime);font-weight:500">${s.name}</span>
+                    </div>
                     <div class="text-xs text-gray-500">${s.email}</div>
                 </td>
                 <td class="px-4 py-3 text-center">
@@ -332,11 +334,6 @@ function renderRosterTable() {
                 </td>
                 <td class="px-4 py-3 text-center text-sm text-gray-500">
                     ${s.last_activity ? formatDate(s.last_activity.split('T')[0]) : '-'}
-                </td>
-                <td class="px-4 py-3 text-center">
-                    <button onclick="openStudentModal(${s.id})" class="text-primary hover:text-secondary text-sm font-medium">
-                        Ver detalle
-                    </button>
                 </td>
             </tr>
         `;
@@ -1896,3 +1893,52 @@ async function init() {
 }
 
 init();
+
+// ==================== Student Detail Drawer ====================
+
+async function openStudentDrawer(studentId, studentName) {
+    document.getElementById('drawerStudentName').textContent = studentName;
+    document.getElementById('drawerGrade').textContent = '…';
+    document.getElementById('drawerParticipation').textContent = '…';
+    document.getElementById('drawerAbsences').textContent = '…';
+    document.getElementById('drawerAttendancePct').textContent = '…';
+    document.getElementById('drawerForumPts').textContent = '…';
+    document.getElementById('studentDrawer').style.right = '0';
+    document.getElementById('drawerOverlay').style.display = 'block';
+
+    try {
+        const gradeData = await apiCall(
+            `/students/me/grade-calculation/${classId}`,
+            { method: 'GET', headers: { 'X-Impersonate': String(studentId) } }
+        );
+
+        const grade = gradeData.final_grade != null ? gradeData.final_grade.toFixed(1) : '—';
+        const absences = gradeData.absence_count != null ? gradeData.absence_count : '—';
+        const partPts = gradeData.participation_points != null ? gradeData.participation_points.toFixed(1) : '—';
+        const forumPts = gradeData.forum_points != null ? gradeData.forum_points.toFixed(2) : '—';
+
+        const attendanceData = await apiCall(
+            `/students/me/attendance?class_id=${classId}`,
+            { method: 'GET', headers: { 'X-Impersonate': String(studentId) } }
+        );
+        const total = attendanceData.length;
+        const present = attendanceData.filter(function(a) {
+            return a.status === 'present' || a.status === 'late' || a.status === 'excused';
+        }).length;
+        const attendancePct = total > 0 ? Math.round((present / total) * 100) + '%' : '—';
+
+        document.getElementById('drawerGrade').textContent = grade;
+        document.getElementById('drawerParticipation').textContent = partPts + ' pts';
+        document.getElementById('drawerAbsences').textContent = absences;
+        document.getElementById('drawerAttendancePct').textContent = attendancePct;
+        document.getElementById('drawerForumPts').textContent = forumPts + ' pts';
+    } catch(e) {
+        document.getElementById('drawerGrade').textContent = 'Error';
+        console.error('openStudentDrawer error:', e);
+    }
+}
+
+function closeStudentDrawer() {
+    document.getElementById('studentDrawer').style.right = '-400px';
+    document.getElementById('drawerOverlay').style.display = 'none';
+}
