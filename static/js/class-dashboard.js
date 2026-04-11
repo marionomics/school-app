@@ -1,3 +1,15 @@
+// ===== In-memory API cache (30s TTL) =====
+const _cache = {};
+async function cachedCall(key, fn, ttlMs = 30000) {
+  if (_cache[key] && Date.now() - _cache[key].ts < ttlMs) return _cache[key].data;
+  const data = await fn();
+  _cache[key] = { data, ts: Date.now() };
+  return data;
+}
+function invalidateCache(keyPrefix) {
+  Object.keys(_cache).forEach(k => { if (k.startsWith(keyPrefix)) delete _cache[k]; });
+}
+
 // Estado
 let authToken = localStorage.getItem('authToken');
 let currentTeacher = null;
@@ -113,8 +125,7 @@ async function loadDashboard() {
             url += `&status_filter=${statusSelect.value}`;
         }
 
-        console.log('Dashboard URL:', url);
-        dashboardData = await apiCall(url);
+        dashboardData = await cachedCall(`dashboard:${url}`, () => apiCall(url));
         studentsData = dashboardData.students;
         categories = dashboardData.stats.categories;
         classGradingMode = dashboardData.stats.grading_mode || 'points';
@@ -454,7 +465,7 @@ async function saveAttendance() {
         successEl.classList.remove('hidden');
         setTimeout(() => successEl.classList.add('hidden'), 3000);
 
-        // Refresh dashboard data
+        invalidateCache(`dashboard:`);
         loadDashboard();
     } catch (error) {
         console.error('Attendance save error:', error);
@@ -1192,6 +1203,7 @@ async function updateParticipation(id, status) {
             body: JSON.stringify({ approved: status, points })
         });
 
+        invalidateCache(`dashboard:`);
         loadParticipation();
         loadDashboard();
     } catch (error) {
@@ -1220,6 +1232,7 @@ async function bulkApproveAll() {
             body: JSON.stringify({ class_id: classId, items })
         });
 
+        invalidateCache(`dashboard:`);
         loadParticipation();
         loadDashboard();
     } catch (error) {
