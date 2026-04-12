@@ -83,9 +83,11 @@ function logout() {
 // UI Functions
 function showSection(sectionId) {
     ['loading-section', 'login-section', 'dashboard-section'].forEach(id => {
-        document.getElementById(id).classList.add('hidden');
+        const el = document.getElementById(id);
+        if (el) { el.style.display = 'none'; el.classList.add('hidden'); }
     });
-    document.getElementById(sectionId).classList.remove('hidden');
+    const target = document.getElementById(sectionId);
+    if (target) { target.style.removeProperty('display'); target.classList.remove('hidden'); }
 }
 
 // showTab is now defined inline in class-dashboard.html (5-tab dark mode layout).
@@ -2040,6 +2042,25 @@ function loadForumEmbedded() {
     }
 }
 
+
+// ==================== Student Preview ====================
+
+async function openStudentPreview() {
+    try {
+        const students = await apiCall(`/admin/students?class_id=${classId}`);
+        if (!students || students.length === 0) {
+            alert('No hay estudiantes inscritos en esta clase. Inscribe al menos un estudiante para previsualizar.');
+            return;
+        }
+        sessionStorage.setItem('teacherPreviewMode', 'true');
+        sessionStorage.setItem('previewClassId', classId.toString());
+        sessionStorage.setItem('previewStudentId', students[0].id.toString());
+        sessionStorage.setItem('previewClassName', (document.getElementById('class-name') || {}).textContent || 'Clase');
+        window.location.href = '/?preview=true';
+    } catch (e) {
+        alert('Error al cargar estudiantes: ' + e.message);
+    }
+}
 
 // ==================== Initialization ====================
 

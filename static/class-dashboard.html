@@ -63,7 +63,10 @@
       <p style="margin-top:14px;color:rgba(255,255,255,0.4);font-size:13px">Cargando...</p>
     </div>
   </div>
-  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  <style>
+    @keyframes spin{to{transform:rotate(360deg)}}
+    #loading-section.hidden { display: none !important; }
+  </style>
 
   <!-- Login Required -->
   <div id="login-section" class="hidden" style="min-height:100vh;display:none;align-items:center;justify-content:center">
