@@ -73,9 +73,11 @@ function logout() {
 // UI Functions
 function showSection(sectionId) {
     ['loading-section', 'login-section', 'dashboard-section'].forEach(id => {
-        document.getElementById(id).classList.add('hidden');
+        const el = document.getElementById(id);
+        if (el) { el.style.display = 'none'; el.classList.add('hidden'); }
     });
-    document.getElementById(sectionId).classList.remove('hidden');
+    const target = document.getElementById(sectionId);
+    if (target) { target.style.removeProperty('display'); target.classList.remove('hidden'); }
 }
 
 function showTab(tabName) {
@@ -1161,7 +1163,7 @@ async function loadParticipation() {
             const statusName = statusNames[p.approved] || p.approved;
 
             return `
-                <div class="border border-gray-200 rounded-lg p-4" data-participation-id="${p.id}">
+                <div class="border border-gray-200 rounded-lg p-4" data-participation-id="${p.id}" data-status="${p.approved}">
                     <div class="flex flex-col sm:flex-row justify-between gap-3">
                         <div class="flex-1">
                             <div class="flex items-center gap-2 mb-1">
@@ -1222,7 +1224,7 @@ async function updateParticipation(id, status) {
 }
 
 async function bulkApproveAll() {
-    const pendingCards = document.querySelectorAll('#participation-list [data-participation-id]');
+    const pendingCards = document.querySelectorAll('#participation-list [data-participation-id][data-status="pending"]');
     const items = [];
 
     pendingCards.forEach(card => {
