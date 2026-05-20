@@ -460,7 +460,16 @@ async def bulk_approve_participation(
         if points_map.get(p.id) is not None:
             p.points = points_map[p.id]
 
-        if class_.salvando_semestre:
+        if p.bonus_type:
+            # Already rolled at tap time — just report it
+            results.append({
+                "id": p.id,
+                "student_name": p.student.name,
+                "original_points": p.points,
+                "final_points": p.points,
+                "bonus_type": p.bonus_type,
+            })
+        elif class_.salvando_semestre:
             original_points = p.points
             final_points, bonus_type = _roll_salvando_bonus(p.points)
             p.points = final_points
@@ -502,11 +511,15 @@ async def update_participation(
     bonus_type = None
     original_points = None
     if data.approved == "approved" and participation.class_id:
-        class_ = db.query(Class).filter(Class.id == participation.class_id).first()
-        if class_ and class_.salvando_semestre:
-            original_points = participation.points
-            final_points, bonus_type = _roll_salvando_bonus(participation.points)
-            participation.points = final_points
+        if participation.bonus_type:
+            # Already rolled at tap time — honour it, no re-roll
+            bonus_type = participation.bonus_type
+        else:
+            class_ = db.query(Class).filter(Class.id == participation.class_id).first()
+            if class_ and class_.salvando_semestre:
+                original_points = participation.points
+                final_points, bonus_type = _roll_salvando_bonus(participation.points)
+                participation.points = final_points
 
     db.commit()
     db.refresh(participation)

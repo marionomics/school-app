@@ -60,6 +60,7 @@ class ParticipationResponse(BaseModel):
     description: str
     points: int
     approved: str = "pending"
+    bonus_type: Optional[str] = None
 
     class Config:
         from_attributes = True

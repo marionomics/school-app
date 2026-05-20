@@ -62,6 +62,7 @@ class Participation(Base):
     points = Column(Integer, nullable=False, default=1)
     approved = Column(String(20), nullable=False, default="pending")  # pending, approved, rejected
     source = Column(String(20), nullable=True, default='class')  # 'class' or 'forum'
+    bonus_type = Column(String(20), nullable=True)  # set at tap time when salvando_semestre active
 
     # Relationships
     student = relationship("Student", back_populates="participations")

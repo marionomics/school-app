@@ -100,6 +100,10 @@ def _ensure_columns():
                 conn.execute(text(
                     "ALTER TABLE participations ADD COLUMN source VARCHAR(20) DEFAULT 'class'"
                 ))
+            if "bonus_type" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE participations ADD COLUMN bonus_type VARCHAR(20)"
+                ))
 
     if "forum_posts" in inspector.get_table_names():
         existing_cols = {col["name"] for col in inspector.get_columns("forum_posts")}

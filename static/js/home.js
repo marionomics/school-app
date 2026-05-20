@@ -970,7 +970,7 @@ async function _doSubmitParticipation(multiplier) {
     if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
 
     try {
-        await apiCall('/participation', {
+        const result = await apiCall('/participation', {
             method: 'POST',
             body: JSON.stringify({ class_id: classId, description, points: multiplier }),
         });
@@ -981,7 +981,11 @@ async function _doSubmitParticipation(multiplier) {
         tapDescription = '';
         if (btn) { btn.disabled = true; btn.textContent = 'ENVIAR'; }
 
-        _showToast(`✅ Participación enviada (+${multiplier} pts pendiente)`, '#7C3AED', 4000);
+        if (result.bonus_type && result.bonus_type !== 'normal') {
+            _showSalvandoToast(result.bonus_type, result.points);
+        } else {
+            _showToast(`✅ Participación enviada (+${result.points} pts pendiente)`, '#7C3AED', 4000);
+        }
 
         // Refresh cards to show pending count
         await _refreshGradeCards();
@@ -1583,6 +1587,18 @@ function _showLikeToast(result) {
         msg = `✨ Le diste +${pts} pts a ${name}`; bg = '#059669';
     } else {
         msg = `Le diste +${pts} pts a ${name}`; bg = '#1F2020';
+    }
+    _showToast(msg, bg, duration);
+}
+
+function _showSalvandoToast(bonusType, pts) {
+    let msg, bg, duration = 4000;
+    if (bonusType === 'jackpot') {
+        msg = `💰 ¡JACKPOT! +${pts} pts de participación`; bg = 'linear-gradient(135deg,#f59e0b,#d97706)'; duration = 6000;
+    } else if (bonusType === 'triple') {
+        msg = `🎲 ¡TRIPLE! +${pts} pts de participación`; bg = 'linear-gradient(135deg,#EA8251,#9C4927)'; duration = 5000;
+    } else if (bonusType === 'double') {
+        msg = `🎰 ¡DOBLE! +${pts} pts de participación`; bg = 'linear-gradient(135deg,#EA8251,#9C4927)';
     }
     _showToast(msg, bg, duration);
 }

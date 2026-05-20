@@ -1,11 +1,24 @@
+import random
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import date
 
 from models.database import get_db
-from models.models import Student, Participation, StudentClass
+from models.models import Student, Participation, StudentClass, Class
 from models.schemas import ParticipationCreate, ParticipationResponse
 from app.auth import get_current_student
+
+
+def _roll_salvando_bonus(base: int) -> tuple:
+    r = random.random()
+    if r < 0.01:
+        return 10, 'jackpot'
+    if r < 0.11:
+        return base * 3, 'triple'
+    if r < 0.91:
+        return base * 2, 'double'
+    return base, 'normal'
 
 router = APIRouter(prefix="/api", tags=["participation"])
 
@@ -42,12 +55,19 @@ async def submit_participation(
             detail="Los puntos deben ser 1, 2 o 3",
         )
 
+    # Roll casino bonus immediately if Salvando el Semestre is active
+    bonus_type = None
+    class_ = db.query(Class).filter(Class.id == participation.class_id).first()
+    if class_ and class_.salvando_semestre:
+        points, bonus_type = _roll_salvando_bonus(points)
+
     db_participation = Participation(
         student_id=current_student.id,
         class_id=participation.class_id,
         date=date.today(),
         description=participation.description,
         points=points,
+        bonus_type=bonus_type,
         source='class',
     )
     db.add(db_participation)
