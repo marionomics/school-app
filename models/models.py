@@ -96,6 +96,7 @@ class Class(Base):
     teacher_id = Column(Integer, ForeignKey("students.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     grading_mode = Column(String(20), default='points')  # 'points' or 'percentage'
+    salvando_semestre = Column(Boolean, default=False)
 
     # Relationships
     teacher = relationship("Student", back_populates="taught_classes")

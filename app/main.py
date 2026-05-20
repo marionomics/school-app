@@ -70,6 +70,10 @@ def _ensure_columns():
                 conn.execute(text(
                     "ALTER TABLE classes ADD COLUMN grading_mode VARCHAR(20) DEFAULT 'points'"
                 ))
+            if "salvando_semestre" not in existing_cols:
+                conn.execute(text(
+                    "ALTER TABLE classes ADD COLUMN salvando_semestre BOOLEAN DEFAULT FALSE"
+                ))
 
     if "assignments" in inspector.get_table_names():
         existing_cols = {col["name"] for col in inspector.get_columns("assignments")}

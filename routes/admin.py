@@ -2,6 +2,7 @@
 Admin routes for teacher functionality.
 """
 import logging
+import random
 from datetime import date, datetime as dt
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -49,6 +50,18 @@ from models.schemas import (
 from app.auth import get_current_teacher
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+def _roll_salvando_bonus(base: int) -> tuple:
+    """Roll random multiplier for Salvando el Semestre protocol."""
+    r = random.random()
+    if r < 0.01:
+        return 10, 'jackpot'
+    if r < 0.11:
+        return base * 3, 'triple'
+    if r < 0.91:
+        return base * 2, 'double'
+    return base, 'normal'
 
 
 @router.get("/students", response_model=list[StudentResponse])
@@ -441,14 +454,27 @@ async def bulk_approve_participation(
             detail="No se encontraron participaciones pendientes",
         )
 
+    results = []
     for p in participations:
         p.approved = "approved"
         if points_map.get(p.id) is not None:
             p.points = points_map[p.id]
 
+        if class_.salvando_semestre:
+            original_points = p.points
+            final_points, bonus_type = _roll_salvando_bonus(p.points)
+            p.points = final_points
+            results.append({
+                "id": p.id,
+                "student_name": p.student.name,
+                "original_points": original_points,
+                "final_points": final_points,
+                "bonus_type": bonus_type,
+            })
+
     db.commit()
 
-    return {"approved_count": len(participations)}
+    return {"approved_count": len(participations), "results": results}
 
 
 @router.patch("/participation/{participation_id}", response_model=ParticipationWithStudent)
@@ -473,6 +499,15 @@ async def update_participation(
     if data.points is not None:
         participation.points = data.points
 
+    bonus_type = None
+    original_points = None
+    if data.approved == "approved" and participation.class_id:
+        class_ = db.query(Class).filter(Class.id == participation.class_id).first()
+        if class_ and class_.salvando_semestre:
+            original_points = participation.points
+            final_points, bonus_type = _roll_salvando_bonus(participation.points)
+            participation.points = final_points
+
     db.commit()
     db.refresh(participation)
 
@@ -485,6 +520,8 @@ async def update_participation(
         approved=participation.approved,
         student_name=participation.student.name,
         student_email=participation.student.email,
+        bonus_type=bonus_type,
+        original_points=original_points,
     )
 
 
@@ -1144,6 +1181,7 @@ async def get_class_dashboard(
                 "pending_justifications": pending_justifications,
                 "categories": cat_responses,
                 "grading_mode": class_.grading_mode or 'points',
+                "salvando_semestre": bool(class_.salvando_semestre),
             },
             "students": students_data,
             "recent_activity": recent,
@@ -1171,7 +1209,7 @@ async def update_class_settings(
     teacher: Student = Depends(get_current_teacher),
     db: Session = Depends(get_db),
 ):
-    """Update class settings (e.g., grading_mode)."""
+    """Update class settings (grading_mode and/or salvando_semestre)."""
     class_ = db.query(Class).filter(
         Class.id == class_id,
         Class.teacher_id == teacher.id,
@@ -1179,14 +1217,21 @@ async def update_class_settings(
     if not class_:
         raise HTTPException(status_code=404, detail="Clase no encontrada")
 
-    if data.grading_mode not in ('points', 'percentage'):
-        raise HTTPException(status_code=400, detail="Modo invalido. Use 'points' o 'percentage'")
+    if data.grading_mode is not None:
+        if data.grading_mode not in ('points', 'percentage'):
+            raise HTTPException(status_code=400, detail="Modo invalido. Use 'points' o 'percentage'")
+        class_.grading_mode = data.grading_mode
 
-    class_.grading_mode = data.grading_mode
+    if data.salvando_semestre is not None:
+        class_.salvando_semestre = data.salvando_semestre
+
     db.commit()
     db.refresh(class_)
 
-    return {"grading_mode": class_.grading_mode}
+    return {
+        "grading_mode": class_.grading_mode,
+        "salvando_semestre": class_.salvando_semestre,
+    }
 
 
 # ==================== Assignments ====================

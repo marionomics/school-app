@@ -6,6 +6,7 @@ let dashboardData = null;
 let studentsData = [];
 let categories = [];
 let classGradingMode = 'points';
+let classSalvandoSemestre = false;
 let currentAssignmentId = null;
 let fileUploadsEnabled = false;
 let onlineExamsData = [];
@@ -140,6 +141,7 @@ async function loadDashboard() {
         studentsData = dashboardData.students;
         categories = dashboardData.stats.categories;
         classGradingMode = dashboardData.stats.grading_mode || 'points';
+        classSalvandoSemestre = !!dashboardData.stats.salvando_semestre;
 
         updateDashboardUI();
     } catch (error) {
@@ -1127,6 +1129,59 @@ async function deleteCategory(categoryId) {
 
 // ==================== Participation Tab ====================
 
+function renderSalvandoBanner() {
+    const existing = document.getElementById('salvando-banner');
+    if (existing) existing.remove();
+
+    const list = document.getElementById('participation-list');
+    if (!list) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'salvando-banner';
+
+    if (classSalvandoSemestre) {
+        banner.className = 'mb-4 flex items-center justify-between gap-3 rounded-xl border-2 border-orange-400 bg-orange-50 px-4 py-3';
+        banner.innerHTML = `
+            <div class="flex items-center gap-2">
+                <span class="text-xl">🎲</span>
+                <div>
+                    <p class="font-semibold text-orange-800 text-sm">Protocolo activo: Salvando el Semestre</p>
+                    <p class="text-orange-600 text-xs">Cada aprobación tiene: 80% ×2 · 10% ×3 · 1% jackpot (10 pts)</p>
+                </div>
+            </div>
+            <button onclick="toggleSalvandoSemestre(false)"
+                    class="shrink-0 px-3 py-1.5 text-xs font-medium bg-orange-200 text-orange-800 rounded-lg hover:bg-orange-300">
+                Desactivar
+            </button>`;
+    } else {
+        banner.className = 'mb-4 flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3';
+        banner.innerHTML = `
+            <div class="flex items-center gap-2">
+                <span class="text-lg">🎲</span>
+                <p class="text-gray-600 text-sm">Protocolo <span class="font-medium">Salvando el Semestre</span> desactivado</p>
+            </div>
+            <button onclick="toggleSalvandoSemestre(true)"
+                    class="shrink-0 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-secondary">
+                Activar
+            </button>`;
+    }
+
+    list.parentElement.insertBefore(banner, list);
+}
+
+async function toggleSalvandoSemestre(activate) {
+    try {
+        const result = await apiCall(`/admin/classes/${classId}/settings`, {
+            method: 'PATCH',
+            body: JSON.stringify({ salvando_semestre: activate }),
+        });
+        classSalvandoSemestre = result.salvando_semestre;
+        renderSalvandoBanner();
+    } catch (error) {
+        alert('Error al cambiar protocolo: ' + error.message);
+    }
+}
+
 async function loadParticipation() {
     const filter = document.getElementById('participation-filter').value;
     const container = document.getElementById('participation-list');
@@ -1203,6 +1258,32 @@ async function loadParticipation() {
     } catch (error) {
         container.innerHTML = `<p class="text-center text-red-500 py-4">Error al cargar: ${error.message}</p>`;
     }
+
+    renderSalvandoBanner();
+}
+
+function _showToast(msg, bg, duration = 3000) {
+    const el = document.createElement('div');
+    el.style.cssText = `position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(1rem);z-index:9999;padding:.75rem 1.25rem;border-radius:.75rem;box-shadow:0 4px 20px rgba(0,0,0,.25);color:#fff;font-size:.875rem;font-weight:600;white-space:nowrap;background:${bg};opacity:0;transition:opacity .3s ease,transform .3s ease;font-family:system-ui,sans-serif;`;
+    el.textContent = msg;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => { el.style.opacity = '1'; el.style.transform = 'translateX(-50%) translateY(0)'; });
+    setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(-50%) translateY(1rem)'; setTimeout(() => el.remove(), 350); }, duration);
+}
+
+function _showSalvandoToast(result) {
+    if (!result.bonus_type || result.bonus_type === 'normal') return;
+    const name = result.student_name || 'el estudiante';
+    const pts = result.final_points;
+    let msg, bg, duration = 3500;
+    if (result.bonus_type === 'jackpot') {
+        msg = `💰 ¡JACKPOT! ${name} recibe ${pts} pts`; bg = 'linear-gradient(135deg,#f59e0b,#d97706)'; duration = 5500;
+    } else if (result.bonus_type === 'triple') {
+        msg = `🎊 ¡TRIPLE! ${name} recibe ×3 = ${pts} pts`; bg = 'linear-gradient(135deg,#9C4927,#6b2d10)'; duration = 4500;
+    } else if (result.bonus_type === 'double') {
+        msg = `🎰 ¡DOBLE! ${name} recibe ×2 = ${pts} pts`; bg = 'linear-gradient(135deg,#EA8251,#9C4927)'; duration = 4000;
+    }
+    _showToast(msg, bg, duration);
 }
 
 async function updateParticipation(id, status) {
@@ -1211,10 +1292,18 @@ async function updateParticipation(id, status) {
     const points = pointsInput ? parseInt(pointsInput.value) : null;
 
     try {
-        await apiCall(`/admin/participation/${id}`, {
+        const result = await apiCall(`/admin/participation/${id}`, {
             method: 'PATCH',
             body: JSON.stringify({ approved: status, points })
         });
+
+        if (status === 'approved' && classSalvandoSemestre && result.bonus_type) {
+            _showSalvandoToast({
+                bonus_type: result.bonus_type,
+                student_name: result.student_name,
+                final_points: result.points,
+            });
+        }
 
         loadParticipation();
         loadDashboard();
@@ -1239,10 +1328,21 @@ async function bulkApproveAll() {
     if (!confirm(`¿Aprobar ${items.length} participacion(es) pendiente(s)?`)) return;
 
     try {
-        await apiCall('/admin/participation/bulk-approve', {
+        const result = await apiCall('/admin/participation/bulk-approve', {
             method: 'PATCH',
             body: JSON.stringify({ class_id: classId, items })
         });
+
+        if (classSalvandoSemestre && result.results?.length) {
+            // Show toasts for notable bonuses with staggered delay
+            const notable = result.results.filter(r => r.bonus_type !== 'normal');
+            notable.forEach((r, i) => {
+                setTimeout(() => _showSalvandoToast(r), i * 800);
+            });
+            if (notable.length === 0) {
+                _showToast(`Aprobadas ${result.approved_count} participaciones`, '#1F2020', 2500);
+            }
+        }
 
         loadParticipation();
         loadDashboard();

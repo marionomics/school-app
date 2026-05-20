@@ -207,6 +207,13 @@ class BulkParticipationApprove(BaseModel):
 class ParticipationWithStudent(ParticipationResponse):
     student_name: str
     student_email: str
+    bonus_type: Optional[str] = None
+    original_points: Optional[int] = None
+
+
+class BulkApproveResult(BaseModel):
+    approved_count: int
+    results: List[dict] = []
 
 
 # Class schemas
@@ -223,13 +230,15 @@ class ClassResponse(BaseModel):
     created_at: datetime
     student_count: Optional[int] = 0
     grading_mode: str = 'points'
+    salvando_semestre: bool = False
 
     class Config:
         from_attributes = True
 
 
 class ClassSettingsUpdate(BaseModel):
-    grading_mode: str  # 'points' or 'percentage'
+    grading_mode: Optional[str] = None  # 'points' or 'percentage'
+    salvando_semestre: Optional[bool] = None
 
 
 class JoinClassRequest(BaseModel):
