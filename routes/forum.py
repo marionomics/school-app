@@ -464,6 +464,7 @@ async def delete_post(
 
     is_moderation = user.role == "teacher" and post.author_id != user.id
     points_revoked = 0.0
+    penalty_amount = 0.0
 
     if is_moderation:
         # Revoke all points earned from this post
@@ -495,7 +496,7 @@ async def delete_post(
     return {
         "message": "Post eliminado",
         "points_revoked": round(points_revoked, 2),
-        "penalty_applied": round((payload.penalty if payload else 0.0) or 0.0, 2),
+        "penalty_applied": penalty_amount,
     }
 
 
