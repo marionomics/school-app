@@ -566,6 +566,34 @@ async def get_recent_points(
     return result
 
 
+@router.get("/penalties/recent")
+async def get_recent_penalties(
+    user: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+    class_id: Optional[int] = None,
+):
+    """Penalty records for the current user in the last 7 days.
+    Pass class_id to filter to one class; omit to get all classes.
+    """
+    cutoff = datetime.utcnow() - timedelta(days=7)
+    q = db.query(ForumPoints).filter(
+        ForumPoints.user_id == user.id,
+        ForumPoints.bonus_type == "penalty",
+        ForumPoints.created_at >= cutoff,
+    )
+    if class_id is not None:
+        q = q.filter(ForumPoints.class_id == class_id)
+    records = q.order_by(ForumPoints.created_at.desc()).all()
+    return [
+        {
+            "points_earned": r.points_earned,
+            "message": r.message,
+            "created_at": r.created_at.isoformat(),
+        }
+        for r in records
+    ]
+
+
 @router.patch("/posts/{post_id}/pin")
 async def toggle_pin(
     post_id: int,
