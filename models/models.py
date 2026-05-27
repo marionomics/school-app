@@ -260,6 +260,8 @@ class ForumPoints(Base):
     user_id = Column(Integer, ForeignKey("students.id"), nullable=False)
     post_id = Column(Integer, ForeignKey("forum_posts.id"), nullable=True)
     like_id = Column(Integer, ForeignKey("forum_likes.id"), nullable=True)
+    class_id = Column(Integer, ForeignKey("classes.id"), nullable=True)
+    message = Column(String(300), nullable=True)
     points_earned = Column(Float, nullable=False)
     bonus_type = Column(String(20), nullable=False, default='normal')  # post, normal, mini, double, jackpot
     created_at = Column(DateTime, default=datetime.utcnow)

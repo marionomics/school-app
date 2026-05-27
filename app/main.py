@@ -127,6 +127,14 @@ def _ensure_columns():
             if "awarded_by" not in existing_cols:
                 conn.execute(text("ALTER TABLE special_points ADD COLUMN awarded_by INTEGER"))
 
+    if "forum_points" in inspector.get_table_names():
+        existing_cols = {col["name"] for col in inspector.get_columns("forum_points")}
+        with engine.begin() as conn:
+            if "class_id" not in existing_cols:
+                conn.execute(text("ALTER TABLE forum_points ADD COLUMN class_id INTEGER"))
+            if "message" not in existing_cols:
+                conn.execute(text("ALTER TABLE forum_points ADD COLUMN message VARCHAR(300)"))
+
     # Data repair: assign a category to assignments that were saved without one
     if "assignments" in inspector.get_table_names() and "grade_categories" in inspector.get_table_names():
         with engine.begin() as conn:
