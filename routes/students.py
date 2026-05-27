@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from typing import List, Optional
 from datetime import datetime as _dt, timedelta
 import logging
@@ -294,11 +294,15 @@ async def get_student_grade_calculation(
     ).scalar() or 0
     absence_penalty = float(unjustified_absences)
 
-    # Forum points (sum of casino-style points earned from posts in this class)
+    # Forum points: sum of casino points for this class's posts, PLUS any direct
+    # penalty records (bonus_type='penalty') linked to this class via class_id.
     forum_pts_raw = db.query(func.sum(ForumPoints.points_earned)).filter(
         ForumPoints.user_id == current_student.id,
-        ForumPoints.post_id.in_(
-            db.query(ForumPost.id).filter(ForumPost.class_id == class_id)
+        or_(
+            ForumPoints.post_id.in_(
+                db.query(ForumPost.id).filter(ForumPost.class_id == class_id)
+            ),
+            ForumPoints.class_id == class_id,
         ),
     ).scalar() or 0.0
     forum_contribution = round(float(forum_pts_raw), 3)  # no cap — same as participation
