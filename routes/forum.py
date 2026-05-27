@@ -4,7 +4,7 @@ Forum routes — class-scoped posts, threaded replies (max 2 levels), likes, and
 import random
 from typing import Optional
 from datetime import datetime, timedelta, date as date_type
-from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile, Body
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -27,6 +27,11 @@ class ForumPostCreate(BaseModel):
 class ForumReplyCreate(BaseModel):
     content: str
     parent_reply_id: Optional[int] = None
+
+
+class DeletePostRequest(BaseModel):
+    penalty: float = 0.0
+    message: Optional[str] = None
 
 
 # ==================== Helpers ====================
@@ -442,16 +447,43 @@ async def get_forum_post_file(
 @router.delete("/posts/{post_id}")
 async def delete_post(
     post_id: int,
+    payload: Optional[DeletePostRequest] = Body(default=None),
     user: Student = Depends(get_current_student),
     db: Session = Depends(get_db),
 ):
-    """Delete a post. Only author or teacher can delete."""
+    """Delete a post. Only author or teacher can delete.
+    Teachers deleting another user's post may pass {penalty, message} to deduct extra points.
+    All ForumPoints earned by this post are always revoked on moderation delete.
+    """
     post = db.query(ForumPost).filter(ForumPost.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post no encontrado")
 
     if post.author_id != user.id and user.role != "teacher":
         raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este post")
+
+    is_moderation = user.role == "teacher" and post.author_id != user.id
+    points_revoked = 0.0
+
+    if is_moderation:
+        # Revoke all points earned from this post
+        point_records = db.query(ForumPoints).filter(ForumPoints.post_id == post_id).all()
+        points_revoked = sum(abs(r.points_earned) for r in point_records)
+        for r in point_records:
+            db.delete(r)
+
+        # Apply optional extra penalty
+        penalty_amount = round((payload.penalty if payload else 0.0) or 0.0, 2)
+        penalty_message = (payload.message if payload else None)
+        if penalty_amount > 0:
+            db.add(ForumPoints(
+                user_id=post.author_id,
+                post_id=None,
+                class_id=post.class_id,
+                points_earned=-penalty_amount,
+                bonus_type="penalty",
+                message=penalty_message,
+            ))
 
     if post.file_key:
         from app.storage import is_r2_configured, delete_file
@@ -460,7 +492,11 @@ async def delete_post(
 
     db.delete(post)
     db.commit()
-    return {"message": "Post eliminado"}
+    return {
+        "message": "Post eliminado",
+        "points_revoked": round(points_revoked, 2),
+        "penalty_applied": round((payload.penalty if payload else 0.0) or 0.0, 2),
+    }
 
 
 @router.delete("/replies/{reply_id}")
