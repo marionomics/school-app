@@ -192,6 +192,55 @@ function showApp() {
 }
 
 
+// ==================== Delete Post Modal ====================
+
+let _dpmPostId = null;
+let _dpmCallback = null;
+
+function openDeletePostModal(post, onConfirm) {
+    _dpmPostId = post.id;
+    _dpmCallback = onConfirm;
+    // Use textContent for user-supplied strings to prevent XSS
+    document.getElementById('dpm-author').textContent = post.author_name || '';
+    document.getElementById('dpm-snippet').textContent = (post.title || post.content || '').slice(0, 80);
+    const pts = (post.points_earned || 0).toFixed(2);
+    document.getElementById('dpm-pts').textContent = pts;
+    document.getElementById('dpm-pts-row').classList.toggle('hidden', parseFloat(pts) <= 0);
+    document.getElementById('dpm-penalty-check').checked = false;
+    document.getElementById('dpm-penalty-fields').classList.add('hidden');
+    document.getElementById('dpm-penalty-pts').value = '1';
+    document.getElementById('dpm-penalty-msg').value = '';
+    document.getElementById('delete-post-modal').classList.remove('hidden');
+}
+
+function closeDpm() {
+    document.getElementById('delete-post-modal').classList.add('hidden');
+    _dpmPostId = null;
+    _dpmCallback = null;
+}
+
+function toggleDpmPenalty() {
+    const checked = document.getElementById('dpm-penalty-check').checked;
+    document.getElementById('dpm-penalty-fields').classList.toggle('hidden', !checked);
+}
+
+async function confirmDeletePost() {
+    const postId = _dpmPostId;
+    const callback = _dpmCallback;
+    const penaltyChecked = document.getElementById('dpm-penalty-check').checked;
+    const penalty = penaltyChecked ? (parseFloat(document.getElementById('dpm-penalty-pts').value) || 0) : 0;
+    const message = document.getElementById('dpm-penalty-msg').value.trim() || null;
+    const body = {};
+    if (penalty > 0) { body.penalty = penalty; body.message = message; }
+    try {
+        await apiCall(`/forum/posts/${postId}`, { method: 'DELETE', body: JSON.stringify(body) });
+        closeDpm();
+        if (callback) callback(postId);
+    } catch (e) {
+        alert('Error al eliminar: ' + e.message);
+    }
+}
+
 // ==================== Forum: load classes + posts ====================
 
 async function loadForumSection() {
@@ -213,6 +262,56 @@ async function loadForumSection() {
     }
 
     await loadPosts(true);
+    await loadPenaltyBanner();   // NEW
+}
+
+async function loadPenaltyBanner() {
+    if (currentUser.role === 'teacher') return;
+    try {
+        // No class_id — fetch penalties across all classes (home forum is class-agnostic)
+        const penalties = await apiCall('/forum/penalties/recent');
+        const existing = document.getElementById('penalty-banner');
+        if (existing) existing.remove();
+        if (!penalties.length) return;
+
+        const wrapper = document.createElement('div');
+        wrapper.id = 'penalty-banner';
+        wrapper.className = 'space-y-2 mb-2';
+
+        penalties.forEach(p => {
+            const pts = Math.abs(p.points_earned).toFixed(2);
+            const when = timeAgo(p.created_at);
+
+            const row = document.createElement('div');
+            row.className = 'flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 text-sm text-amber-800';
+
+            const textDiv = document.createElement('div');
+
+            const mainSpan = document.createElement('span');
+            mainSpan.className = 'font-medium';
+            mainSpan.textContent = 'Se eliminó una publicación tuya';
+
+            const detailSpan = document.createElement('span');
+            detailSpan.className = 'text-amber-700';
+            detailSpan.textContent = ' −' + pts + ' pts de foro · ' + when;
+
+            textDiv.appendChild(mainSpan);
+            textDiv.appendChild(detailSpan);
+
+            if (p.message) {
+                const msgP = document.createElement('p');
+                msgP.className = 'text-xs text-amber-600 mt-0.5';
+                // textContent prevents XSS — message is user-supplied
+                msgP.textContent = '"' + p.message + '"';
+                textDiv.appendChild(msgP);
+            }
+
+            row.appendChild(textDiv);
+            wrapper.appendChild(row);
+        });
+
+        document.getElementById('posts-container').before(wrapper);
+    } catch (_) { /* banner is non-critical */ }
 }
 
 async function loadPosts(reset = false) {
@@ -416,9 +515,18 @@ function heartIcon(filled) {
 async function deletePost(event, postId) {
     event.stopPropagation();
     const post = posts.find(p => p.id === postId);
-    const isTeacherDeleting = currentUser.role === 'teacher' && post && post.author_id !== currentUser.id;
-    const msg = isTeacherDeleting ? `¿Eliminar publicación de ${post.author_name}?` : '¿Estás seguro de eliminar esta publicación?';
-    if (!confirm(msg)) return;
+    const isTeacherModerating = currentUser.role === 'teacher' && post && post.author_id !== currentUser.id;
+
+    if (isTeacherModerating) {
+        openDeletePostModal(post, (deletedId) => {
+            posts = posts.filter(p => p.id !== deletedId);
+            document.querySelector(`article[onclick="openPost(${deletedId})"]`)?.remove();
+            if (!posts.length) document.getElementById('forum-empty').classList.remove('hidden');
+        });
+        return;
+    }
+
+    if (!confirm('¿Estás seguro de eliminar esta publicación?')) return;
     try {
         await apiCall(`/forum/posts/${postId}`, { method: 'DELETE' });
         posts = posts.filter(p => p.id !== postId);
@@ -429,9 +537,19 @@ async function deletePost(event, postId) {
 
 async function deleteModalPost() {
     if (!currentModalPost) return;
-    const isTeacherDeleting = currentUser.role === 'teacher' && currentModalPost.author_id !== currentUser.id;
-    const msg = isTeacherDeleting ? `¿Eliminar publicación de ${currentModalPost.author_name}?` : '¿Estás seguro de eliminar esta publicación?';
-    if (!confirm(msg)) return;
+    const isTeacherModerating = currentUser.role === 'teacher' && currentModalPost.author_id !== currentUser.id;
+
+    if (isTeacherModerating) {
+        openDeletePostModal(currentModalPost, (deletedId) => {
+            closePostModal();
+            posts = posts.filter(p => p.id !== deletedId);
+            document.querySelector(`article[onclick="openPost(${deletedId})"]`)?.remove();
+            if (!posts.length) document.getElementById('forum-empty').classList.remove('hidden');
+        });
+        return;
+    }
+
+    if (!confirm('¿Estás seguro de eliminar esta publicación?')) return;
     const postId = currentModalPost.id;
     try {
         await apiCall(`/forum/posts/${postId}`, { method: 'DELETE' });
