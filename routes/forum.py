@@ -466,12 +466,24 @@ async def delete_post(
     points_revoked = 0.0
     penalty_amount = 0.0
 
+    # Always delete ForumPoints tied to this post's likes BEFORE the cascade removes the
+    # likes — PostgreSQL enforces the FK (forum_points.like_id → forum_likes.id) so
+    # forum_likes rows cannot be deleted while forum_points still references them.
+    db.query(ForumPoints).filter(
+        ForumPoints.like_id.in_(
+            db.query(ForumLike.id).filter(ForumLike.post_id == post_id)
+        )
+    ).delete(synchronize_session=False)
+    db.flush()
+
     if is_moderation:
-        # Revoke all points earned from this post
+        # Revoke all remaining points earned from this post (post-creation points;
+        # like-received points were already deleted above)
         point_records = db.query(ForumPoints).filter(ForumPoints.post_id == post_id).all()
         points_revoked = sum(abs(r.points_earned) for r in point_records)
         for r in point_records:
             db.delete(r)
+        db.flush()
 
         # Apply optional extra penalty
         penalty_amount = round((payload.penalty if payload else 0.0) or 0.0, 2)
