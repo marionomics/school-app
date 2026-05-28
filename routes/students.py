@@ -302,7 +302,7 @@ async def get_student_grade_calculation(
             ForumPoints.post_id.in_(
                 db.query(ForumPost.id).filter(ForumPost.class_id == class_id)
             ),
-            ForumPoints.class_id == class_id,
+            (ForumPoints.class_id == class_id) & (ForumPoints.bonus_type == "penalty"),
         ),
     ).scalar() or 0.0
     forum_contribution = round(float(forum_pts_raw), 3)  # no cap — same as participation
