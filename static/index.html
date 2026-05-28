@@ -405,6 +405,55 @@
         </div>
     </div>
 
+    <!-- ======= Delete Post Modal (teacher moderation) ======= -->
+    <div id="delete-post-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+         onclick="if(event.target===this)closeDpm()">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <div class="flex items-center gap-2 mb-1">
+                <svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                <h3 class="font-semibold text-gray-800 text-sm">Eliminar publicación de <span id="dpm-author" class="text-secondary"></span></h3>
+            </div>
+            <p id="dpm-snippet" class="text-gray-500 text-xs italic line-clamp-2 mb-3 ml-6"></p>
+
+            <div id="dpm-pts-row" class="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4 text-xs text-amber-800">
+                <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>Se revocarán los <strong><span id="dpm-pts"></span> pts</strong> de foro que ganó este post.</span>
+            </div>
+
+            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mb-2">
+                <input type="checkbox" id="dpm-penalty-check" onchange="toggleDpmPenalty()"
+                       class="rounded border-gray-300 text-primary focus:ring-primary">
+                Penalizar adicionalmente
+            </label>
+
+            <div id="dpm-penalty-fields" class="hidden ml-5 space-y-2 mb-4">
+                <div class="flex items-center gap-2">
+                    <label class="text-xs text-gray-500 shrink-0">Puntos:</label>
+                    <input type="number" id="dpm-penalty-pts" min="0" max="10" step="0.5" value="1"
+                           class="w-24 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary outline-none">
+                </div>
+                <input type="text" id="dpm-penalty-msg" maxlength="300"
+                       placeholder="Motivo (opcional)"
+                       class="w-full px-2 py-1 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary outline-none">
+            </div>
+
+            <div class="flex justify-end gap-2 mt-2">
+                <button onclick="closeDpm()"
+                        class="px-4 py-1.5 text-sm text-gray-600 hover:text-gray-800 rounded-lg transition">
+                    Cancelar
+                </button>
+                <button onclick="confirmDeletePost()"
+                        class="px-5 py-1.5 text-sm bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition">
+                    Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/js/home.js"></script>
 </body>
 </html>
