@@ -225,8 +225,16 @@ function toggleDpmPenalty() {
 }
 
 async function confirmDeletePost() {
+    // Guard against double-clicks / re-entrant calls
+    if (!_dpmPostId) return;
     const postId = _dpmPostId;
     const callback = _dpmCallback;
+    _dpmPostId = null;   // clear immediately so any subsequent call is a no-op
+    _dpmCallback = null;
+
+    const btn = document.getElementById('dpm-confirm-btn');
+    if (btn) btn.disabled = true;
+
     const penaltyChecked = document.getElementById('dpm-penalty-check').checked;
     const penalty = penaltyChecked ? (parseFloat(document.getElementById('dpm-penalty-pts').value) || 0) : 0;
     const message = document.getElementById('dpm-penalty-msg').value.trim() || null;
@@ -237,6 +245,10 @@ async function confirmDeletePost() {
         closeDpm();
         if (callback) callback(postId);
     } catch (e) {
+        // Re-arm so the user can try again
+        _dpmPostId = postId;
+        _dpmCallback = callback;
+        if (btn) btn.disabled = false;
         alert('Error al eliminar: ' + e.message);
     }
 }
