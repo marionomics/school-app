@@ -539,16 +539,25 @@ function renderExamsList() {
         const gradedLabel = exam.graded_count > 0
             ? `<span class="text-green-600 font-medium">${exam.graded_count}</span> calificados`
             : 'Sin calificar';
+        const submissionsBtn = exam.submission_count > 0
+            ? `<button onclick="openSubmissionsModal(${exam.id})"
+                       class="ml-2 px-3 py-1.5 border border-gray-300 hover:border-primary text-gray-600 hover:text-primary text-sm rounded-lg transition shrink-0">
+                   Entregas (${exam.submission_count})
+               </button>`
+            : '';
         return `
         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
             <div class="min-w-0">
                 <p class="font-medium text-gray-800 text-sm truncate">${exam.title}</p>
                 <p class="text-xs text-gray-400 mt-0.5">${gradedLabel} · Máx ${exam.max_points} pts</p>
             </div>
-            <button onclick="openExamGrading(${exam.id})"
-                    class="ml-3 px-3 py-1.5 bg-primary hover:bg-secondary text-white text-sm rounded-lg transition shrink-0">
-                Calificar
-            </button>
+            <div class="flex items-center shrink-0">
+                ${submissionsBtn}
+                <button onclick="openExamGrading(${exam.id})"
+                        class="ml-2 px-3 py-1.5 bg-primary hover:bg-secondary text-white text-sm rounded-lg transition">
+                    Calificar
+                </button>
+            </div>
         </div>`;
     }).join('');
 }
