@@ -16,7 +16,7 @@ from models.schemas import (
     ClassWithStudents,
     StudentResponse,
 )
-from app.auth import get_current_student, get_current_teacher, get_student_or_impersonated
+from app.auth import get_current_student, get_current_teacher, get_current_teacher_or_ta, get_student_or_impersonated
 
 router = APIRouter(prefix="/api/classes", tags=["classes"])
 
@@ -66,11 +66,14 @@ async def create_class(
 
 @router.get("/teaching", response_model=list[ClassResponse])
 async def list_teaching_classes(
-    teacher: Student = Depends(get_current_teacher),
+    teacher: Student = Depends(get_current_teacher_or_ta),
     db: Session = Depends(get_db),
 ):
-    """List all classes taught by the current teacher."""
-    classes = db.query(Class).filter(Class.teacher_id == teacher.id).all()
+    """List all classes taught by the current teacher, or all classes for a TA."""
+    if teacher.role == "teacher":
+        classes = db.query(Class).filter(Class.teacher_id == teacher.id).all()
+    else:
+        classes = db.query(Class).order_by(Class.created_at).all()
 
     result = []
     for c in classes:

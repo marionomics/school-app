@@ -63,8 +63,8 @@ async function handleGoogleCredentialResponse(response) {
             body: JSON.stringify({ credential: response.credential })
         });
 
-        if (result.student.role !== 'teacher') {
-            errorEl.textContent = 'Acceso denegado. Se requiere cuenta de profesor.';
+        if (!['teacher', 'ta'].includes(result.student.role)) {
+            errorEl.textContent = 'Acceso denegado. Se requiere cuenta de profesor o asistente.';
             errorEl.classList.remove('hidden');
             return;
         }
@@ -125,6 +125,10 @@ function showAdmin() {
     document.getElementById('admin-section').classList.remove('hidden');
     if (currentTeacher) {
         document.getElementById('teacher-name').textContent = currentTeacher.name;
+        if (currentTeacher.role === 'ta') {
+            document.getElementById('create-class-btn')?.classList.add('hidden');
+            document.getElementById('student-view-btn')?.classList.add('hidden');
+        }
     }
 }
 
@@ -362,7 +366,7 @@ async function init() {
     if (authToken) {
         try {
             const result = await apiCall('/students/me');
-            if (result.role !== 'teacher') {
+            if (!['teacher', 'ta'].includes(result.role)) {
                 logout();
                 return;
             }

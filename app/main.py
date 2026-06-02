@@ -285,8 +285,10 @@ async def forum_page():
 async def get_config():
     """Return frontend configuration including Google Client ID."""
     from app.storage import is_r2_configured
+    ta_emails = [e.strip().lower() for e in os.getenv("TA_EMAILS", "").split(",") if e.strip()]
     return {
         "google_client_id": os.getenv("GOOGLE_CLIENT_ID", ""),
         "file_uploads_enabled": is_r2_configured(),
         "teacher_email": os.getenv("TEACHER_EMAIL", ""),
+        "ta_emails": ta_emails,
     }

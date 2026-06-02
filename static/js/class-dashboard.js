@@ -1973,9 +1973,9 @@ async function init() {
     }
 
     try {
-        // Verify teacher auth
+        // Verify teacher/TA auth
         const result = await apiCall('/students/me');
-        if (result.role !== 'teacher') {
+        if (!['teacher', 'ta'].includes(result.role)) {
             showSection('login-section');
             return;
         }
@@ -1987,6 +1987,16 @@ async function init() {
             const config = await apiCall('/config');
             fileUploadsEnabled = config.file_uploads_enabled || false;
         } catch (e) { /* non-critical */ }
+
+        // TA: restrict to Exámenes tab only
+        if (currentTeacher.role === 'ta') {
+            ['tab-overview', 'tab-roster', 'tab-attendance', 'tab-participation', 'tab-assignments', 'tab-justifications'].forEach(id => {
+                document.getElementById(id)?.classList.add('hidden');
+            });
+            document.getElementById('new-exam-presencial-form')?.classList.add('hidden');
+            document.getElementById('online-exam-form-section')?.classList.add('hidden');
+            showTab('grades');
+        }
 
         // Load dashboard
         showSection('dashboard-section');

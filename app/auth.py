@@ -45,6 +45,15 @@ def verify_google_token(token: str) -> dict:
 
 
 TEACHER_EMAIL = os.getenv("TEACHER_EMAIL")
+_TA_EMAILS = {e.strip().lower() for e in os.getenv("TA_EMAILS", "").split(",") if e.strip()}
+
+
+def _expected_role(email: str) -> str:
+    if email == TEACHER_EMAIL:
+        return "teacher"
+    if email.lower() in _TA_EMAILS:
+        return "ta"
+    return "student"
 
 
 def find_or_create_student(db: Session, google_info: dict) -> Student:
@@ -59,22 +68,28 @@ def find_or_create_student(db: Session, google_info: dict) -> Student:
     oauth_id = google_info["sub"]
     email = google_info["email"]
     name = google_info.get("name", email.split("@")[0])
+    role = _expected_role(email)
 
     # Try to find by oauth_id first
     student = db.query(Student).filter(Student.oauth_id == oauth_id).first()
     if student:
+        if student.role != role:
+            student.role = role
+            db.commit()
+            db.refresh(student)
         return student
 
     # Try to find by email and link the account
     student = db.query(Student).filter(Student.email == email).first()
     if student:
         student.oauth_id = oauth_id
+        if student.role != role:
+            student.role = role
         db.commit()
         db.refresh(student)
         return student
 
-    # Create new student (or teacher if email matches)
-    role = "teacher" if email == TEACHER_EMAIL else "student"
+    # Create new student
     student = Student(
         name=name,
         email=email,
@@ -225,5 +240,17 @@ async def get_current_teacher(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Teacher access required",
+        )
+    return student
+
+
+async def get_current_teacher_or_ta(
+    student: Student = Depends(get_current_student),
+) -> Student:
+    """Verify the current user is a teacher or TA."""
+    if student.role not in ("teacher", "ta"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Teacher or TA access required",
         )
     return student

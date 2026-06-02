@@ -47,7 +47,7 @@ from models.schemas import (
     AssignmentSettingsUpdate,
     OnlineSubmissionEntry,
 )
-from app.auth import get_current_teacher
+from app.auth import get_current_teacher, get_current_teacher_or_ta
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -978,17 +978,17 @@ async def get_class_dashboard(
     sort_order: str = "asc",
     search: Optional[str] = None,
     status_filter: Optional[str] = None,
-    teacher: Student = Depends(get_current_teacher),
+    teacher: Student = Depends(get_current_teacher_or_ta),
     db: Session = Depends(get_db),
 ):
     """Class dashboard using only core tables. No grade_categories/special_points."""
     logger.info(f"Dashboard requested for class_id={class_id}")
 
     # 1. Class info
-    class_ = db.query(Class).filter(
-        Class.id == class_id,
-        Class.teacher_id == teacher.id,
-    ).first()
+    q = db.query(Class).filter(Class.id == class_id)
+    if teacher.role == "teacher":
+        q = q.filter(Class.teacher_id == teacher.id)
+    class_ = q.first()
     if not class_:
         raise HTTPException(status_code=404, detail="Clase no encontrada")
 
@@ -1356,14 +1356,14 @@ async def create_assignment(
 @router.get("/assignments", response_model=List[AssignmentResponse])
 async def list_assignments(
     class_id: int,
-    teacher: Student = Depends(get_current_teacher),
+    teacher: Student = Depends(get_current_teacher_or_ta),
     db: Session = Depends(get_db),
 ):
     """List assignments for a class with submission counts."""
-    class_ = db.query(Class).filter(
-        Class.id == class_id,
-        Class.teacher_id == teacher.id,
-    ).first()
+    q = db.query(Class).filter(Class.id == class_id)
+    if teacher.role == "teacher":
+        q = q.filter(Class.teacher_id == teacher.id)
+    class_ = q.first()
     if not class_:
         raise HTTPException(status_code=404, detail="Clase no encontrada")
 
@@ -1715,7 +1715,7 @@ async def auto_grade_assignment(
 @router.get("/assignments/{assignment_id}/exam-grading")
 async def get_exam_grading_data(
     assignment_id: int,
-    teacher: Student = Depends(get_current_teacher),
+    teacher: Student = Depends(get_current_teacher_or_ta),
     db: Session = Depends(get_db),
 ):
     """Return all enrolled students with their current grade for an exam."""
@@ -1723,10 +1723,10 @@ async def get_exam_grading_data(
     if not assignment:
         raise HTTPException(status_code=404, detail="Examen no encontrado")
 
-    class_ = db.query(Class).filter(
-        Class.id == assignment.class_id,
-        Class.teacher_id == teacher.id,
-    ).first()
+    q = db.query(Class).filter(Class.id == assignment.class_id)
+    if teacher.role == "teacher":
+        q = q.filter(Class.teacher_id == teacher.id)
+    class_ = q.first()
     if not class_:
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
@@ -1767,7 +1767,7 @@ async def get_exam_grading_data(
 async def save_exam_grade(
     assignment_id: int,
     data: ExamGradeRequest,
-    teacher: Student = Depends(get_current_teacher),
+    teacher: Student = Depends(get_current_teacher_or_ta),
     db: Session = Depends(get_db),
 ):
     """Upsert a grade for one student in an exam (no submission needed)."""
@@ -1775,10 +1775,10 @@ async def save_exam_grade(
     if not assignment:
         raise HTTPException(status_code=404, detail="Examen no encontrado")
 
-    class_ = db.query(Class).filter(
-        Class.id == assignment.class_id,
-        Class.teacher_id == teacher.id,
-    ).first()
+    q = db.query(Class).filter(Class.id == assignment.class_id)
+    if teacher.role == "teacher":
+        q = q.filter(Class.teacher_id == teacher.id)
+    class_ = q.first()
     if not class_:
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
