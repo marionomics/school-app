@@ -139,6 +139,7 @@ class SpecialPointsResponse(BaseModel):
 class SpecialPointsUpdate(BaseModel):
     opted_in: Optional[bool] = None
     awarded: Optional[bool] = None
+    points_value: Optional[float] = None
 
 
 # Grade calculation schemas

@@ -126,6 +126,10 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE special_points ADD COLUMN awarded_at TIMESTAMP"))
             if "awarded_by" not in existing_cols:
                 conn.execute(text("ALTER TABLE special_points ADD COLUMN awarded_by INTEGER"))
+            # Fix legacy 0.5-pt notebook records — notebook is worth 10 pts
+            conn.execute(text(
+                "UPDATE special_points SET points_value = 10.0 WHERE category = 'notebook' AND points_value = 0.5"
+            ))
 
     if "forum_points" in inspector.get_table_names():
         existing_cols = {col["name"] for col in inspector.get_columns("forum_points")}

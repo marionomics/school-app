@@ -1136,6 +1136,112 @@ async function deleteCategory(categoryId) {
     }
 }
 
+// ==================== Notebook Extra Points Modal ====================
+
+let notebookData = [];
+
+async function openNotebookModal() {
+    document.getElementById('notebook-modal').classList.remove('hidden');
+    document.getElementById('notebook-search').value = '';
+    document.getElementById('notebook-list').innerHTML = '<p class="text-gray-400 text-sm text-center">Cargando...</p>';
+
+    try {
+        const [students, specialPoints] = await Promise.all([
+            apiCall(`/admin/students?class_id=${classId}`),
+            apiCall(`/admin/special-points?class_id=${classId}`),
+        ]);
+
+        const notebookRecords = {};
+        specialPoints.forEach(sp => {
+            if (sp.category === 'notebook') notebookRecords[sp.student_id] = sp;
+        });
+
+        notebookData = students.map(s => ({
+            student_id: s.id,
+            name: s.name,
+            record_id: notebookRecords[s.id]?.id ?? null,
+            awarded: notebookRecords[s.id]?.awarded ?? false,
+        }));
+
+        renderNotebookList();
+        document.getElementById('notebook-search').focus();
+    } catch (err) {
+        document.getElementById('notebook-list').innerHTML = `<p class="text-red-500 text-sm">Error: ${err.message}</p>`;
+    }
+}
+
+function closeNotebookModal() {
+    document.getElementById('notebook-modal').classList.add('hidden');
+}
+
+function filterNotebookList() {
+    renderNotebookList();
+}
+
+function renderNotebookList() {
+    const q = document.getElementById('notebook-search').value.toLowerCase().trim();
+    const filtered = q ? notebookData.filter(s => s.name.toLowerCase().includes(q)) : notebookData;
+
+    if (!filtered.length) {
+        document.getElementById('notebook-list').innerHTML = '<p class="text-gray-400 text-sm text-center">Sin resultados</p>';
+        return;
+    }
+
+    document.getElementById('notebook-list').innerHTML = filtered.map(s => {
+        const awardedBadge = s.awarded
+            ? `<span class="text-xs text-green-600 font-medium">Otorgado</span>`
+            : `<span class="text-xs text-gray-400">Sin otorgar</span>`;
+        const btnClass = s.awarded
+            ? 'border border-red-200 text-red-500 hover:bg-red-50'
+            : 'bg-primary hover:bg-secondary text-white';
+        const btnLabel = s.awarded ? 'Quitar' : 'Otorgar';
+        return `
+        <div class="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
+            <div>
+                <p class="text-sm font-medium text-gray-800">${s.name}</p>
+                ${awardedBadge}
+            </div>
+            <button onclick="toggleNotebookAward(${s.student_id}, ${s.record_id ?? 'null'}, ${s.awarded})"
+                    class="ml-3 px-3 py-1.5 text-sm rounded-lg transition shrink-0 ${btnClass}">
+                ${btnLabel}
+            </button>
+        </div>`;
+    }).join('');
+}
+
+async function toggleNotebookAward(studentId, recordId, isAwarded) {
+    try {
+        let updated;
+        if (recordId === null) {
+            updated = await apiCall('/admin/special-points', {
+                method: 'POST',
+                body: JSON.stringify({
+                    student_id: studentId,
+                    class_id: classId,
+                    category: 'notebook',
+                    opted_in: true,
+                    awarded: true,
+                    points_value: 10,
+                }),
+            });
+        } else {
+            updated = await apiCall(`/admin/special-points/${recordId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ awarded: !isAwarded, points_value: 10 }),
+            });
+        }
+
+        const idx = notebookData.findIndex(s => s.student_id === studentId);
+        if (idx !== -1) {
+            notebookData[idx].awarded = updated.awarded;
+            notebookData[idx].record_id = updated.id;
+        }
+        renderNotebookList();
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
 // ==================== Participation Tab ====================
 
 function renderSalvandoBanner() {

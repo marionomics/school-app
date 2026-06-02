@@ -680,6 +680,8 @@ class SpecialPointsCreateFull(SpecialPointsCreate):
     """Extended schema with student_id and class_id."""
     student_id: int
     class_id: int
+    awarded: bool = False
+    points_value: Optional[float] = None
 
 
 @router.post("/special-points", response_model=SpecialPointsResponse)
@@ -718,7 +720,13 @@ async def create_special_points(
         class_id=data.class_id,
         category=data.category,
         opted_in=data.opted_in,
+        awarded=data.awarded,
     )
+    if data.points_value is not None:
+        special.points_value = data.points_value
+    if data.awarded:
+        special.awarded_at = dt.utcnow()
+        special.awarded_by = teacher.id
     db.add(special)
     db.commit()
     db.refresh(special)
@@ -746,6 +754,8 @@ async def update_special_points(
 
     if data.opted_in is not None:
         special.opted_in = data.opted_in
+    if data.points_value is not None:
+        special.points_value = data.points_value
     if data.awarded is not None:
         if data.awarded and not special.awarded:
             special.awarded_at = dt.utcnow()

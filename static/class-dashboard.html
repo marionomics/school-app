@@ -403,6 +403,21 @@
                             </div>
                         </div>
 
+                        <!-- Puntos Extra -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                            <h2 class="text-lg font-semibold text-gray-800 mb-4">Puntos Extra</h2>
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                <div>
+                                    <p class="font-medium text-gray-800 text-sm">Libreta completa</p>
+                                    <p class="text-xs text-gray-400 mt-0.5">+10 pts · un otorgamiento por alumno</p>
+                                </div>
+                                <button onclick="openNotebookModal()"
+                                        class="px-3 py-1.5 bg-primary hover:bg-secondary text-white text-sm rounded-lg transition shrink-0">
+                                    Gestionar
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Manual Grade (secondary) -->
                         <details class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                             <summary class="text-sm font-medium text-gray-600 cursor-pointer select-none">
@@ -722,6 +737,31 @@
             </div>
             <div id="online-subs-list" class="p-4 max-h-96 overflow-y-auto space-y-2">
                 <p class="text-gray-400 text-sm">Cargando...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notebook Award Modal -->
+    <div id="notebook-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md mx-4 flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center p-5 border-b">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800">Libreta completa</h2>
+                    <p class="text-sm text-gray-500">+10 pts · otorgar o revocar por alumno</p>
+                </div>
+                <button onclick="closeNotebookModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4 border-b">
+                <input type="text" id="notebook-search" placeholder="Buscar alumno..."
+                       oninput="filterNotebookList()"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none">
+            </div>
+            <div id="notebook-list" class="overflow-y-auto flex-1 p-4 space-y-2">
+                <p class="text-gray-400 text-sm text-center">Cargando...</p>
             </div>
         </div>
     </div>
