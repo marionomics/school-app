@@ -658,14 +658,14 @@ async def delete_grade_category(
 async def get_special_points(
     class_id: int,
     student_id: Optional[int] = None,
-    teacher: Student = Depends(get_current_teacher),
+    teacher: Student = Depends(get_current_teacher_or_ta),
     db: Session = Depends(get_db),
 ):
     """Get special points for a class, optionally filtered by student."""
-    class_ = db.query(Class).filter(
-        Class.id == class_id,
-        Class.teacher_id == teacher.id,
-    ).first()
+    q = db.query(Class).filter(Class.id == class_id)
+    if teacher.role == "teacher":
+        q = q.filter(Class.teacher_id == teacher.id)
+    class_ = q.first()
     if not class_:
         raise HTTPException(status_code=404, detail="Clase no encontrada")
 
@@ -687,14 +687,14 @@ class SpecialPointsCreateFull(SpecialPointsCreate):
 @router.post("/special-points", response_model=SpecialPointsResponse)
 async def create_special_points(
     data: SpecialPointsCreateFull,
-    teacher: Student = Depends(get_current_teacher),
+    teacher: Student = Depends(get_current_teacher_or_ta),
     db: Session = Depends(get_db),
 ):
     """Create special points entry for a student."""
-    class_ = db.query(Class).filter(
-        Class.id == data.class_id,
-        Class.teacher_id == teacher.id,
-    ).first()
+    q = db.query(Class).filter(Class.id == data.class_id)
+    if teacher.role == "teacher":
+        q = q.filter(Class.teacher_id == teacher.id)
+    class_ = q.first()
     if not class_:
         raise HTTPException(status_code=404, detail="Clase no encontrada")
 
@@ -737,7 +737,7 @@ async def create_special_points(
 async def update_special_points(
     special_id: int,
     data: SpecialPointsUpdate,
-    teacher: Student = Depends(get_current_teacher),
+    teacher: Student = Depends(get_current_teacher_or_ta),
     db: Session = Depends(get_db),
 ):
     """Update special points (opt-in status or award)."""
@@ -745,10 +745,10 @@ async def update_special_points(
     if not special:
         raise HTTPException(status_code=404, detail="Registro no encontrado")
 
-    class_ = db.query(Class).filter(
-        Class.id == special.class_id,
-        Class.teacher_id == teacher.id,
-    ).first()
+    q = db.query(Class).filter(Class.id == special.class_id)
+    if teacher.role == "teacher":
+        q = q.filter(Class.teacher_id == teacher.id)
+    class_ = q.first()
     if not class_:
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
