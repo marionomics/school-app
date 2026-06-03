@@ -9,7 +9,9 @@ A FastAPI application for managing student attendance, participation, and grades
 - **Flexible Grading System**: Configurable grade categories with weights; per-class grading mode — "Puntos" (uncapped, extras stack freely) or "Porcentajes" (capped at 100)
 - **Assignment System (Retos)**: Create assignments with category selection, students submit Google Drive links or upload files (via Cloudflare R2), teacher grading modal with auto-grade support
 - **Online Exams**: Teacher uploads a single-file Pyodide HTML exam to R2; sets an activation window and optional time limit; students take the exam in a sandboxed full-screen shell page; auto-graded on submit; receipt JSON stored; draft state saved server-side so students can resume on any device. Teacher can also "Calificar" manually if auto-submit fails.
-- **Exam Grading (Exámenes)**: Create in-person exams and grade all students in a fast keyboard-driven modal — search by name, Tab to score, Enter to save and move to next student
+- **Exam Grading (Exámenes)**: Create in-person exams and grade all students in a fast keyboard-driven modal — search by name, Tab to score, Enter to save and move to next student. Exam cards show an "Entregas (N)" button when students have uploaded files.
+- **Extra Points (Puntos Extra)**: Notebook completion award (10 pts) managed via a searchable modal in the Exámenes tab — toggle award/revoke per student
+- **Teaching Assistant (TA) Role**: Invite a TA via `TA_EMAILS` env var; they get access to the Exámenes tab (grade exams + manage notebook points) without touching attendance, grades, or class settings
 - **File Uploads**: Optional Cloudflare R2 integration for direct file submissions (PDF, DOCX, ZIP, images, max 10MB) with upload progress and presigned download URLs
 - **Attendance Justifications**: Students submit justifications (text explanation and/or uploaded document) for absences/lates directly from their dashboard; teachers approve/reject; approved justifications change status to "excused" and remove the -1 point grade penalty. Student dashboard shows "Justificar →" button on absence cards, a persistent link when unjustified absences exist, and "⏳ en revisión" badge for pending submissions.
 - **Student Preview Mode**: Teachers can preview the student dashboard as any enrolled student via impersonation
@@ -128,9 +130,9 @@ The default mode is `points`, which matches UJED's system where categories total
 - Teacher activity (posting, liking) does not generate or award points
 
 ### Special Points
-- Two optional categories: English (0.5 pts) and Notebook (0.5 pts)
-- Students opt-in at start of semester
-- Teacher awards at end of semester if criteria met
+- **Notebook (Libreta)**: 10 pts, awarded via the "Puntos Extra" modal in the Exámenes tab — searchable list, toggle per student, revocable
+- **English**: 0.5 pts, legacy category (inactive this semester)
+- Managed by teacher or TA; no student opt-in required for the new modal flow
 
 ## Student Preview Mode
 
@@ -153,6 +155,7 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 | `GOOGLE_CLIENT_ID` | Google OAuth Client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret |
 | `TEACHER_EMAIL` | Email that gets admin access |
+| `TA_EMAILS` | Comma-separated TA emails (exam grading + notebook points access) |
 | `ALLOWED_ORIGINS` | CORS allowed origins (comma-separated) |
 | `SECRET_KEY` | Application secret key |
 | `R2_ACCESS_KEY_ID` | Cloudflare R2 access key (optional, enables file uploads) |
@@ -334,7 +337,6 @@ school-app/
 
 ### Planned Features
 
-- **Extra Points Redesign**: Replace boolean special-points flags with a student-driven submission system (teacher creates opportunities, students submit proof, teacher approves)
 - **Lessons/Classroom**: Rich content lessons with video embeds, attachments, and progress tracking
 - **QR Attendance**: Time-windowed QR codes for automatic attendance, with peer-to-peer chain propagation
 - **In-App Notifications**: Bell icon with unread count; triggers on new assignments, participation reviews, etc.

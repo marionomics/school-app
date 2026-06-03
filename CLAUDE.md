@@ -70,7 +70,7 @@ python seed_data.py
   ├── Overview tab: quick actions, at-risk students, recent activity, category overview
   ├── Roster tab: student list with search/filter/sort
   ├── Attendance tab: take attendance by date
-  ├── Exámenes tab: exam list + "Nuevo Examen Presencial" form + fast grading modal; manage grade categories; secondary individual grade form
+  ├── Exámenes tab: exam list (with "Entregas (N)" button when submissions exist) + "Nuevo Examen Presencial" form + fast grading modal; "Puntos Extra" card (Libreta 10 pts modal); manage grade categories; secondary individual grade form
   ├── Participation tab: approve/reject submissions, bulk approve
   ├── Retos tab: create assignments (with category selector), click to open submissions modal, grade/auto-grade
   └── Justificaciones tab: review/approve/reject student absence justifications
@@ -83,7 +83,7 @@ python seed_data.py
 - `Participation` - Has nullable `class_id` for backward compatibility
 - `Grade` - Has `category_id` FK to `grade_categories`, `name` field, and legacy `category` string
 - `GradeCategory` - Weighted categories per class (name, weight as decimal e.g. 0.4)
-- `SpecialPoints` - Optional bonus points per student (english, notebook)
+- `SpecialPoints` - Optional bonus points per student (category: 'english'|'notebook'; notebook = 10 pts, awarded via Exámenes tab modal; english = legacy 0.5 pts, inactive this semester)
 - `Assignment` - Homework/retos and exams per class (title, description, due_date, max_points, allow_late, published, exam_type: 'homework'|'exam'|'online', available_from, available_until, time_limit_min, allow_save, exam_html_key)
 - `OnlineExamDraft` - Draft state for online exams (assignment_id, student_id, draft_json, started_at, saved_at)
 - `Submission` - Student submissions (drive_url, file_key, file_name, file_size, penalty_pct, is_late, grade, feedback, receipt_json)
@@ -99,7 +99,7 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 
 ### Public
 - `GET /api/health` - Health check
-- `GET /api/config` - Frontend configuration (Google Client ID, file_uploads_enabled)
+- `GET /api/config` - Frontend configuration (Google Client ID, file_uploads_enabled, ta_emails)
 - `POST /api/auth/google` - Authenticate with Google ID token
 - `POST /api/auth/logout` - Invalidate session
 
@@ -141,8 +141,8 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `GET /api/forum/points/summary?class_id=X` - Total forum points earned by current user in a class
 - `GET /api/forum/points/recent` - Last 20 point award events for current user
 
-### Admin Endpoints (Teacher only)
-- `GET /api/admin/classes/{id}/dashboard` - Full class dashboard with stats, students, categories, recent activity
+### Admin Endpoints (Teacher only, except where noted)
+- `GET /api/admin/classes/{id}/dashboard` - Full class dashboard with stats, students, categories, recent activity *(Teacher + TA)*
 - `GET /api/admin/roster/{id}` - Student roster with category-based grade breakdowns
 - `GET /api/admin/students?class_id=X` - List students (optional: filter by class enrollment)
 - `POST /api/admin/attendance` - Record attendance (requires class_id)
@@ -155,17 +155,17 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `POST /api/admin/categories/{class_id}` - Create grade category
 - `PUT /api/admin/categories/{class_id}/{cat_id}` - Update category
 - `DELETE /api/admin/categories/{class_id}/{cat_id}` - Delete category
-- `GET /api/admin/special-points?class_id=X` - Get special points for class
-- `POST /api/admin/special-points` - Create special points entry
-- `PATCH /api/admin/special-points/{id}` - Update special points (opt-in, awarded)
+- `GET /api/admin/special-points?class_id=X` - Get special points for class *(Teacher + TA)*
+- `POST /api/admin/special-points` - Create special points entry *(Teacher + TA)*; accepts `awarded`, `points_value`
+- `PATCH /api/admin/special-points/{id}` - Update special points (opted_in, awarded, points_value) *(Teacher + TA)*
 - `POST /api/admin/assignments` - Create assignment (reto) for a class (accepts optional `category_id`; auto-picks first category if omitted)
-- `GET /api/admin/assignments?class_id=X` - List assignments with submission/graded counts
+- `GET /api/admin/assignments?class_id=X` - List assignments with submission/graded counts *(Teacher + TA)*
 - `DELETE /api/admin/assignments/{id}` - Delete assignment
 - `GET /api/admin/assignments/{id}/submissions?filter=` - View submissions with student info, auto-grade, not-submitted list (filter: graded/ungraded/late)
 - `PATCH /api/admin/submissions/{id}/grade` - Grade submission (score, feedback), upserts Grade record
 - `POST /api/admin/assignments/{id}/auto-grade` - Auto-grade all ungraded submissions (penalty_pct/100 * max_points)
-- `GET /api/admin/assignments/{id}/exam-grading` - All enrolled students with their current grade for an exam (sorted ungraded-first)
-- `POST /api/admin/assignments/{id}/exam-grade` - Upsert grade for one student in an exam (no submission needed); body: `{student_id, score}`
+- `GET /api/admin/assignments/{id}/exam-grading` - All enrolled students with their current grade for an exam (sorted ungraded-first) *(Teacher + TA)*
+- `POST /api/admin/assignments/{id}/exam-grade` - Upsert grade for one student in an exam (no submission needed); body: `{student_id, score}` *(Teacher + TA)*
 - `GET /api/admin/justifications?class_id=X&status_filter=` - List justifications (default: pending)
 - `PATCH /api/admin/justifications/{id}` - Approve/reject justification (approved → status becomes "excused")
 - `PATCH /api/admin/classes/{id}/settings` - Update class settings (grading_mode: 'points'|'percentage')
@@ -206,8 +206,11 @@ Uses Google OAuth with Google Identity Services (client-side Sign-In button).
 **Roles:**
 - `student` - Default role, can view own data, submit participation, join classes
 - `teacher` - Admin access, can create/manage classes, attendance, grades, and approve participation
+- `ta` - Teaching assistant; can access the Exámenes tab (grade exams + manage notebook extra points) but not create classes, take attendance, manage participation, or view roster
 
 **Teacher Account:** Set `TEACHER_EMAIL` in `.env` - this email gets teacher role on first login.
+
+**TA Accounts:** Set `TA_EMAILS` in `.env` as a comma-separated list (e.g. `TA_EMAILS=ta@example.com`). Role is synced on every login, so existing student accounts are upgraded automatically. TAs see all classes (no ownership filter). Auth dependency: `get_current_teacher_or_ta` in `app/auth.py`.
 
 ## Database
 
