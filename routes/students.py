@@ -545,18 +545,17 @@ async def download_submission_file(
     if not submission.file_key:
         raise HTTPException(status_code=404, detail="Esta entrega no tiene archivo")
 
-    # Auth: owner or teacher of the class
+    # Auth: owner, teacher of the class, or TA
     assignment = db.query(Assignment).filter(Assignment.id == submission.assignment_id).first()
     is_owner = submission.student_id == current_student.id
-    is_teacher = False
-    if assignment:
-        class_ = db.query(Class).filter(
-            Class.id == assignment.class_id,
-            Class.teacher_id == current_student.id,
-        ).first()
-        is_teacher = class_ is not None
+    is_authorized_staff = False
+    if assignment and current_student.role in ("teacher", "ta"):
+        q = db.query(Class).filter(Class.id == assignment.class_id)
+        if current_student.role == "teacher":
+            q = q.filter(Class.teacher_id == current_student.id)
+        is_authorized_staff = q.first() is not None
 
-    if not is_owner and not is_teacher:
+    if not is_owner and not is_authorized_staff:
         raise HTTPException(status_code=403, detail="No tienes permiso para ver este archivo")
 
     download_url = generate_presigned_url(submission.file_key)

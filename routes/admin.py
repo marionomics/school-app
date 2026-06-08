@@ -1428,7 +1428,7 @@ async def delete_assignment(
 async def get_assignment_submissions(
     assignment_id: int,
     filter: Optional[str] = None,
-    teacher: Student = Depends(get_current_teacher),
+    teacher: Student = Depends(get_current_teacher_or_ta),
     db: Session = Depends(get_db),
 ):
     """Get all submissions for an assignment with student info."""
@@ -1438,11 +1438,11 @@ async def get_assignment_submissions(
     if not assignment:
         raise HTTPException(status_code=404, detail="Reto no encontrado")
 
-    # Verify teacher owns the class
-    class_ = db.query(Class).filter(
-        Class.id == assignment.class_id,
-        Class.teacher_id == teacher.id,
-    ).first()
+    # Verify access to the class
+    q = db.query(Class).filter(Class.id == assignment.class_id)
+    if teacher.role == "teacher":
+        q = q.filter(Class.teacher_id == teacher.id)
+    class_ = q.first()
     if not class_:
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
@@ -1525,7 +1525,7 @@ async def get_assignment_submissions(
 async def grade_submission(
     submission_id: int,
     data: SubmissionGradeRequest,
-    teacher: Student = Depends(get_current_teacher),
+    teacher: Student = Depends(get_current_teacher_or_ta),
     db: Session = Depends(get_db),
 ):
     """Grade a single submission and upsert the corresponding Grade record."""
@@ -1541,11 +1541,11 @@ async def grade_submission(
     if not assignment:
         raise HTTPException(status_code=404, detail="Reto no encontrado")
 
-    # Verify teacher owns the class
-    class_ = db.query(Class).filter(
-        Class.id == assignment.class_id,
-        Class.teacher_id == teacher.id,
-    ).first()
+    # Verify access to the class
+    q = db.query(Class).filter(Class.id == assignment.class_id)
+    if teacher.role == "teacher":
+        q = q.filter(Class.teacher_id == teacher.id)
+    class_ = q.first()
     if not class_:
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
@@ -1635,7 +1635,7 @@ async def grade_submission(
 @router.post("/assignments/{assignment_id}/auto-grade", response_model=AutoGradeResult)
 async def auto_grade_assignment(
     assignment_id: int,
-    teacher: Student = Depends(get_current_teacher),
+    teacher: Student = Depends(get_current_teacher_or_ta),
     db: Session = Depends(get_db),
 ):
     """Auto-grade all ungraded submissions using penalty_pct * max_points."""
@@ -1645,11 +1645,11 @@ async def auto_grade_assignment(
     if not assignment:
         raise HTTPException(status_code=404, detail="Reto no encontrado")
 
-    # Verify teacher owns the class
-    class_ = db.query(Class).filter(
-        Class.id == assignment.class_id,
-        Class.teacher_id == teacher.id,
-    ).first()
+    # Verify access to the class
+    q = db.query(Class).filter(Class.id == assignment.class_id)
+    if teacher.role == "teacher":
+        q = q.filter(Class.teacher_id == teacher.id)
+    class_ = q.first()
     if not class_:
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
