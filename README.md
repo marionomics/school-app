@@ -11,7 +11,7 @@ A FastAPI application for managing student attendance, participation, and grades
 - **Online Exams**: Teacher uploads a single-file Pyodide HTML exam to R2; sets an activation window and optional time limit; students take the exam in a sandboxed full-screen shell page; auto-graded on submit; receipt JSON stored; draft state saved server-side so students can resume on any device. Teacher can also "Calificar" manually if auto-submit fails.
 - **Exam Grading (Exámenes)**: Create in-person exams and grade all students in a fast keyboard-driven modal — search by name, Tab to score, Enter to save and move to next student. Exam cards show an "Entregas (N)" button when students have uploaded files.
 - **Extra Points (Puntos Extra)**: Notebook completion award (10 pts) managed via a searchable modal in the Exámenes tab — toggle award/revoke per student
-- **Teaching Assistant (TA) Role**: Invite a TA via `TA_EMAILS` env var; they get access to the Exámenes tab (grade exams + manage notebook points) without touching attendance, grades, or class settings
+- **Teaching Assistant (TA) Role**: Invite a TA via `TA_EMAILS` env var; they get access to the Exámenes tab (grade exams + manage notebook points), the Retos submissions modal (view, grade, auto-grade, and download uploaded files), without touching attendance, participation, or class settings
 - **File Uploads**: Optional Cloudflare R2 integration for direct file submissions (PDF, DOCX, ZIP, images, max 10MB) with upload progress and presigned download URLs
 - **Attendance Justifications**: Students submit justifications (text explanation and/or uploaded document) for absences/lates directly from their dashboard; teachers approve/reject; approved justifications change status to "excused" and remove the -1 point grade penalty. Student dashboard shows "Justificar →" button on absence cards, a persistent link when unjustified absences exist, and "⏳ en revisión" badge for pending submissions.
 - **Student Preview Mode**: Teachers can preview the student dashboard as any enrolled student via impersonation
@@ -227,11 +227,11 @@ Teachers can preview the student dashboard to see exactly what a student sees:
 | PATCH | `/api/admin/special-points/:id` | Update special points |
 | PATCH | `/api/admin/participation/bulk-approve` | Bulk approve participation |
 | POST | `/api/admin/assignments` | Create assignment (reto) |
-| GET | `/api/admin/assignments?class_id=X` | List assignments with submission counts |
+| GET | `/api/admin/assignments?class_id=X` | List assignments with submission counts *(Teacher + TA)* |
 | DELETE | `/api/admin/assignments/:id` | Delete assignment |
-| GET | `/api/admin/assignments/:id/submissions?filter=` | View submissions with student info |
-| PATCH | `/api/admin/submissions/:id/grade` | Grade a submission (upserts Grade record) |
-| POST | `/api/admin/assignments/:id/auto-grade` | Auto-grade ungraded submissions |
+| GET | `/api/admin/assignments/:id/submissions?filter=` | View submissions with student info *(Teacher + TA)* |
+| PATCH | `/api/admin/submissions/:id/grade` | Grade a submission (upserts Grade record) *(Teacher + TA)* |
+| POST | `/api/admin/assignments/:id/auto-grade` | Auto-grade ungraded submissions *(Teacher + TA)* |
 | GET | `/api/admin/justifications?class_id=X` | List pending justifications |
 | PATCH | `/api/admin/justifications/:id` | Approve/reject justification |
 | PATCH | `/api/admin/classes/:id/settings` | Update class settings (grading_mode) |

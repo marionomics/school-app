@@ -121,7 +121,7 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `GET /api/students/me/assignments?class_id=X` - List assignments with submission status
 - `POST /api/students/me/assignments/{id}/submit` - Submit assignment (Google Drive link, auto penalty)
 - `POST /api/students/me/assignments/{id}/upload` - Upload file for assignment (multipart/form-data, R2 storage, allows re-upload)
-- `GET /api/students/submissions/{id}/file` - Get presigned download URL for submission file (owner or class teacher)
+- `GET /api/students/submissions/{id}/file` - Get presigned download URL for submission file (owner, class teacher, or TA)
 - `DELETE /api/students/submissions/{id}` - Delete ungraded submission (soft-reset, allows re-submit)
 - `POST /api/students/me/attendance/{id}/justify` - Submit justification for absence/late (multipart: `file` optional + `justification_text` Form optional; at least one required; file upload requires R2)
 - `GET /api/students/attendance/{id}/justification-file` - Get presigned URL for justification file (owner or class teacher)
@@ -161,9 +161,9 @@ Class codes are auto-generated: `{PREFIX}{YEAR}{4-RANDOM}` (e.g., "MICRO2026AB3X
 - `POST /api/admin/assignments` - Create assignment (reto) for a class (accepts optional `category_id`; auto-picks first category if omitted)
 - `GET /api/admin/assignments?class_id=X` - List assignments with submission/graded counts *(Teacher + TA)*
 - `DELETE /api/admin/assignments/{id}` - Delete assignment
-- `GET /api/admin/assignments/{id}/submissions?filter=` - View submissions with student info, auto-grade, not-submitted list (filter: graded/ungraded/late)
-- `PATCH /api/admin/submissions/{id}/grade` - Grade submission (score, feedback), upserts Grade record
-- `POST /api/admin/assignments/{id}/auto-grade` - Auto-grade all ungraded submissions (penalty_pct/100 * max_points)
+- `GET /api/admin/assignments/{id}/submissions?filter=` - View submissions with student info, auto-grade, not-submitted list (filter: graded/ungraded/late) *(Teacher + TA)*
+- `PATCH /api/admin/submissions/{id}/grade` - Grade submission (score, feedback), upserts Grade record *(Teacher + TA)*
+- `POST /api/admin/assignments/{id}/auto-grade` - Auto-grade all ungraded submissions (penalty_pct/100 * max_points) *(Teacher + TA)*
 - `GET /api/admin/assignments/{id}/exam-grading` - All enrolled students with their current grade for an exam (sorted ungraded-first) *(Teacher + TA)*
 - `POST /api/admin/assignments/{id}/exam-grade` - Upsert grade for one student in an exam (no submission needed); body: `{student_id, score}` *(Teacher + TA)*
 - `GET /api/admin/justifications?class_id=X&status_filter=` - List justifications (default: pending)
@@ -206,7 +206,7 @@ Uses Google OAuth with Google Identity Services (client-side Sign-In button).
 **Roles:**
 - `student` - Default role, can view own data, submit participation, join classes
 - `teacher` - Admin access, can create/manage classes, attendance, grades, and approve participation
-- `ta` - Teaching assistant; can access the Exámenes tab (grade exams + manage notebook extra points) but not create classes, take attendance, manage participation, or view roster
+- `ta` - Teaching assistant; can access the Exámenes tab (grade exams + manage notebook extra points), view and grade Retos submissions (including downloading uploaded files), and auto-grade — but not create classes, take attendance, manage participation, or view roster
 
 **Teacher Account:** Set `TEACHER_EMAIL` in `.env` - this email gets teacher role on first login.
 
