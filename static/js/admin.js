@@ -3,6 +3,7 @@ let authToken = localStorage.getItem('authToken');
 let currentTeacher = null;
 let googleClientId = null;
 let classes = [];
+let forumPointsEnabled = true;
 
 // Helpers de API
 const API_BASE = '/api';
@@ -130,6 +131,7 @@ function showAdmin() {
             document.getElementById('student-view-btn')?.classList.add('hidden');
         }
     }
+    renderForumPointsCard();
 }
 
 // Data Loading
@@ -354,11 +356,66 @@ async function openStudentView(classId) {
     }
 }
 
+// Forum Points Settings
+function renderForumPointsCard() {
+    const container = document.getElementById('forum-points-settings');
+    if (!container || !currentTeacher || currentTeacher.role !== 'teacher') {
+        if (container) container.innerHTML = '';
+        return;
+    }
+
+    if (forumPointsEnabled) {
+        container.innerHTML = `
+            <div class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-green-400 shrink-0"></span>
+                    <div>
+                        <p class="font-semibold text-gray-800 text-sm">Puntos del foro activos</p>
+                        <p class="text-gray-500 text-xs">Los estudiantes ganan puntos por publicar y recibir likes.</p>
+                    </div>
+                </div>
+                <button onclick="toggleForumPoints(false)"
+                        class="shrink-0 px-4 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">
+                    Congelar puntos
+                </button>
+            </div>`;
+    } else {
+        container.innerHTML = `
+            <div class="flex items-center justify-between gap-3 rounded-xl border-2 border-gray-300 bg-gray-50 px-5 py-4">
+                <div class="flex items-center gap-3">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-gray-400 shrink-0"></span>
+                    <div>
+                        <p class="font-semibold text-gray-600 text-sm">Puntos del foro congelados</p>
+                        <p class="text-gray-500 text-xs">No se otorgan nuevos puntos. Los puntos existentes se conservan.</p>
+                    </div>
+                </div>
+                <button onclick="toggleForumPoints(true)"
+                        class="shrink-0 px-4 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-secondary transition">
+                    Reactivar puntos
+                </button>
+            </div>`;
+    }
+}
+
+async function toggleForumPoints(enable) {
+    try {
+        const result = await apiCall('/admin/config', {
+            method: 'PATCH',
+            body: JSON.stringify({ forum_points_enabled: enable }),
+        });
+        forumPointsEnabled = result.forum_points_enabled;
+        renderForumPointsCard();
+    } catch (error) {
+        alert('Error al cambiar configuración: ' + error.message);
+    }
+}
+
 // Initialization
 async function init() {
     try {
         const config = await fetch('/api/config').then(r => r.json());
         googleClientId = config.google_client_id;
+        forumPointsEnabled = config.forum_points_enabled ?? true;
     } catch (error) {
         console.error('Error al obtener configuracion:', error);
     }
