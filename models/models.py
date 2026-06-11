@@ -318,4 +318,4 @@ class OnlineExamDraft(Base):
 class AppConfig(Base):
     __tablename__ = "app_config"
     id = Column(Integer, primary_key=True, default=1)
-    forum_points_enabled = Column(Boolean, default=True)
+    forum_points_enabled = Column(Boolean, nullable=False, default=True)
