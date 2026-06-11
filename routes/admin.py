@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 from models.database import get_db
 from models.models import (
     Student, Attendance, Participation, Grade, Class, StudentClass,
-    GradeCategory, SpecialPoints, Assignment, Submission, OnlineExamDraft, ForumPost
+    GradeCategory, SpecialPoints, Assignment, Submission, OnlineExamDraft, ForumPost, AppConfig
 )
 from models.schemas import (
     StudentResponse,
@@ -46,6 +46,7 @@ from models.schemas import (
     ExamGradeRequest,
     AssignmentSettingsUpdate,
     OnlineSubmissionEntry,
+    AppConfigUpdate,
 )
 from app.auth import get_current_teacher, get_current_teacher_or_ta
 
@@ -1255,6 +1256,26 @@ async def update_class_settings(
         "grading_mode": class_.grading_mode,
         "salvando_semestre": class_.salvando_semestre,
     }
+
+
+@router.patch("/config")
+async def update_app_config(
+    data: AppConfigUpdate,
+    teacher: Student = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Update global app settings (teacher only)."""
+    config = db.query(AppConfig).filter_by(id=1).first()
+    if not config:
+        config = AppConfig(id=1, forum_points_enabled=True)
+        db.add(config)
+
+    if data.forum_points_enabled is not None:
+        config.forum_points_enabled = data.forum_points_enabled
+
+    db.commit()
+    db.refresh(config)
+    return {"forum_points_enabled": config.forum_points_enabled}
 
 
 # ==================== Assignments ====================

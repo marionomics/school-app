@@ -243,6 +243,10 @@ class ClassSettingsUpdate(BaseModel):
     salvando_semestre: Optional[bool] = None
 
 
+class AppConfigUpdate(BaseModel):
+    forum_points_enabled: Optional[bool] = None
+
+
 class JoinClassRequest(BaseModel):
     code: str
 
