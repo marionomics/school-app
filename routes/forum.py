@@ -10,7 +10,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from models.database import get_db
-from models.models import Student, Class, StudentClass, ForumPost, ForumReply, ForumLike, ForumPoints
+from models.models import Student, Class, StudentClass, ForumPost, ForumReply, ForumLike, ForumPoints, AppConfig
 from app.auth import get_current_student
 
 router = APIRouter(prefix="/api/forum", tags=["forum"])
@@ -255,8 +255,9 @@ async def create_post(
     db.add(post)
     db.flush()  # get post.id before commit
 
-    # Award +0.1 creation points to students
-    if user.role == "student":
+    # Award +0.1 creation points to students (if forum points are enabled globally)
+    app_config = db.query(AppConfig).filter_by(id=1).first()
+    if user.role == "student" and (not app_config or app_config.forum_points_enabled):
         post.points_earned = 0.1
         db.add(ForumPoints(
             user_id=user.id,
@@ -384,8 +385,10 @@ async def toggle_like(
         post.like_count += 1
         liked = True
 
-        # Award points: only when student likes a student post
-        if user.role != "teacher" and post.author.role != "teacher":
+        # Award points: only when student likes a student post and forum points are enabled
+        app_config = db.query(AppConfig).filter_by(id=1).first()
+        points_active = not app_config or app_config.forum_points_enabled
+        if points_active and user.role != "teacher" and post.author.role != "teacher":
             # Rule 1: post needs at least 2 likes before points kick in (anti-spam)
             qualifies = post.like_count >= 2
 
