@@ -313,3 +313,9 @@ class OnlineExamDraft(Base):
     student = relationship("Student")
 
     __table_args__ = (UniqueConstraint('assignment_id', 'student_id', name='unique_exam_draft'),)
+
+
+class AppConfig(Base):
+    __tablename__ = "app_config"
+    id = Column(Integer, primary_key=True, default=1)
+    forum_points_enabled = Column(Boolean, default=True)

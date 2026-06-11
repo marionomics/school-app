@@ -11,7 +11,7 @@ load_dotenv()
 from sqlalchemy import inspect, text
 from models.database import Base, engine
 # Import all models to ensure they are registered with Base.metadata
-from models.models import Student, Attendance, Participation, Grade, Class, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission, ForumPost, ForumReply, ForumLike, ForumPoints, OnlineExamDraft
+from models.models import Student, Attendance, Participation, Grade, Class, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission, ForumPost, ForumReply, ForumLike, ForumPoints, OnlineExamDraft, AppConfig
 from routes import health, students, participation, auth, admin, classes, forum
 
 
@@ -214,12 +214,25 @@ def _ensure_columns():
                 ))
 
 
+def _ensure_app_config():
+    """Create the single AppConfig row if it doesn't exist yet."""
+    from models.database import SessionLocal
+    db = SessionLocal()
+    try:
+        if not db.query(AppConfig).filter_by(id=1).first():
+            db.add(AppConfig(id=1, forum_points_enabled=True))
+            db.commit()
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # create_all() is safe to call always: checkfirst=True (default) only
     # creates tables that don't already exist, never drops or modifies existing ones.
     Base.metadata.create_all(bind=engine)
     _ensure_columns()
+    _ensure_app_config()
     yield
     # Shutdown: cleanup if needed
 
