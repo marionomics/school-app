@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,7 +9,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from sqlalchemy import inspect, text
-from models.database import Base, engine
+from sqlalchemy.orm import Session
+from models.database import Base, engine, get_db
 # Import all models to ensure they are registered with Base.metadata
 from models.models import Student, Attendance, Participation, Grade, Class, StudentClass, GradeCategory, SpecialPoints, Assignment, Submission, ForumPost, ForumReply, ForumLike, ForumPoints, OnlineExamDraft, AppConfig
 from routes import health, students, participation, auth, admin, classes, forum
@@ -299,13 +300,15 @@ async def forum_page():
 
 
 @app.get("/api/config")
-async def get_config():
+async def get_config(db: Session = Depends(get_db)):
     """Return frontend configuration including Google Client ID."""
     from app.storage import is_r2_configured
     ta_emails = [e.strip().lower() for e in os.getenv("TA_EMAILS", "").split(",") if e.strip()]
+    app_config = db.query(AppConfig).filter_by(id=1).first()
     return {
         "google_client_id": os.getenv("GOOGLE_CLIENT_ID", ""),
         "file_uploads_enabled": is_r2_configured(),
         "teacher_email": os.getenv("TEACHER_EMAIL", ""),
         "ta_emails": ta_emails,
+        "forum_points_enabled": app_config.forum_points_enabled if app_config else True,
     }
