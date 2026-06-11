@@ -251,6 +251,10 @@ Final Grade = Σ(Category Weight × Category Average)
             - unjustified_absences   (1 pt each)
 ```
 
+This formula is implemented in **two places** — keep them in sync:
+- `routes/students.py → get_student_grade_calculation()` — student-facing endpoint
+- `routes/admin.py → _calc_grade()` — used by roster and class dashboard
+
 **Grading Mode** (`classes.grading_mode`):
 - `'points'` (default) — Final grade is **uncapped**. This is the intended mode. No weight-sum warning.
 - `'percentage'` — Final grade is **capped at 100**. UI warns if category weights don't sum to 100%. Available for teachers who prefer it, but not the default philosophy.

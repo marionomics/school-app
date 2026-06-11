@@ -7,14 +7,14 @@ from datetime import date, datetime as dt
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 logger = logging.getLogger(__name__)
 
 from models.database import get_db
 from models.models import (
     Student, Attendance, Participation, Grade, Class, StudentClass,
-    GradeCategory, SpecialPoints, Assignment, Submission, OnlineExamDraft, ForumPost, AppConfig
+    GradeCategory, SpecialPoints, Assignment, Submission, OnlineExamDraft, ForumPost, ForumPoints, AppConfig
 )
 from models.schemas import (
     StudentResponse,
@@ -896,8 +896,20 @@ def _calc_grade(student_id: int, class_id: int, db: Session) -> dict:
     ).scalar() or 0
     absence_penalty = float(unjustified_absences)
 
+    # Forum points
+    forum_pts_raw = db.query(func.sum(ForumPoints.points_earned)).filter(
+        ForumPoints.user_id == student_id,
+        or_(
+            ForumPoints.post_id.in_(
+                db.query(ForumPost.id).filter(ForumPost.class_id == class_id)
+            ),
+            (ForumPoints.class_id == class_id) & (ForumPoints.bonus_type == "penalty"),
+        ),
+    ).scalar() or 0.0
+    forum_contribution = round(float(forum_pts_raw), 3)
+
     max_base_grade = sum(c.weight for c in categories) * 100
-    final = weighted_sum + part_contribution + sp_total - absence_penalty
+    final = weighted_sum + part_contribution + sp_total + forum_contribution - absence_penalty
     if grading_mode == 'percentage':
         final = min(100.0, final)
 
@@ -911,6 +923,7 @@ def _calc_grade(student_id: int, class_id: int, db: Session) -> dict:
         "participation_contribution": part_contribution,
         "special_points": sp_records,
         "special_points_total": sp_total,
+        "forum_points": forum_contribution,
         "category_breakdowns": category_breakdowns,
         "absence_count": unjustified_absences,
         "absence_penalty": absence_penalty,
