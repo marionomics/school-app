@@ -1,49 +1,16 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Virtual environments
+# Python
 venv/
-env/
-.venv/
-.env/
-
-# Environment variables
+__pycache__/
+*.pyc
 .env
 
-# Distribution / packaging
-dist/
-build/
-*.egg-info/
-
 # Database
+school.db
 *.db
-*.sqlite3
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
+# Node
+node_modules/
+dist/
 
-# OS
+# OS / editor
 .DS_Store
-Thumbs.db
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Logs
-*.log
-
-# Internal documents
-planning/
-
-# Superpowers brainstorm sessions
-.superpowers/
-
-# Git worktrees
-.worktrees/
