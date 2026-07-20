@@ -2,6 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-route
 import { AuthProvider, useAuth } from "@/lib/auth";
 import Login from "@/pages/Login";
 import Onboarding from "@/pages/Onboarding";
+import Shell from "@/components/Shell";
+import Home from "@/pages/Home";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -31,7 +33,9 @@ export default function App() {
             path="/"
             element={
               <RequireAuth>
-                <div className="p-6">home placeholder — Task 10</div>
+                <Shell>
+                  <Home />
+                </Shell>
               </RequireAuth>
             }
           />
