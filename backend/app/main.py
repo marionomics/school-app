@@ -5,6 +5,7 @@ from app.auth.deps import get_current_user
 from app.config import settings
 from app.models import User
 from app.routers import auth as auth_router
+from app.routers import classes as classes_router
 from app.routers import users as users_router
 from app.schemas import UserOut
 
@@ -20,6 +21,7 @@ app.add_middleware(
 
 app.include_router(auth_router.router)
 app.include_router(users_router.router)
+app.include_router(classes_router.router)
 
 
 @app.get("/api/health")
