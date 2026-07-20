@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design — Section 1: Brand System + Teacher Panel</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #1a1a1a; font-family: system-ui, -apple-system, sans-serif; padding: 24px 20px 80px; color: #fff; }
+
+h2 { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+.subtitle { color: #666; font-size: 13px; margin-bottom: 32px; }
+h3 { font-size: 14px; font-weight: 700; color: #c8f135; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 16px; margin-top: 28px; }
+
+/* Brand tokens */
+.token-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 8px; }
+.token { border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
+.token-swatch { height: 44px; }
+.token-body { padding: 8px 10px; background: rgba(255,255,255,0.04); }
+.token-name { font-size: 11px; font-weight: 700; color: #fff; }
+.token-hex  { font-size: 10px; color: #666; font-family: monospace; }
+.token-use  { font-size: 10px; color: #888; margin-top: 2px; }
+
+.font-demo { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 16px 20px; margin-bottom: 8px; }
+.font-label { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: #555; margin-bottom: 8px; }
+
+/* Teacher panel mockup */
+.mockup-wrap { background: #0e0e0e; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 8px; }
+.mockup-bar { background: #141414; padding: 8px 14px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* Teacher header */
+.t-header {
+  background: #1e1e1e;
+  padding: 10px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.t-logo { display: flex; align-items: center; gap: 8px; }
+.t-logo-mark {
+  width: 28px; height: 28px; background: #c8f135; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 900; color: #2b2b2b; flex-shrink: 0;
+}
+.t-logo-text { font-size: 13px; font-weight: 700; color: #fff; }
+.t-class { font-size: 10px; color: rgba(255,255,255,0.35); }
+
+/* Tabs */
+.t-nav {
+  display: flex; background: #1a1a1a;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 0 16px; gap: 0;
+}
+.t-tab {
+  font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  padding: 9px 12px; color: rgba(255,255,255,0.3);
+  border-bottom: 2px solid transparent; text-transform: uppercase;
+  position: relative;
+}
+.t-tab.on { color: #c8f135; border-color: #c8f135; }
+.t-tab .badge {
+  position: absolute; top: 4px; right: 2px;
+  width: 14px; height: 14px; background: #c8f135; color: #2b2b2b;
+  border-radius: 50%; font-size: 8px; font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Body grid */
+.t-body { padding: 14px 16px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+@media (max-width: 600px) { .t-body { grid-template-columns: 1fr; } }
+
+.t-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px; padding: 10px 12px;
+}
+.t-card-label { font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 8px; font-weight: 600; }
+.t-card-title { font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+.t-card-sub { font-size: 10px; color: rgba(255,255,255,0.4); }
+
+.t-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 10px; }
+.t-row:last-child { border-bottom: none; }
+.dot-g { width: 6px; height: 6px; border-radius: 50%; background: #c8f135; display: inline-block; margin-right: 5px; }
+.dot-r { width: 6px; height: 6px; border-radius: 50%; background: #ff6060; display: inline-block; margin-right: 5px; }
+.dot-y { width: 6px; height: 6px; border-radius: 50%; background: #f5a623; display: inline-block; margin-right: 5px; }
+
+.lime-badge { background: #c8f135; color: #2b2b2b; font-size: 8px; font-weight: 800; padding: 1px 6px; border-radius: 10px; }
+.red-badge  { background: rgba(255,80,80,0.18); color: #ff7070; font-size: 8px; font-weight: 700; padding: 1px 6px; border-radius: 10px; }
+
+.stat-num { font-size: 22px; font-weight: 800; color: #c8f135; line-height: 1; }
+.stat-label { font-size: 8px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-top: 2px; }
+.stat-secondary { font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+
+.forum-row { display: flex; align-items: flex-start; gap: 7px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.forum-row:last-child { border-bottom: none; }
+.forum-av { width: 20px; height: 20px; border-radius: 50%; background: rgba(200,241,53,0.12); border: 1px solid rgba(200,241,53,0.25); color: #c8f135; font-size: 7px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.forum-title { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.8); line-height: 1.3; margin-bottom: 2px; }
+.forum-meta  { font-size: 9px; color: rgba(255,255,255,0.3); }
+
+.t-btn { background: #c8f135; color: #2b2b2b; font-size: 9px; font-weight: 800; padding: 5px 10px; border-radius: 5px; display: inline-block; letter-spacing: 1px; text-transform: uppercase; margin-top: 8px; }
+.t-btn-ghost { border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.5); font-size: 9px; padding: 5px 10px; border-radius: 5px; display: inline-block; letter-spacing: 1px; text-transform: uppercase; margin-top: 8px; margin-left: 6px; }
+
+/* Student portal mockup */
+.s-wrap { background: #f0ede6; border-radius: 12px; overflow: hidden; border: 1px solid #ddd8cf; margin-bottom: 8px; }
+.s-header { background: #fff; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e8e4da; }
+.s-logo-mark { width: 26px; height: 26px; background: #c8f135; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; color: #2b2b2b; }
+.s-logo-text  { font-size: 12px; font-weight: 700; color: #2b2b2b; margin-left: 8px; }
+.s-nav-name   { font-size: 11px; color: #bbb; }
+
+.s-body { padding: 12px 16px; }
+.s-label { font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: #aaa; font-weight: 600; margin-bottom: 8px; }
+.s-card  { background: #fff; border: 1px solid #e8e4da; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+.s-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.s-class-name { font-size: 12px; font-weight: 700; color: #2b2b2b; }
+.s-grade { font-size: 22px; font-weight: 800; color: #2b2b2b; }
+.s-grade.good { color: #3a5a00; background: #c8f135; padding: 2px 8px; border-radius: 6px; font-size: 16px; }
+.s-grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; font-size: 10px; color: #888; }
+.s-mini-label { font-size: 8px; color: #bbb; text-transform: uppercase; letter-spacing: 1px; }
+.s-mini-val   { font-size: 12px; font-weight: 700; color: #2b2b2b; }
+
+.s-participation { background: #2b2b2b; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+.s-part-label { font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 6px; font-weight: 600; }
+.s-part-btn { background: #c8f135; color: #2b2b2b; font-size: 10px; font-weight: 800; padding: 7px 16px; border-radius: 6px; display: inline-block; letter-spacing: 1px; text-transform: uppercase; }
+.s-part-pts { font-size: 11px; color: rgba(255,255,255,0.5); display: inline-block; margin-left: 10px; }
+
+.bug-fab { position: absolute; bottom: 12px; right: 12px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.4); font-size: 9px; padding: 5px 10px; border-radius: 20px; font-weight: 600; letter-spacing: 1px; }
+.bug-fab-light { position: absolute; bottom: 12px; right: 12px; background: rgba(43,43,43,0.06); border: 1px solid rgba(43,43,43,0.12); color: rgba(43,43,43,0.35); font-size: 9px; padding: 5px 10px; border-radius: 20px; font-weight: 600; letter-spacing: 1px; }
+
+.section-divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 24px 0; }
+
+.annotation { font-size: 11px; color: #666; line-height: 1.6; margin-top: 8px; }
+.annotation strong { color: #c8f135; }
+</style>
+</head>
+<body>
+
+<h2>Design Section 1 — Brand System + Both Portals</h2>
+<p class="subtitle">Review and confirm before we write the spec. Let me know what to adjust.</p>
+
+<!-- BRAND TOKENS -->
+<h3>Brand Tokens</h3>
+
+<div class="token-grid">
+  <div class="token">
+    <div class="token-swatch" style="background:#2b2b2b;"></div>
+    <div class="token-body"><div class="token-name">Dark</div><div class="token-hex">#2b2b2b</div><div class="token-use">Teacher bg, dark sections</div></div>
+  </div>
+  <div class="token">
+    <div class="token-swatch" style="background:#f0ede6;border-bottom:1px solid #ddd8cf;"></div>
+    <div class="token-body"><div class="token-name">Cream</div><div class="token-hex">#f0ede6</div><div class="token-use">Student bg (≈existing)</div></div>
+  </div>
+  <div class="token">
+    <div class="token-swatch" style="background:#c8f135;"></div>
+    <div class="token-body"><div class="token-name">Lime</div><div class="token-hex">#c8f135</div><div class="token-use">Primary accent, badges, CTAs</div></div>
+  </div>
+  <div class="token">
+    <div class="token-swatch" style="background:#fff;border-bottom:1px solid #ddd;"></div>
+    <div class="token-body"><div class="token-name">White</div><div class="token-hex">#ffffff</div><div class="token-use">Student cards, nav</div></div>
+  </div>
+  <div class="token">
+    <div class="token-swatch" style="background:#1e1e1e;"></div>
+    <div class="token-body"><div class="token-name">Surface</div><div class="token-hex">#1e1e1e</div><div class="token-use">Teacher nav/header</div></div>
+  </div>
+  <div class="token">
+    <div class="token-swatch" style="background:rgba(200,241,53,0.12);border-bottom:1px solid rgba(200,241,53,0.2);"></div>
+    <div class="token-body"><div class="token-name">Lime-dim</div><div class="token-hex">rgba(#c8f135,12%)</div><div class="token-use">Hover states, avatars</div></div>
+  </div>
+  <div class="token">
+    <div class="token-swatch" style="background:#ff6060;"></div>
+    <div class="token-body"><div class="token-name">Danger</div><div class="token-hex">#ff6060</div><div class="token-use">Absent, errors</div></div>
+  </div>
+  <div class="token">
+    <div class="token-swatch" style="background:#f5a623;"></div>
+    <div class="token-body"><div class="token-name">Warning</div><div class="token-hex">#f5a623</div><div class="token-use">Late, pending</div></div>
+  </div>
+</div>
+
+<div class="font-demo" style="margin-top:16px;">
+  <div class="font-label">Typography — Graphik replaces Inter everywhere</div>
+  <div style="font-size:22px;font-weight:700;color:#fff;margin-bottom:4px;">Panel del Profesor</div>
+  <div style="font-size:14px;color:rgba(255,255,255,0.5);margin-bottom:8px;">Microeconomía II · 42 estudiantes</div>
+  <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#c8f135;font-weight:700;">Hoy · Asistencia</div>
+</div>
+
+<hr class="section-divider">
+
+<!-- TEACHER PANEL -->
+<h3>Teacher Panel — "Hoy" Tab</h3>
+
+<div class="mockup-wrap" style="position:relative;">
+  <div class="mockup-bar">
+    <div class="dot" style="background:#ff5f57;"></div>
+    <div class="dot" style="background:#febc2e;"></div>
+    <div class="dot" style="background:#28c840;"></div>
+    <span style="font-size:10px;color:#555;margin-left:8px;">Dashboard de Clase</span>
+  </div>
+
+  <div class="t-header">
+    <div class="t-logo">
+      <div class="t-logo-mark">M↗</div>
+      <div style="margin-left:8px;">
+        <div class="t-logo-text">marionomics</div>
+        <div class="t-class">Microeconomía II · Código: MICRO2026AB3X</div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:rgba(255,255,255,0.3);">Prof. García &nbsp;·&nbsp; <span style="color:rgba(255,255,255,0.2);">Salir</span></div>
+  </div>
+
+  <div class="t-nav">
+    <div class="t-tab on">Hoy</div>
+    <div class="t-tab">Alumnos</div>
+    <div class="t-tab">Evaluaciones</div>
+    <div class="t-tab">Historial</div>
+    <div class="t-tab" style="position:relative;">Foro<span class="badge">2</span></div>
+  </div>
+
+  <div class="t-body">
+    <!-- Stats -->
+    <div class="t-card">
+      <div class="t-card-label">Asistencia · hoy</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+        <div><div class="stat-num">38</div><div class="stat-label">Presentes</div></div>
+        <div><div class="stat-num" style="color:#ff6060;">4</div><div class="stat-label">Ausentes</div></div>
+      </div>
+      <div class="t-row"><span><span class="dot-g"></span>Ana Torres</span><span class="lime-badge">presente</span></div>
+      <div class="t-row"><span><span class="dot-r"></span>Carlos Ruiz</span><span class="red-badge">ausente</span></div>
+      <div class="t-row"><span><span class="dot-y"></span>María López</span><span style="color:#f5a623;font-size:9px;">tarde</span></div>
+      <div class="t-row" style="color:rgba(255,255,255,0.2);font-size:9px;justify-content:center;">+ 39 más</div>
+      <span class="t-btn">Tomar Asistencia</span>
+    </div>
+
+    <!-- Participation -->
+    <div class="t-card">
+      <div class="t-card-label">Participación · en vivo</div>
+      <div style="margin-bottom:10px;">
+        <div class="stat-num">12</div>
+        <div class="stat-label">Pendientes hoy</div>
+        <div class="stat-secondary">3 dobles · 1 triple</div>
+      </div>
+      <div class="t-row"><span>Ana Torres</span><span class="lime-badge">×2</span></div>
+      <div class="t-row"><span>J. Morales</span><span class="lime-badge">×1</span></div>
+      <div class="t-row"><span>R. Sánchez</span><span class="lime-badge">×3</span></div>
+      <div class="t-row" style="color:rgba(255,255,255,0.2);font-size:9px;justify-content:center;">+ 9 más</div>
+      <span class="t-btn">Aprobar Todo</span>
+      <span class="t-btn-ghost">Revisar</span>
+    </div>
+
+    <!-- Forum -->
+    <div class="t-card">
+      <div class="t-card-label">Foro · actividad reciente</div>
+      <div class="forum-row">
+        <div class="forum-av">AT</div>
+        <div>
+          <div class="forum-title">¿El equilibrio de Nash asume racionalidad perfecta?</div>
+          <div class="forum-meta">Ana Torres · 20 min · 3 likes <span class="lime-badge" style="font-size:7px;">+0.3</span></div>
+        </div>
+      </div>
+      <div class="forum-row">
+        <div class="forum-av">JM</div>
+        <div>
+          <div class="forum-title">Caso Uber vs. taxistas — resumen para el reto</div>
+          <div class="forum-meta">J. Morales · 1 h · 7 likes <span class="lime-badge" style="font-size:7px;">+0.5</span></div>
+        </div>
+      </div>
+      <div class="forum-row">
+        <div class="forum-av">RS</div>
+        <div>
+          <div class="forum-title">Pregunta sobre la tarea 3 — fecha límite</div>
+          <div class="forum-meta">R. Sánchez · 2 h · sin likes aún</div>
+        </div>
+      </div>
+      <span class="t-btn" style="margin-top:6px;">Ir al Foro</span>
+    </div>
+  </div>
+
+  <div class="bug-fab">⚡ Reportar bug</div>
+</div>
+
+<p class="annotation"><strong>Note:</strong> "Hoy" consolidates daily actions — attendance + live participation + forum activity — in one glanceable screen. Justifications badge lives on the Historial tab. Bug report FAB is teacher-side only (bottom-right, unobtrusive).</p>
+
+<hr class="section-divider">
+
+<!-- STUDENT PORTAL -->
+<h3>Student Portal — Rebrand</h3>
+
+<div class="s-wrap" style="position:relative;">
+  <div class="s-header">
+    <div style="display:flex;align-items:center;">
+      <div class="s-logo-mark">M↗</div>
+      <span class="s-logo-text">marionomics</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="s-nav-name">Ana Torres</span>
+      <span style="font-size:10px;color:#bbb;">Salir</span>
+    </div>
+  </div>
+
+  <div class="s-body">
+    <div class="s-label">Mis Clases</div>
+
+    <div class="s-card">
+      <div class="s-card-top">
+        <div>
+          <div class="s-class-name">Microeconomía II</div>
+          <div style="font-size:10px;color:#aaa;margin-top:1px;">MICRO2026AB3X</div>
+        </div>
+        <div class="s-grade good">84.3</div>
+      </div>
+      <div class="s-grid3">
+        <div>
+          <div class="s-mini-label">Participación</div>
+          <div class="s-mini-val">12 pts</div>
+          <div style="font-size:9px;color:#aaa;">+2 pendiente</div>
+        </div>
+        <div>
+          <div class="s-mini-label">Pts. Extra</div>
+          <div class="s-mini-val">+0.5</div>
+        </div>
+        <div>
+          <div class="s-mini-label">Faltas</div>
+          <div class="s-mini-val" style="color:#c00;">2 <span style="font-size:9px;font-weight:400;">(-2)</span></div>
+          <div style="font-size:9px;"><span style="color:#c8a000;background:#fffbe0;padding:1px 5px;border-radius:4px;font-weight:700;">Justificar →</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Participation block on dark bg -->
+    <div class="s-participation">
+      <div class="s-part-label">Participación en vivo</div>
+      <div style="display:flex;align-items:center;">
+        <span class="s-part-btn">Registrar Participación</span>
+        <span class="s-part-pts">12 pts acumulados</span>
+      </div>
+    </div>
+
+    <!-- Bug report FAB -->
+    <div class="bug-fab-light">⚡ Reportar bug</div>
+  </div>
+</div>
+
+<p class="annotation"><strong>Student portal:</strong> Cream bg + white cards preserved. Lime replaces orange everywhere — grade badge, accent borders, participation button on dark-bg block. Graphik replaces Inter. Bug FAB bottom-right, subtle. No emoji icons anywhere (replaced with SVG Heroicons).</p>
+
+<div style="margin-top:32px;background:rgba(200,241,53,0.07);border:1px solid rgba(200,241,53,0.15);border-radius:10px;padding:16px 20px;">
+  <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#c8f135;font-weight:700;margin-bottom:10px;">Does this look right? Review + respond in terminal</div>
+  <div style="font-size:12px;color:rgba(255,255,255,0.6);line-height:1.8;">
+    ✓ &nbsp;Brand tokens (Graphik, #2b2b2b, #c8f135, cream)<br>
+    ✓ &nbsp;Teacher panel dark — 5 tabs: Hoy · Alumnos · Evaluaciones · Historial · Foro<br>
+    ✓ &nbsp;Forum front-and-center on "Hoy" tab<br>
+    ✓ &nbsp;Student portal cream + lime rebrand<br>
+    ✓ &nbsp;Bug report FAB on both portals (email)<br>
+    ✓ &nbsp;No emoji icons, no violet, no orange<br>
+    — &nbsp;Next section: Technical debt plan + implementation phases
+  </div>
+</div>
+
+</body>
+</html>

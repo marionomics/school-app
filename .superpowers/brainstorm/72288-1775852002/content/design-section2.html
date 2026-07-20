@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Section 2 — Key UX Flows</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #1a1a1a; font-family: system-ui, -apple-system, sans-serif; padding: 20px 16px 80px; color: #fff; }
+
+h2 { font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+.subtitle { color: #666; font-size: 12px; margin-bottom: 28px; }
+h3 { font-size: 11px; font-weight: 700; color: #c8f135; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 14px; margin-top: 28px; }
+.section-note { font-size: 11px; color: #666; line-height: 1.6; margin-top: 8px; }
+.section-note strong { color: #c8f135; }
+hr { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 28px 0; }
+
+/* Phone frame */
+.phones { display: flex; gap: 20px; flex-wrap: wrap; }
+.phone-wrap { flex: 1; min-width: 240px; max-width: 300px; }
+.phone-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #555; text-align: center; margin-bottom: 8px; font-weight: 700; }
+.phone {
+  background: #111; border-radius: 28px; overflow: hidden;
+  border: 6px solid #222; box-shadow: 0 0 0 1px #333;
+  position: relative;
+}
+.phone-notch { height: 20px; background: #111; display: flex; align-items: center; justify-content: center; }
+.notch-dot { width: 60px; height: 6px; background: #222; border-radius: 10px; }
+
+/* Dark UI */
+.t-header { background: #1e1e1e; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.t-logo-mark { width: 22px; height: 22px; background: #c8f135; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900; color: #2b2b2b; flex-shrink: 0; }
+.t-logo-text { font-size: 11px; font-weight: 700; color: #fff; margin-left: 6px; }
+.t-class-name { font-size: 9px; color: rgba(255,255,255,0.3); }
+
+.t-nav { display: flex; background: #1a1a1a; border-bottom: 1px solid rgba(255,255,255,0.06); overflow-x: auto; }
+.t-tab { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; padding: 7px 10px; color: rgba(255,255,255,0.3); border-bottom: 2px solid transparent; text-transform: uppercase; white-space: nowrap; position: relative; }
+.t-tab.on { color: #c8f135; border-color: #c8f135; }
+.tbadge { position: absolute; top: 3px; right: 2px; width: 12px; height: 12px; background: #c8f135; color: #2b2b2b; border-radius: 50%; font-size: 7px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+
+.t-body { padding: 10px 12px; background: #2b2b2b; }
+.t-section-label { font-size: 7px; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.25); font-weight: 700; margin-bottom: 6px; }
+.t-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+
+/* Mode toggle */
+.mode-toggle { display: flex; background: rgba(255,255,255,0.06); border-radius: 8px; padding: 3px; margin-bottom: 10px; }
+.mode-btn { flex: 1; text-align: center; font-size: 9px; font-weight: 700; padding: 5px 4px; border-radius: 6px; color: rgba(255,255,255,0.35); letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; transition: all 0.2s; }
+.mode-btn.active { background: #c8f135; color: #2b2b2b; }
+
+/* Student rows */
+.s-row { display: flex; align-items: center; gap: 6px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.s-row:last-child { border-bottom: none; }
+.s-name { font-size: 10px; color: #fff; font-weight: 600; flex: 1; cursor: pointer; }
+.s-name:hover { color: #c8f135; }
+.s-grade { font-size: 10px; color: rgba(255,255,255,0.4); }
+.s-arrow { font-size: 10px; color: rgba(255,255,255,0.2); }
+
+/* Attendance toggle buttons */
+.att-btns { display: flex; gap: 3px; }
+.att-btn { font-size: 8px; font-weight: 700; padding: 3px 6px; border-radius: 5px; cursor: pointer; }
+.att-p { background: rgba(200,241,53,0.15); color: #c8f135; }
+.att-p.sel { background: #c8f135; color: #2b2b2b; }
+.att-a { background: rgba(255,80,80,0.12); color: rgba(255,100,100,0.7); }
+.att-a.sel { background: #ff6060; color: #fff; }
+.att-t { background: rgba(245,166,35,0.12); color: rgba(245,166,35,0.7); }
+.att-t.sel { background: #f5a623; color: #fff; }
+
+/* Detail drawer */
+.detail-drawer { background: #1e1e1e; border-top: 1px solid rgba(255,255,255,0.08); padding: 10px 12px; }
+.detail-back { font-size: 9px; color: #c8f135; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 4px; }
+.detail-name { font-size: 14px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+.detail-grade { font-size: 24px; font-weight: 800; color: #c8f135; }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.detail-stat { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 6px; padding: 6px 8px; }
+.detail-stat-num { font-size: 14px; font-weight: 800; color: #fff; }
+.detail-stat-label { font-size: 7px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.3); }
+
+/* Save button */
+.save-btn { width: 100%; background: #c8f135; color: #2b2b2b; font-size: 10px; font-weight: 800; padding: 8px; border-radius: 7px; text-align: center; margin-top: 10px; letter-spacing: 1px; text-transform: uppercase; }
+
+/* ─── STUDENT PORTAL ─── */
+.sp-header { background: #fff; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e8e4da; }
+.sp-logo-mark { width: 22px; height: 22px; background: #c8f135; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900; color: #2b2b2b; }
+.sp-logo-text { font-size: 11px; font-weight: 700; color: #2b2b2b; margin-left: 6px; }
+.sp-name { font-size: 9px; color: #bbb; }
+.sp-body { padding: 10px 12px; background: #f0ede6; }
+.sp-label { font-size: 7px; letter-spacing: 3px; text-transform: uppercase; color: #bbb; font-weight: 700; margin-bottom: 6px; }
+
+/* Class card */
+.sp-card { background: #fff; border: 1px solid #e8e4da; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+.sp-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.sp-class { font-size: 11px; font-weight: 700; color: #2b2b2b; }
+.sp-grade-badge { background: #c8f135; color: #2b2b2b; font-size: 13px; font-weight: 800; padding: 2px 7px; border-radius: 6px; }
+.sp-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; font-size: 9px; }
+.sp-stat-label { color: #bbb; text-transform: uppercase; letter-spacing: 1px; font-size: 7px; }
+.sp-stat-val { font-weight: 700; color: #2b2b2b; font-size: 10px; }
+.sp-detail-link { font-size: 9px; color: #888; text-align: right; margin-top: 5px; border-top: 1px solid #f0ece4; padding-top: 5px; }
+
+/* Pending work — URGENT band */
+.pending-band { background: #2b2b2b; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; border-left: 3px solid #c8f135; }
+.pending-band-label { font-size: 7px; letter-spacing: 3px; text-transform: uppercase; color: #c8f135; font-weight: 700; margin-bottom: 6px; }
+.pending-item { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 10px; }
+.pending-item:last-child { border-bottom: none; }
+.pending-title { color: #fff; font-weight: 600; }
+.pending-due { color: rgba(255,255,255,0.35); font-size: 9px; }
+.pending-due.urgent { color: #ff8080; }
+
+/* Participation button */
+.part-section { background: #2b2b2b; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+.part-label { font-size: 7px; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.25); font-weight: 700; margin-bottom: 6px; }
+.part-btn { width: 100%; background: linear-gradient(135deg, #c8f135 0%, #a8d020 100%); color: #2b2b2b; font-size: 11px; font-weight: 800; padding: 10px; border-radius: 7px; text-align: center; letter-spacing: 0.5px; }
+.part-pts { font-size: 9px; color: rgba(255,255,255,0.35); text-align: center; margin-top: 4px; }
+
+/* Forum */
+.forum-item { padding: 7px 0; border-bottom: 1px solid rgba(43,43,43,0.08); display: flex; gap: 7px; }
+.forum-item:last-child { border-bottom: none; }
+.forum-av-light { width: 20px; height: 20px; border-radius: 50%; background: rgba(200,241,53,0.2); border: 1px solid rgba(200,241,53,0.4); color: #3a5a00; font-size: 7px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.forum-title-light { font-size: 10px; font-weight: 600; color: #2b2b2b; line-height: 1.3; }
+.forum-meta-light { font-size: 8px; color: #aaa; margin-top: 1px; }
+
+/* Bug FAB */
+.bug-fab { position: absolute; bottom: 10px; right: 10px; background: rgba(43,43,43,0.08); border: 1px solid rgba(43,43,43,0.12); color: rgba(43,43,43,0.3); font-size: 8px; padding: 4px 8px; border-radius: 20px; font-weight: 700; letter-spacing: 0.5px; }
+
+.comparison-note { background: rgba(200,241,53,0.07); border: 1px solid rgba(200,241,53,0.15); border-radius: 8px; padding: 12px 14px; margin-top: 8px; }
+.comparison-note .cn-label { font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: #c8f135; font-weight: 700; margin-bottom: 8px; }
+.comparison-note ul { font-size: 11px; color: rgba(255,255,255,0.6); line-height: 2; list-style: none; padding: 0; }
+.comparison-note ul li::before { content: '✓  '; color: #c8f135; }
+</style>
+</head>
+<body>
+
+<h2>Design Section 2 — Key UX Flows</h2>
+<p class="subtitle">Teacher: merged Alumnos+Asistencia with mode toggle. Student: conditional pending work. Both mobile-first.</p>
+
+<!-- ─── TEACHER ─── -->
+<h3>Teacher — "Alumnos" Tab: One List, Two Modes</h3>
+<p class="section-note" style="margin-bottom:16px;">The old "Lista de Alumnos" and "Asistencia" tabs were the same list twice. Now one tab, toggle between <strong>Roster mode</strong> (click name → student detail) and <strong>Attendance mode</strong> (click name → mark present/absent/late).</p>
+
+<div class="phones">
+
+  <!-- Phone 1: Roster mode -->
+  <div class="phone-wrap">
+    <div class="phone-label">Roster Mode (default)</div>
+    <div class="phone">
+      <div class="phone-notch"><div class="notch-dot"></div></div>
+      <div class="t-header">
+        <div style="display:flex;align-items:center;">
+          <div class="t-logo-mark">M↗</div>
+          <div style="margin-left:6px;">
+            <div class="t-logo-text">marionomics</div>
+            <div class="t-class-name">Microeconomía II</div>
+          </div>
+        </div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.25);">Prof. G.</div>
+      </div>
+      <div class="t-nav">
+        <div class="t-tab">Hoy</div>
+        <div class="t-tab on">Alumnos</div>
+        <div class="t-tab">Eval.</div>
+        <div class="t-tab">Historial</div>
+        <div class="t-tab" style="position:relative;">Foro<span class="tbadge">2</span></div>
+      </div>
+      <div class="t-body">
+        <div class="mode-toggle">
+          <div class="mode-btn active">Lista</div>
+          <div class="mode-btn">Asistencia</div>
+        </div>
+        <div class="t-card" style="padding:6px 8px;">
+          <div class="s-row">
+            <div class="s-name">Ana Torres</div>
+            <div class="s-grade">87.2</div>
+            <div class="s-arrow">›</div>
+          </div>
+          <div class="s-row">
+            <div class="s-name">Carlos Ruiz</div>
+            <div class="s-grade" style="color:#ff8080;">54.1</div>
+            <div class="s-arrow">›</div>
+          </div>
+          <div class="s-row">
+            <div class="s-name">María López</div>
+            <div class="s-grade">79.0</div>
+            <div class="s-arrow">›</div>
+          </div>
+          <div class="s-row">
+            <div class="s-name">J. Morales</div>
+            <div class="s-grade">91.5</div>
+            <div class="s-arrow">›</div>
+          </div>
+          <div class="s-row" style="justify-content:center;color:rgba(255,255,255,0.2);font-size:9px;">+ 38 más</div>
+        </div>
+        <!-- Student detail drawer -->
+        <div class="detail-drawer">
+          <div class="detail-back">← Ana Torres</div>
+          <div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:8px;">
+            <div>
+              <div style="font-size:7px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:2px;">Calificación final</div>
+              <div class="detail-grade">87.2</div>
+            </div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.4);padding-bottom:4px;">Buen estado</div>
+          </div>
+          <div class="detail-grid">
+            <div class="detail-stat"><div class="detail-stat-num">12</div><div class="detail-stat-label">Participación</div></div>
+            <div class="detail-stat"><div class="detail-stat-num" style="color:#ff8080;">2</div><div class="detail-stat-label">Faltas</div></div>
+            <div class="detail-stat"><div class="detail-stat-num">94%</div><div class="detail-stat-label">Asistencia</div></div>
+            <div class="detail-stat"><div class="detail-stat-num">3/4</div><div class="detail-stat-label">Retos</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phone 2: Attendance mode -->
+  <div class="phone-wrap">
+    <div class="phone-label">Attendance Mode</div>
+    <div class="phone">
+      <div class="phone-notch"><div class="notch-dot"></div></div>
+      <div class="t-header">
+        <div style="display:flex;align-items:center;">
+          <div class="t-logo-mark">M↗</div>
+          <div style="margin-left:6px;">
+            <div class="t-logo-text">marionomics</div>
+            <div class="t-class-name">Microeconomía II</div>
+          </div>
+        </div>
+        <div style="font-size:8px;color:rgba(255,255,255,0.25);">Prof. G.</div>
+      </div>
+      <div class="t-nav">
+        <div class="t-tab">Hoy</div>
+        <div class="t-tab on">Alumnos</div>
+        <div class="t-tab">Eval.</div>
+        <div class="t-tab">Historial</div>
+        <div class="t-tab" style="position:relative;">Foro<span class="tbadge">2</span></div>
+      </div>
+      <div class="t-body">
+        <div class="mode-toggle">
+          <div class="mode-btn">Lista</div>
+          <div class="mode-btn active">Asistencia</div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="font-size:8px;color:rgba(255,255,255,0.35);">Jue 10 Abr 2026</div>
+          <div style="font-size:8px;color:#c8f135;font-weight:700;">38 ✓ · 2 ✗ · 2 ?</div>
+        </div>
+        <div class="t-card" style="padding:6px 8px;">
+          <div class="s-row" style="gap:4px;">
+            <div class="s-name" style="font-size:9px;">Ana Torres</div>
+            <div class="att-btns">
+              <div class="att-btn att-p sel">P</div>
+              <div class="att-btn att-a">A</div>
+              <div class="att-btn att-t">T</div>
+            </div>
+          </div>
+          <div class="s-row" style="gap:4px;">
+            <div class="s-name" style="font-size:9px;">Carlos Ruiz</div>
+            <div class="att-btns">
+              <div class="att-btn att-p">P</div>
+              <div class="att-btn att-a sel">A</div>
+              <div class="att-btn att-t">T</div>
+            </div>
+          </div>
+          <div class="s-row" style="gap:4px;">
+            <div class="s-name" style="font-size:9px;">María López</div>
+            <div class="att-btns">
+              <div class="att-btn att-p">P</div>
+              <div class="att-btn att-a">A</div>
+              <div class="att-btn att-t sel">T</div>
+            </div>
+          </div>
+          <div class="s-row" style="gap:4px;">
+            <div class="s-name" style="font-size:9px;">J. Morales</div>
+            <div class="att-btns">
+              <div class="att-btn att-p sel">P</div>
+              <div class="att-btn att-a">A</div>
+              <div class="att-btn att-t">T</div>
+            </div>
+          </div>
+          <div class="s-row" style="justify-content:center;color:rgba(255,255,255,0.2);font-size:9px;">+ 38 más</div>
+        </div>
+        <div class="save-btn">Guardar Asistencia</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phone 3: Student portal with conditional pending -->
+  <div class="phone-wrap">
+    <div class="phone-label">Student Portal — pending work surfaced</div>
+    <div class="phone" style="position:relative;">
+      <div class="phone-notch"><div class="notch-dot"></div></div>
+      <div class="sp-header">
+        <div style="display:flex;align-items:center;">
+          <div class="sp-logo-mark">M↗</div>
+          <span class="sp-logo-text">marionomics</span>
+        </div>
+        <span class="sp-name">Ana Torres</span>
+      </div>
+      <div class="sp-body">
+
+        <!-- 1. Dashboard -->
+        <div class="sp-label">Mis Clases</div>
+        <div class="sp-card">
+          <div class="sp-card-top">
+            <div class="sp-class">Microeconomía II</div>
+            <div class="sp-grade-badge">84.3</div>
+          </div>
+          <div class="sp-stats">
+            <div><div class="sp-stat-label">Participación</div><div class="sp-stat-val">12 pts</div></div>
+            <div><div class="sp-stat-label">Extra</div><div class="sp-stat-val">+0.5</div></div>
+            <div><div class="sp-stat-label">Faltas</div><div class="sp-stat-val" style="color:#c00;">2</div></div>
+          </div>
+          <div class="sp-detail-link">Ver desglose completo →</div>
+        </div>
+
+        <!-- 2. Pending work — ONLY shown when there's something due -->
+        <div class="pending-band">
+          <div class="pending-band-label">Trabajo Pendiente</div>
+          <div class="pending-item">
+            <div>
+              <div class="pending-title">Reto Semana 6</div>
+              <div class="pending-due urgent">Vence hoy · 11:59 pm</div>
+            </div>
+            <div style="color:#c8f135;font-size:10px;font-weight:800;">Entregar →</div>
+          </div>
+          <div class="pending-item">
+            <div>
+              <div class="pending-title">Examen Parcial 2</div>
+              <div class="pending-due">Vie 12 Abr</div>
+            </div>
+            <div style="color:rgba(255,255,255,0.3);font-size:9px;">En línea</div>
+          </div>
+        </div>
+
+        <!-- 3. Participation -->
+        <div class="part-section">
+          <div class="part-label">Participación en vivo</div>
+          <div class="part-btn">Registrar Participación</div>
+          <div class="part-pts">12 pts acumulados este semestre</div>
+        </div>
+
+        <!-- 4. Forum -->
+        <div class="sp-label" style="margin-top:4px;">Foro</div>
+        <div class="sp-card" style="padding:6px 10px;">
+          <div class="forum-item">
+            <div class="forum-av-light">AT</div>
+            <div>
+              <div class="forum-title-light">¿El equilibrio de Nash asume racionalidad perfecta?</div>
+              <div class="forum-meta-light">Ana Torres · 20 min · 3 likes</div>
+            </div>
+          </div>
+          <div class="forum-item">
+            <div class="forum-av-light">JM</div>
+            <div>
+              <div class="forum-title-light">Caso Uber — resumen para el reto</div>
+              <div class="forum-meta-light">J. Morales · 1 h · 7 likes · <span style="background:#c8f135;color:#2b2b2b;font-size:7px;font-weight:800;padding:1px 4px;border-radius:4px;">+0.5</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="bug-fab">⚡ bug</div>
+    </div>
+  </div>
+
+</div>
+
+<hr>
+
+<div class="comparison-note">
+  <div class="cn-label">Changes vs current — confirm these are right</div>
+  <ul>
+    <li>"Lista de Alumnos" + "Asistencia" → one "Alumnos" tab with Lista/Asistencia toggle</li>
+    <li>Clicking any student name opens their detail inline (no "Ver Detalle" button)</li>
+    <li>Attendance mode: P / A / T buttons per student, one tap each, save at bottom</li>
+    <li>Student order: Dashboard → Pending work (conditional) → Participación → Foro</li>
+    <li>"Mis Retos" removed from main view — completed work lives in "desglose completo"</li>
+    <li>Bug report FAB on student portal only (bottom-right, very subtle)</li>
+    <li>Teacher preview mode preserved (unchanged)</li>
+    <li>Participation button animation (×1/×2/×3) preserved exactly as-is</li>
+  </ul>
+</div>
+
+</body>
+</html>

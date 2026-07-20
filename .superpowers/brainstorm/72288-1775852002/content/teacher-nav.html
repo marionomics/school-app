@@ -1,0 +1,144 @@
+<h2>Teacher Dashboard: Navigation Structure</h2>
+<p class="subtitle">The current 7-tab layout feels overloaded. Here are 3 ways to consolidate it — which direction feels right?</p>
+
+<style>
+  .nav-strip {
+    display: flex;
+    gap: 2px;
+    flex-wrap: wrap;
+    margin: 8px 0 4px;
+  }
+  .nav-tab {
+    padding: 5px 11px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  .tab-active { background: #EA8251; color: #fff; }
+  .tab-merge  { background: #9C4927; color: #fff; }
+  .tab-normal { background: #F2F0E4; color: #1F2020; border: 1px solid #d1cfc3; }
+  .tab-badge  { background: #EA8251; color: #fff; font-size: 9px; padding: 2px 5px; border-radius: 10px; vertical-align: middle; margin-left: 2px; }
+
+  .approach-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #9a9a7a;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .screen-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  .screen-label {
+    font-size: 11px;
+    color: #888;
+    min-width: 90px;
+    padding-top: 6px;
+    font-style: italic;
+  }
+  .merge-note {
+    font-size: 11px;
+    color: #9C4927;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+  .plus-badge {
+    display: inline-block;
+    background: #c8f135;
+    color: #2b2b2b;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+</style>
+
+<div class="options">
+
+  <!-- CURRENT -->
+  <div style="background:#f9f9f7; border:1px solid #e5e3d8; border-radius:10px; padding:16px 20px; margin-bottom:12px;">
+    <div class="approach-label">Current — 7 tabs</div>
+    <div class="nav-strip">
+      <span class="nav-tab tab-active">Vista General</span>
+      <span class="nav-tab tab-normal">Lista de Alumnos</span>
+      <span class="nav-tab tab-normal">Asistencia</span>
+      <span class="nav-tab tab-normal">Exámenes</span>
+      <span class="nav-tab tab-normal">Participación</span>
+      <span class="nav-tab tab-normal">Retos</span>
+      <span class="nav-tab tab-normal">Justificaciones <span class="tab-badge">3</span></span>
+    </div>
+    <p style="font-size:12px;color:#888;margin-top:6px;">Scrolls horizontally on small screens. Hard to find things. Badge for justifications easy to miss.</p>
+  </div>
+
+  <!-- OPTION A -->
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Merge by topic — 5 tabs</h3>
+      <div class="nav-strip">
+        <span class="nav-tab tab-active">Vista General</span>
+        <span class="nav-tab tab-normal">Alumnos</span>
+        <span class="nav-tab tab-merge">Asistencia + Justif.</span>
+        <span class="nav-tab tab-merge">Evaluaciones</span>
+        <span class="nav-tab tab-normal">Participación</span>
+      </div>
+      <p class="merge-note">▸ Asistencia & Justificaciones merged (justifications are about absences, same context)</p>
+      <p class="merge-note">▸ Evaluaciones = Exámenes + Retos in one tab, filterable by type</p>
+      <div class="pros-cons" style="margin-top:10px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Least disruptive — familiar structure</li><li>Justifications found naturally next to attendance</li><li>Grading all in one place</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Still 5 tabs — moderate improvement</li><li>Evaluaciones tab gets busier</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION B -->
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Time-based grouping — 4 tabs</h3>
+      <div class="nav-strip">
+        <span class="nav-tab tab-active">Hoy <span class="plus-badge">new</span></span>
+        <span class="nav-tab tab-normal">Alumnos</span>
+        <span class="nav-tab tab-merge">Evaluaciones</span>
+        <span class="nav-tab tab-merge">Historial</span>
+      </div>
+      <p class="merge-note">▸ "Hoy" = attendance + participation + pending alerts, all on one screen — what you need every class day</p>
+      <p class="merge-note">▸ "Evaluaciones" = Exámenes + Retos + grade categories</p>
+      <p class="merge-note">▸ "Historial" = Asistencia (calendar view) + Justificaciones</p>
+      <div class="pros-cons" style="margin-top:10px;">
+        <div class="pros"><h4>Pros</h4><ul><li>"Hoy" tab matches real teaching workflow</li><li>Only 4 tabs — much cleaner</li><li>Attendance + participation live together (both daily actions)</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Bigger conceptual shift — "Hoy" is new mental model</li><li>Historial tab could get complex</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION C -->
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Minimal + side panels — 3 tabs</h3>
+      <div class="nav-strip">
+        <span class="nav-tab tab-active">Resumen</span>
+        <span class="nav-tab tab-normal">Alumnos</span>
+        <span class="nav-tab tab-merge">Actividad</span>
+      </div>
+      <p class="merge-note">▸ "Resumen" = quick actions, at-risk, stats (current Vista General)</p>
+      <p class="merge-note">▸ "Alumnos" = roster with click-to-expand per-student drawer (grades, attendance, submissions)</p>
+      <p class="merge-note">▸ "Actividad" = scrollable page with anchored sections: Asistencia / Participación / Retos / Exámenes / Justificaciones — no sub-tabs, just scroll</p>
+      <div class="pros-cons" style="margin-top:10px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Fewest tabs — cleanest chrome</li><li>"Actividad" section anchors replace tabs with scroll</li><li>Student detail in side drawer reduces navigation jumps</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>"Actividad" page very long — requires good anchor nav</li><li>Biggest rewrite of the three</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>
