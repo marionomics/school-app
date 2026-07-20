@@ -6,8 +6,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.auth.sessions import create_session
 from app.database import Base, get_db
 from app.main import app
+from app.models import User
 
 TEST_DB_URL = os.environ.get("TEST_DATABASE_URL", "sqlite://")
 
@@ -38,3 +40,33 @@ def client(db):
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest.fixture()
+def student(db):
+    user = User(google_id="g-student", email="alumno@example.com", name="Alumno Uno")
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@pytest.fixture()
+def teacher(db):
+    user = User(
+        google_id="g-teacher", email="profe@example.com", name="Profe", role="teacher"
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@pytest.fixture()
+def auth_headers(db, student):
+    return {"Authorization": f"Bearer {create_session(db, student)}"}
+
+
+@pytest.fixture()
+def teacher_headers(db, teacher):
+    return {"Authorization": f"Bearer {create_session(db, teacher)}"}
