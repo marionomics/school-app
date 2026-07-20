@@ -1,0 +1,48 @@
+// BORRADOR DE COPY — Mario escribe la versión final de todos los textos.
+export const es = {
+  appName: "Plataforma de clases",
+  login: {
+    title: "Bienvenido",
+    subtitle: "Inicia sesión con tu cuenta de Google",
+    error: "No se pudo iniciar sesión. Intenta de nuevo.",
+  },
+  onboarding: {
+    title: "Crea tu perfil",
+    usernameLabel: "Username",
+    usernameHint: "3-20 caracteres: letras minúsculas, números y _",
+    usernameTaken: "Ese username ya está ocupado",
+    bioLabel: "Bio",
+    bioPlaceholder: "Cuéntanos quién eres…",
+    submit: "Continuar",
+  },
+  home: {
+    feedComingSoon: "El feed llega en la Fase 1 🚧",
+  },
+  nav: {
+    home: "Inicio",
+    profile: "Perfil",
+    classes: "Mis clases",
+    settings: "Configuración",
+    logout: "Cerrar sesión",
+  },
+  classes: {
+    title: "Mis clases",
+    teaching: "Clases que doy",
+    enrolled: "Clases donde estoy",
+    empty: "Aún no estás en ninguna clase.",
+    create: "Crear clase",
+    join: "Unirme con código",
+    codeLabel: "Código de la clase",
+    joinSubmit: "Unirme",
+    name: "Nombre de la clase",
+    prefix: "Prefijo del código (ej. MICRO)",
+    startDate: "Fecha de inicio",
+    endDate: "Fecha de fin",
+    schedule: "Horario",
+    addBlock: "Agregar horario",
+    createSubmit: "Crear",
+    copyLink: "Copiar link de invitación",
+    linkCopied: "¡Link copiado!",
+    days: ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+  },
+} as const;
