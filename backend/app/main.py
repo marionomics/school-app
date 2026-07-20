@@ -46,6 +46,26 @@ from fastapi.staticfiles import StaticFiles
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 
+
+def _resolve_within(base: Path, full_path: str) -> Path:
+    """Resolve full_path against base and return a safe path to serve.
+
+    Returns base / "index.html" if the resolved candidate would escape
+    base (path traversal) or doesn't exist as a file; otherwise returns
+    the resolved candidate itself.
+    """
+    resolved_base = base.resolve()
+    try:
+        candidate = (resolved_base / full_path).resolve()
+    except (OSError, RuntimeError):
+        return resolved_base / "index.html"
+    if candidate != resolved_base and resolved_base not in candidate.parents:
+        return resolved_base / "index.html"
+    if candidate.is_file():
+        return candidate
+    return resolved_base / "index.html"
+
+
 if FRONTEND_DIST.is_dir():
     app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
 
@@ -54,13 +74,4 @@ if FRONTEND_DIST.is_dir():
         if full_path.startswith("api/"):
             # let FastAPI's 404 handling apply — this route only catches non-API paths
             raise HTTPException(status_code=404)
-        base = FRONTEND_DIST.resolve()
-        try:
-            candidate = (base / full_path).resolve()
-        except (OSError, RuntimeError):
-            return FileResponse(base / "index.html")
-        if candidate != base and base not in candidate.parents:
-            return FileResponse(base / "index.html")
-        if candidate.is_file():
-            return FileResponse(candidate)
-        return FileResponse(base / "index.html")
+        return FileResponse(_resolve_within(FRONTEND_DIST, full_path))
