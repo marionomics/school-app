@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class UserOut(BaseModel):
@@ -14,6 +14,11 @@ class UserOut(BaseModel):
     avatar_url: Optional[str]
     role: str
     grade_is_private: bool
+
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = Field(default=None, pattern=r"^[a-z0-9_]{3,20}$")
+    bio: Optional[str] = Field(default=None, max_length=500)
 
 
 class GoogleLoginRequest(BaseModel):
