@@ -16,7 +16,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-20 flex items-center justify-between border-b bg-background px-4 py-3">
-        <button aria-label="menu" onClick={() => setMenuOpen(true)} className="text-xl">
+        <button aria-label={es.nav.menu} onClick={() => setMenuOpen(true)} className="text-xl">
           ☰
         </button>
         <span className="font-bold">{es.appName}</span>
@@ -44,7 +44,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         <Link to="/" aria-label={es.nav.home} className="p-2 text-xl">
           🏠
         </Link>
-        <button aria-label="crear" disabled className="p-2 text-xl opacity-40">
+        <button aria-label={es.nav.create} disabled className="p-2 text-xl opacity-40">
           ➕
         </button>
         <Link to="/onboarding" aria-label={es.nav.profile} className="p-2 text-xl">

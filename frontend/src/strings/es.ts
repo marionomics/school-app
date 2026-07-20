@@ -20,10 +20,12 @@ export const es = {
     feedComingSoon: "El feed llega en la Fase 1 🚧",
   },
   nav: {
+    menu: "Menú",
     home: "Inicio",
     profile: "Perfil",
     classes: "Mis clases",
     settings: "Configuración",
+    create: "Crear",
     logout: "Cerrar sesión",
   },
   classes: {
