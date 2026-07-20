@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_user
@@ -22,7 +23,11 @@ def update_me(
         user.username = body.username
     if body.bio is not None:
         user.bio = body.bio
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Ese username ya está ocupado")
     db.refresh(user)
     return user
 
