@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.deps import get_current_user
@@ -53,10 +53,14 @@ if FRONTEND_DIST.is_dir():
     def spa_fallback(full_path: str):
         if full_path.startswith("api/"):
             # let FastAPI's 404 handling apply — this route only catches non-API paths
-            from fastapi import HTTPException
-
             raise HTTPException(status_code=404)
-        file = FRONTEND_DIST / full_path
-        if file.is_file():
-            return FileResponse(file)
-        return FileResponse(FRONTEND_DIST / "index.html")
+        base = FRONTEND_DIST.resolve()
+        try:
+            candidate = (base / full_path).resolve()
+        except (OSError, RuntimeError):
+            return FileResponse(base / "index.html")
+        if candidate != base and base not in candidate.parents:
+            return FileResponse(base / "index.html")
+        if candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(base / "index.html")
