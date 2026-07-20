@@ -14,6 +14,7 @@ export const es = {
     bioLabel: "Bio",
     bioPlaceholder: "Cuéntanos quién eres…",
     submit: "Continuar",
+    genericError: "Ocurrió un error. Intenta de nuevo.",
   },
   home: {
     feedComingSoon: "El feed llega en la Fase 1 🚧",

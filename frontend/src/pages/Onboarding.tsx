@@ -23,13 +23,17 @@ export default function Onboarding() {
   useEffect(() => {
     setAvailable(null);
     if (!USERNAME_RE.test(username)) return;
+    let cancelled = false;
     const t = setTimeout(async () => {
       const res = await api<{ available: boolean }>(
         `/api/users/username-available?u=${encodeURIComponent(username)}`,
       );
-      setAvailable(res.available);
+      if (!cancelled) setAvailable(res.available);
     }, 300);
-    return () => clearTimeout(t);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
   }, [username]);
 
   const valid = USERNAME_RE.test(username) && available !== false;
@@ -47,7 +51,7 @@ export default function Onboarding() {
       await refresh();
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err instanceof ApiError && err.status === 409 ? es.onboarding.usernameTaken : String(err));
+      setError(err instanceof ApiError && err.status === 409 ? es.onboarding.usernameTaken : es.onboarding.genericError);
     } finally {
       setSaving(false);
     }
