@@ -1,6 +1,9 @@
 // BORRADOR DE COPY — Mario escribe la versión final de todos los textos.
 export const es = {
   appName: "Plataforma de clases",
+  common: {
+    loading: "Cargando…",
+  },
   login: {
     title: "Bienvenido",
     subtitle: "Inicia sesión con tu cuenta de Google",

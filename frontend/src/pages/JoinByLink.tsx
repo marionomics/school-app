@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "@/lib/api";
+import { es } from "@/strings/es";
 
 export default function JoinByLink() {
   const { code } = useParams();
@@ -23,5 +24,5 @@ export default function JoinByLink() {
     void join();
   }, [code, navigate]);
 
-  return <div className="p-6 text-center text-muted-foreground">{error ?? "…"}</div>;
+  return <div className="p-6 text-center text-muted-foreground">{error ?? es.common.loading}</div>;
 }

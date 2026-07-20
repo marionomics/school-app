@@ -94,7 +94,7 @@ export default function Classes() {
     setSchedule((blocks) => blocks.map((b, j) => (j === i ? { ...b, ...patch } : b)));
   }
 
-  if (!mine) return <div className="p-6 text-muted-foreground">…</div>;
+  if (!mine) return <div className="p-6 text-muted-foreground">{es.common.loading}</div>;
 
   const isTeacher = user?.role === "teacher";
   const empty = mine.teaching.length === 0 && mine.enrolled.length === 0;
