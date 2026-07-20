@@ -17,3 +17,9 @@ dist/
 
 # v1 internal planning docs (local archive, never publish)
 planning/archive-v1/
+
+# Superpowers session state
+.superpowers/
+
+# Git worktrees
+.worktrees/
