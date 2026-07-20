@@ -110,7 +110,8 @@ Ledger   = Σ non-revoked ledger rows for (user, class)
              no cap for now (like_cap config exists, default off)
            · + incentives, + bonuses, − penalties
            · UNCAPPED by design — can exceed the missing 40 and pass 100
-Faltas   = −1 pt per unjustified absence (status = absent)
+Faltas   = −10 pts (100-scale) per unjustified absence (status = absent)
+           · that is UN PUNTO ENTERO (1.0 on the 10-scale, 10 décimas) — NOT una décima
 ```
 
 - **Lateness auto-score:** on time = 100 %, < 24 h late = 90 %, < 1 week = 50 %, after = 20 %. All entregas accepted; the penalty is automatic so emergencies need no special handling.

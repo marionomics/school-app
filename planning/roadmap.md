@@ -29,7 +29,7 @@ Cada fase se despliega a Railway y se prueba antes de pasar a la siguiente.
 - [ ] Calificar desde el feed
 
 ## Fase 3 — Listo para clases (semana 6)
-- [ ] Asistencia mínima: sesiones desde horario, lista tap-por-alumno, -1 por falta
+- [ ] Asistencia mínima: sesiones desde horario, lista tap-por-alumno, −10/100 por falta injustificada (un punto entero)
 - [ ] Panel de clase: roster, lista de calificaciones → perfil con desglose
 - [ ] Polish pass móvil + seed data
 - [ ] Beta con ex-alumnos

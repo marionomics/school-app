@@ -39,7 +39,7 @@ docs/       specs and plans
 - Default rubros: Tareas 30 + Exámenes 30 = 60. **The missing ~40 is intentional** — it's filled by participaciones/forum/extras, which are **uncapped**. Never make weights sum to 100, never warn that they don't, never suggest filling the gap.
 - Formula: `Final = Tareas + Exámenes + Ledger − Faltas` (see spec §4).
 - 1 participation tap = 1 pt (max 3 taps). 1 like received = 1 pt, linear, no cap for now (configurable in `points_config`; cap design is an open question in `planning/future.md`).
-- Faltas injustificadas: −1 pt each.
+- Faltas injustificadas: **−10 pts (100-scale) each** — un punto entero (1.0 on the 10-scale, 10 décimas), NOT una décima.
 - Grades are always **computed, never stored**. Every grade-affecting event is an append-only `points_ledger` row; veto = revocation flag, never DELETE.
 - Participaciones auto-count on publish; the teacher vetoes exceptions (never a routine approval queue).
 
