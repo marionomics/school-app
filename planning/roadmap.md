@@ -4,11 +4,11 @@ Objetivo: v2.0 en producción para el inicio del semestre (ago/sep 2026).
 Cada fase se despliega a Railway y se prueba antes de pasar a la siguiente.
 
 ## Fase 0 — Cimientos (semana 1)
-- [ ] Scaffold monorepo (`backend/` FastAPI + Alembic, `frontend/` React + Vite + shadcn preset)
-- [ ] Auth con Google Identity Services + sesiones
-- [ ] Onboarding: username único + bio al primer login
-- [ ] Clases: crear (con horario, fechas, pesos), unirse por código, link de invitación
-- [ ] Deploy esqueleto a Railway (FastAPI sirve el build de Vite) + PostgreSQL
+- [x] Scaffold monorepo (`backend/` FastAPI + Alembic, `frontend/` React + Vite + shadcn preset)
+- [x] Auth con Google Identity Services + sesiones
+- [x] Onboarding: username único + bio al primer login
+- [x] Clases: crear (con horario, fechas, pesos), unirse por código, link de invitación
+- [x] Deploy esqueleto a Railway (FastAPI sirve el build de Vite) + PostgreSQL
 
 ## Fase 1 — El feed (semanas 2–3)
 - [ ] Posts, replies (3 niveles), likes
