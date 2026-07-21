@@ -5,7 +5,7 @@ Rebuild from zero of the classroom platform (marionomics.com).
 - **v1 is archived** on the [`v1-archive`](https://github.com/marionomics/school-app/tree/v1-archive) branch (tag: `v1-final`).
 - v2 planning and design docs live in `planning/` and `docs/` as they are created.
 
-**Status:** Phase 0 (Cimientos) complete. Deployed to Railway; ready for classroom testing.
+**Status:** Phase 0 (Cimientos) code complete — not yet deployed. Railway config (`railway.json`, `nixpacks.toml`) and CI are in place; the actual Railway project creation, env vars, and Google OAuth domain setup are a manual step (see Deployment below).
 
 ## Development Setup
 
@@ -38,15 +38,16 @@ The frontend dev server runs on `http://localhost:5173`.
 
 ### Seed Local Data
 
-To populate a fresh development database with test users, a class, and enrollments:
+To populate a **fresh** development database with test users, a class, and enrollments (the script has no duplicate-safety check, so only run it against an empty DB — delete `school_v2.db` and re-run `alembic upgrade head` first if you've already used the app):
 
 ```bash
 cd backend
+rm -f school_v2.db && alembic upgrade head
 python seed.py
 ```
 
 This creates:
-- 1 teacher (mario@marionomics.com)
+- 1 teacher (hola@marionomics.com)
 - 3 students (alumno{1,2,3}@example.com)
 - 1 class (Microeconomía) with all students enrolled
 

@@ -5,7 +5,7 @@
 - All 12 Phase 0 tasks shipped and tested.
 - Backend: 24 passing tests. Frontend: clean build.
 - Seed script (`python backend/seed.py`) populates dev DB with teacher, 3 students, and sample class.
-- Ready for classroom testing; not yet live (Railway deployment is manual).
+- Not yet live (Railway deployment is manual) and not yet manually QA'd end-to-end on a phone (login → onboarding → create class → invite → join) — both require real Google OAuth credentials, which no agent in this build had access to. These are the next manual steps for Mario before Fase 1 starts.
 
 ## 2026-07-19
 - v1 archivada por completo: branch `v1-archive`, tag `v1-final` en GitHub. Deployment de Railway ya dado de baja.
