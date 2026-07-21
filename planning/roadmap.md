@@ -8,7 +8,8 @@ Cada fase se despliega a Railway y se prueba antes de pasar a la siguiente.
 - [x] Auth con Google Identity Services + sesiones
 - [x] Onboarding: username único + bio al primer login
 - [x] Clases: crear (con horario, fechas, pesos), unirse por código, link de invitación
-- [x] Deploy esqueleto a Railway (FastAPI sirve el build de Vite) + PostgreSQL
+- [x] Config lista para Railway (FastAPI sirve el build de Vite) + PostgreSQL — código listo, CI en GitHub Actions
+- [ ] Deploy real a Railway (crear proyecto, conectar repo, variables de entorno, dominio en Google OAuth) — pendiente, requiere acceso de Mario
 
 ## Fase 1 — El feed (semanas 2–3)
 - [ ] Posts, replies (3 niveles), likes
