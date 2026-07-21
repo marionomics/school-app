@@ -53,4 +53,5 @@ function Button({
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- standard shadcn/ui pattern: co-exporting the cva variant generator alongside the component so callers can reuse the same classes on non-Button elements
 export { Button, buttonVariants }

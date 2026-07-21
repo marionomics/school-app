@@ -50,6 +50,7 @@ export default function Classes() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- idiomatic fetch-on-mount pattern to load "my classes", not a genuine cascading-render risk
     void load();
   }, [load]);
 

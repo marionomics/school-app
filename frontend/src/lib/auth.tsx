@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- idiomatic fetch-on-mount pattern (load session on app start), not a genuine cascading-render risk
     void refresh();
   }, [refresh]);
 
@@ -56,4 +57,5 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- co-locates the auth hook with its provider/context; splitting into a separate file would fragment a small, cohesive module
 export const useAuth = () => useContext(AuthContext);

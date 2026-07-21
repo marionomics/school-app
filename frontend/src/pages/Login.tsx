@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api, setToken } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { es } from "@/strings/es";
@@ -7,7 +7,20 @@ import type { AuthResponse } from "@/lib/types";
 
 declare global {
   interface Window {
-    google?: any;
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential: string }) => void;
+          }) => void;
+          renderButton: (
+            parent: HTMLElement,
+            options: { theme: string; size: string },
+          ) => void;
+        };
+      };
+    };
   }
 }
 
@@ -16,6 +29,8 @@ export default function Login() {
   const [error, setError] = useState(false);
   const navigate = useNavigate();
   const { refresh } = useAuth();
+  const location = useLocation();
+  const from = (location.state as { from?: { pathname: string; search: string } } | null)?.from;
 
   useEffect(() => {
     let cancelled = false;
@@ -33,7 +48,11 @@ export default function Login() {
             });
             setToken(auth.token);
             await refresh();
-            navigate(auth.needs_onboarding ? "/onboarding" : "/", { replace: true });
+            if (auth.needs_onboarding) {
+              navigate("/onboarding", { replace: true, state: from ? { from } : undefined });
+            } else {
+              navigate(from ? `${from.pathname}${from.search}` : "/", { replace: true });
+            }
           } catch {
             setError(true);
           }
@@ -45,7 +64,7 @@ export default function Login() {
     return () => {
       cancelled = true;
     };
-  }, [navigate, refresh]);
+  }, [navigate, refresh, from]);
 
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-6 p-6">

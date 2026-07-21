@@ -13,7 +13,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
   if (!user.username && location.pathname !== "/onboarding")
-    return <Navigate to="/onboarding" replace />;
+    return <Navigate to="/onboarding" replace state={{ from: location }} />;
   return <>{children}</>;
 }
 

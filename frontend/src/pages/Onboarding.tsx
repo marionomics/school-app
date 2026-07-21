@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { es } from "@/strings/es";
@@ -10,6 +10,9 @@ const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 export default function Onboarding() {
   const { user, refresh } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: { pathname: string; search: string } } | null)?.from;
+  const redirectTarget = from ? `${from.pathname}${from.search}` : "/";
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [available, setAvailable] = useState<boolean | null>(null);
@@ -17,10 +20,11 @@ export default function Onboarding() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (user?.username) navigate("/", { replace: true });
-  }, [user, navigate]);
+    if (user?.username) navigate(redirectTarget, { replace: true });
+  }, [user, navigate, redirectTarget]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets stale availability state before the debounced re-check kicks off, not a cascading-render risk
     setAvailable(null);
     if (!USERNAME_RE.test(username)) return;
     let cancelled = false;
@@ -49,7 +53,7 @@ export default function Onboarding() {
         body: JSON.stringify({ username, bio }),
       });
       await refresh();
-      navigate("/", { replace: true });
+      navigate(redirectTarget, { replace: true });
     } catch (err) {
       setError(err instanceof ApiError && err.status === 409 ? es.onboarding.usernameTaken : es.onboarding.genericError);
     } finally {
