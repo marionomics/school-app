@@ -63,6 +63,9 @@ def test_like_award_and_revoke_cycle(db, student, student2, klass, enrolled):
     assert n == 1
     db.refresh(row)
     assert row.revoked_at is not None and row.revoked_by == student2.id
+    # Hard-delete the like to mirror the real unlike flow (Task 6)
+    db.delete(like)
+    db.commit()
     # re-like awards a fresh row
     like2 = Like(user_id=student2.id, post_id=p.id)
     db.add(like2)

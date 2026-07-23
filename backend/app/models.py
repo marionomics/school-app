@@ -99,6 +99,7 @@ class Post(Base):
 
 class Like(Base):
     __tablename__ = "likes"
+    __table_args__ = (UniqueConstraint("user_id", "post_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)

@@ -47,3 +47,18 @@ def test_ledger_decimal_points(db):
     db.refresh(row)
     assert row.points == Decimal("1.50")
     assert row.revoked_at is None
+
+
+def test_like_unique(db):
+    u = _user(db, 4)
+    p = Post(author_id=u.id, content="p")
+    db.add(p)
+    db.commit()
+    db.add(Like(user_id=u.id, post_id=p.id))
+    db.commit()
+    import pytest as _pytest
+    from sqlalchemy.exc import IntegrityError
+    db.add(Like(user_id=u.id, post_id=p.id))
+    with _pytest.raises(IntegrityError):
+        db.commit()
+    db.rollback()
