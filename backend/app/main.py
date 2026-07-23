@@ -1,6 +1,7 @@
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import storage
 from app.auth.deps import get_current_user
 from app.config import settings
 from app.models import User
@@ -31,7 +32,10 @@ def health():
 
 @app.get("/api/config")
 def config():
-    return {"google_client_id": settings.google_client_id}
+    return {
+        "google_client_id": settings.google_client_id,
+        "file_uploads_enabled": storage.is_r2_configured(),
+    }
 
 
 @app.get("/api/auth/me", response_model=UserOut)
