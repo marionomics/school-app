@@ -91,3 +91,21 @@ def test_upload_rejected_when_r2_off(client, auth_headers, enrolled):
         headers=auth_headers,
     )
     assert res.status_code == 400
+
+
+def test_teacher_cannot_post_to_unowned_class(client, db, teacher_headers, klass):
+    # klass is owned by the `teacher` fixture; create a second teacher who does NOT own it
+    from app.auth.sessions import create_session
+    from app.models import User
+    other = User(google_id="g-teach2", email="teach2@example.com", name="Otro Profe", role="teacher")
+    db.add(other)
+    db.commit()
+    headers = {"Authorization": f"Bearer {create_session(db, other)}"}
+    res = client.post("/api/posts", data={"content": "hola", "class_id": str(klass.id)}, headers=headers)
+    assert res.status_code == 403
+
+
+def test_teacher_can_post_to_own_class(client, db, teacher_headers, klass):
+    res = client.post("/api/posts", data={"content": "aviso", "class_id": str(klass.id)}, headers=teacher_headers)
+    assert res.status_code == 201
+    assert res.json()["class_id"] == klass.id

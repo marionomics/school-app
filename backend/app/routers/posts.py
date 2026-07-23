@@ -5,12 +5,11 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.auth.deps import get_current_user
 from app.database import get_db
-from app.models import Enrollment, Post, User, utcnow
+from app.models import Attachment, Class, Enrollment, Post, User, utcnow
 from app.schemas import AttachmentOut, AuthorOut, PostOut
 from app.services import points
 from app.services.attribution import resolve_default_class
 from app import storage
-from app.models import Attachment
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
 
@@ -111,6 +110,9 @@ def create_post(
     if user.role != "teacher":
         resolved_class = _resolve_class_for_student(db, user, class_id)
     elif class_id is not None:
+        klass = db.get(Class, class_id)
+        if klass is None or klass.teacher_id != user.id:
+            raise HTTPException(status_code=403, detail="No eres profesor de esa clase")
         resolved_class = class_id
 
     if files and len(files) > MAX_FILES:
