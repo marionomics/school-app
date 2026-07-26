@@ -1,14 +1,16 @@
 from typing import List, Optional, Set
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth.deps import get_current_user
 from app.database import get_db
-from app.models import Attachment, Class, Enrollment, Post, User, utcnow
+from app.models import Attachment, Class, Enrollment, Like, Post, User, utcnow
 from app.schemas import AttachmentOut, AuthorOut, PostOut
 from app.services import points
 from app.services.attribution import resolve_default_class
+from app.services.cursor import decode_cursor, encode_cursor
 from app import storage
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
@@ -72,6 +74,76 @@ def _resolve_class_for_student(db: Session, user: User, sent: Optional[int]) -> 
 @router.get("/default-class")
 def default_class(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return {"class_id": resolve_default_class(db, user)}
+
+
+feed_router = APIRouter(prefix="/api/feed", tags=["feed"])
+
+
+def _liked_ids(db: Session, user: User, post_ids: List[int]) -> Set[int]:
+    if not post_ids:
+        return set()
+    rows = db.query(Like.post_id).filter(Like.user_id == user.id,
+                                         Like.post_id.in_(post_ids)).all()
+    return {pid for (pid,) in rows}
+
+
+@feed_router.get("")
+def get_feed(
+    cursor: Optional[str] = Query(None),
+    limit: int = Query(20, ge=1, le=50),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    q = (
+        db.query(Post)
+        .options(selectinload(Post.author), selectinload(Post.klass),
+                 selectinload(Post.attachments))
+        .filter(Post.parent_id.is_(None), Post.status == "active")
+    )
+    if cursor:
+        try:
+            c_dt, c_id = decode_cursor(cursor)
+        except Exception:
+            raise HTTPException(status_code=422, detail="Cursor inválido")
+        q = q.filter(or_(Post.last_activity_at < c_dt,
+                         and_(Post.last_activity_at == c_dt, Post.id < c_id)))
+    posts = q.order_by(Post.last_activity_at.desc(), Post.id.desc()).limit(limit + 1).all()
+    has_more = len(posts) > limit
+    posts = posts[:limit]
+    liked = _liked_ids(db, user, [p.id for p in posts])
+    next_cursor = encode_cursor(posts[-1].last_activity_at, posts[-1].id) if (has_more and posts) else None
+    return {"items": [serialize_post(p, liked) for p in posts], "next_cursor": next_cursor}
+
+
+@router.get("/{post_id}")
+def get_thread(post_id: int, user: User = Depends(get_current_user),
+               db: Session = Depends(get_db)):
+    post = (
+        db.query(Post)
+        .options(selectinload(Post.author), selectinload(Post.klass),
+                 selectinload(Post.attachments))
+        .filter(Post.id == post_id).first()
+    )
+    if post is None or (post.status != "active" and post.reply_count == 0):
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+    level2 = (
+        db.query(Post)
+        .options(selectinload(Post.author), selectinload(Post.klass),
+                 selectinload(Post.attachments))
+        .filter(Post.parent_id == post.id).all()
+    )
+    level3 = []
+    if level2:
+        level3 = (
+            db.query(Post)
+            .options(selectinload(Post.author), selectinload(Post.klass),
+                     selectinload(Post.attachments))
+            .filter(Post.parent_id.in_([r.id for r in level2])).all()
+        )
+    replies = sorted(level2 + level3, key=lambda p: p.created_at)
+    liked = _liked_ids(db, user, [post.id] + [r.id for r in replies])
+    return {"post": serialize_post(post, liked),
+            "replies": [serialize_post(r, liked) for r in replies]}
 
 
 @router.post("", response_model=PostOut, status_code=201)
