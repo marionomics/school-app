@@ -230,3 +230,62 @@ def create_post(
         .filter(Post.id == post.id).one()
     )
     return serialize_post(post, liked_ids=set())
+
+
+attachments_router = APIRouter(prefix="/api/attachments", tags=["attachments"])
+
+
+@router.post("/{post_id}/like")
+def toggle_like(post_id: int, user: User = Depends(get_current_user),
+                db: Session = Depends(get_db)):
+    post = db.get(Post, post_id)
+    if post is None or post.status != "active":
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+    if post.author_id == user.id:
+        raise HTTPException(status_code=400, detail="No puedes dar like a tu propia publicación")
+    existing = db.query(Like).filter(Like.user_id == user.id,
+                                     Like.post_id == post.id).first()
+    if existing is not None:
+        points.revoke_like(db, like_id=existing.id, revoked_by=user.id)
+        db.delete(existing)
+        post.like_count = max(0, post.like_count - 1)
+        db.commit()
+        return {"liked": False, "like_count": post.like_count}
+    like = Like(user_id=user.id, post_id=post.id)
+    db.add(like)
+    db.flush()
+    post.like_count += 1
+    get_root(db, post).last_activity_at = utcnow()
+    points.award_like(db, like=like, post=post, liker=user)
+    db.commit()
+    return {"liked": True, "like_count": post.like_count}
+
+
+@router.delete("/{post_id}", status_code=204)
+def remove_post(post_id: int, user: User = Depends(get_current_user),
+                db: Session = Depends(get_db)):
+    post = db.get(Post, post_id)
+    if post is None or post.status != "active":
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+    if post.author_id == user.id:
+        post.status = "deleted"
+    elif user.role == "teacher":
+        post.status = "vetoed"
+    else:
+        raise HTTPException(status_code=403, detail="No puedes eliminar esta publicación")
+    points.revoke_post(db, post=post, revoked_by=user.id)
+    if post.parent_id is not None:
+        root = get_root(db, post)
+        root.reply_count = max(0, root.reply_count - 1)
+    db.commit()
+
+
+@attachments_router.get("/{attachment_id}/url")
+def attachment_url(attachment_id: int, user: User = Depends(get_current_user),
+                   db: Session = Depends(get_db)):
+    att = db.get(Attachment, attachment_id)
+    if att is None:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    if not storage.is_r2_configured():
+        raise HTTPException(status_code=400, detail="La descarga de archivos no está habilitada")
+    return {"url": storage.generate_presigned_url(att.file_key)}

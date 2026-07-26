@@ -26,6 +26,7 @@ app.include_router(users_router.router)
 app.include_router(classes_router.router)
 app.include_router(posts_router.router)
 app.include_router(posts_router.feed_router)
+app.include_router(posts_router.attachments_router)
 
 
 @app.get("/api/health")
