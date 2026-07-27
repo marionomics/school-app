@@ -62,7 +62,8 @@ export default function PostCard({
           <button
             onClick={() => onLike?.(post)}
             disabled={!onLike || removed}
-            aria-label="like"
+            aria-label={post.liked_by_me ? es.feed.unlike : es.feed.like}
+            aria-pressed={post.liked_by_me}
             className={post.liked_by_me ? "text-destructive" : ""}
           >
             {post.liked_by_me ? "♥" : "♡"} {post.like_count > 0 ? post.like_count : ""}

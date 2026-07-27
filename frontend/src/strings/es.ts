@@ -58,5 +58,7 @@ export const es = {
     deletedPost: "[eliminado]",
     participacionBadge: "Participación",
     replies: "respuestas",
+    like: "Me gusta",
+    unlike: "Quitar me gusta",
   },
 } as const;
