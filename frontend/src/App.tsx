@@ -8,6 +8,7 @@ import Home from "@/pages/Home";
 import Classes from "@/pages/Classes";
 import JoinByLink from "@/pages/JoinByLink";
 import Thread from "@/pages/Thread";
+import Compose from "@/pages/Compose";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -69,6 +70,14 @@ export default function App() {
                   <Shell>
                     <Thread />
                   </Shell>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/componer"
+              element={
+                <RequireAuth>
+                  <Compose />
                 </RequireAuth>
               }
             />

@@ -44,9 +44,9 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         <Link to="/" aria-label={es.nav.home} className="p-2 text-xl">
           🏠
         </Link>
-        <button aria-label={es.nav.create} disabled className="p-2 text-xl opacity-40">
+        <Link to="/componer" aria-label={es.nav.create} className="p-2 text-xl">
           ➕
-        </button>
+        </Link>
         <Link to="/onboarding" aria-label={es.nav.profile} className="p-2 text-xl">
           👤
         </Link>
