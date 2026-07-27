@@ -80,3 +80,13 @@ def test_attachment_url_when_r2_off(client, db, auth_headers, enrolled, klass, s
     db.commit()
     assert client.get(f"/api/attachments/{a.id}/url", headers=auth_headers).status_code == 400
     assert client.get("/api/attachments/9999/url", headers=auth_headers).status_code == 404
+
+
+def test_attachment_url_404_for_removed_post(client, db, auth_headers, enrolled, klass, student):
+    from app.models import Attachment
+    p = _mk(db, student, klass, status="deleted")
+    a = Attachment(post_id=p.id, file_key="k2", file_name="g.pdf", file_size=1,
+                   mime_type="application/pdf")
+    db.add(a)
+    db.commit()
+    assert client.get(f"/api/attachments/{a.id}/url", headers=auth_headers).status_code == 404

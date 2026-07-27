@@ -286,6 +286,9 @@ def attachment_url(attachment_id: int, user: User = Depends(get_current_user),
     att = db.get(Attachment, attachment_id)
     if att is None:
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    post = db.get(Post, att.post_id)
+    if post is None or post.status != "active":
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
     if not storage.is_r2_configured():
         raise HTTPException(status_code=400, detail="La descarga de archivos no está habilitada")
     return {"url": storage.generate_presigned_url(att.file_key)}
