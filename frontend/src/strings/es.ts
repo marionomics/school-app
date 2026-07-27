@@ -61,4 +61,16 @@ export const es = {
     like: "Me gusta",
     unlike: "Quitar me gusta",
   },
+  post: {
+    replyPlaceholder: "Responde algo…",
+    replySubmit: "Responder",
+    deleteConfirmTitle: "¿Eliminar publicación?",
+    deleteConfirmBody: "Se eliminará y sus puntos serán revocados.",
+    deleteConfirm: "Eliminar",
+    cancel: "Cancelar",
+    likeError: "No se pudo registrar el like",
+    deleteError: "No se pudo eliminar",
+    replyError: "No se pudo publicar la respuesta",
+    attachmentError: "No se pudo abrir el archivo",
+  },
 } as const;

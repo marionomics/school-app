@@ -15,10 +15,16 @@ export default function PostCard({
   post,
   onLike,
   linkToThread = true,
+  onDelete,
+  canDelete,
+  onOpenAttachment,
 }: {
   post: Post;
   onLike?: (post: Post) => void;
   linkToThread?: boolean;
+  onDelete?: (post: Post) => void;
+  canDelete?: boolean;
+  onOpenAttachment?: (id: number) => void;
 }) {
   const removed = post.status !== "active";
   const body = removed ? (
@@ -34,6 +40,15 @@ export default function PostCard({
           <span className="font-semibold">@{post.author.username ?? post.author.name}</span>
           {post.author.role === "teacher" && <span aria-hidden>👨‍🏫</span>}
           <span className="text-muted-foreground">{timeAgo(post.created_at)}</span>
+          {canDelete && (
+            <button
+              onClick={() => onDelete?.(post)}
+              aria-label={es.post.deleteConfirm}
+              className="ml-auto text-muted-foreground"
+            >
+              🗑
+            </button>
+          )}
         </div>
         {post.type === "participacion" && !removed && (
           <span className="mt-1 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
@@ -51,11 +66,21 @@ export default function PostCard({
         )}
         {!removed && post.attachments.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
-            {post.attachments.map((a) => (
-              <span key={a.id} className="rounded-md border px-2 py-1 text-xs">
-                📎 {a.file_name}
-              </span>
-            ))}
+            {post.attachments.map((a) =>
+              onOpenAttachment ? (
+                <button
+                  key={a.id}
+                  onClick={() => onOpenAttachment(a.id)}
+                  className="rounded-md border px-2 py-1 text-xs"
+                >
+                  📎 {a.file_name}
+                </button>
+              ) : (
+                <span key={a.id} className="rounded-md border px-2 py-1 text-xs">
+                  📎 {a.file_name}
+                </span>
+              ),
+            )}
           </div>
         )}
         <div className="mt-2 flex items-center gap-5 text-sm text-muted-foreground">
