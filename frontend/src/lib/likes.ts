@@ -54,6 +54,7 @@ export function useLikeMutation() {
     },
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: ["feed"] });
+      void qc.invalidateQueries({ queryKey: ["thread"] });
     },
   });
 }
