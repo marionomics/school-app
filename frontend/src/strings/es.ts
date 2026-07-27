@@ -51,4 +51,12 @@ export const es = {
     linkCopied: "¡Link copiado!",
     days: ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
   },
+  feed: {
+    empty: "Nada por aquí todavía. ¡Sé el primero en publicar!",
+    end: "Llegaste al final",
+    error: "No se pudo cargar el feed. Desliza para reintentar.",
+    deletedPost: "[eliminado]",
+    participacionBadge: "Participación",
+    replies: "respuestas",
+  },
 } as const;
