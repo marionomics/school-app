@@ -93,7 +93,10 @@ export default function Compose() {
           {(["regular", "participacion"] as const).map((m) => (
             <button
               key={m}
-              onClick={() => setMode(m)}
+              onClick={() => {
+                setMode(m);
+                if (m === "participacion") setFiles([]);
+              }}
               className={`rounded-full px-3 py-1 text-sm ${mode === m ? "bg-primary text-primary-foreground" : "border"}`}
             >
               {m === "regular" ? es.compose.modeRegular : `🗣️ ${es.compose.modeParticipacion}`}
@@ -152,6 +155,7 @@ export default function Compose() {
           <button
             disabled={!contentOk || publish.isPending}
             onClick={tapCtl.tap}
+            aria-label={es.compose.tapToRegister}
             className="relative flex h-36 w-36 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform active:scale-90 disabled:opacity-40"
             style={
               tapCtl.active
