@@ -2,3 +2,6 @@ providers = ["python", "node"]
 
 [variables]
 NIXPACKS_PYTHON_VERSION = "3.12"
+# Nixpacks defaults to Node 18, but Vite 8 / rolldown need node:util's
+# styleText (Node 20+). Keep this in step with CI's node-version.
+NIXPACKS_NODE_VERSION = "22"
