@@ -38,9 +38,11 @@ docs/       specs and plans
 - Scale 0–100. **"Una décima"** (10-scale) = **1 point** (100-scale). Mario sometimes says "points" meaning décimas — always clarify.
 - Default rubros: Tareas 30 + Exámenes 30 = 60. **The missing ~40 is intentional** — it's filled by participaciones/forum/extras, which are **uncapped**. Never make weights sum to 100, never warn that they don't, never suggest filling the gap.
 - Formula: `Final = Tareas + Exámenes + Ledger − Faltas` (see spec §4).
-- 1 participation tap = 1 pt (max 3 taps). 1 like received = 1 pt, linear, no cap for now (configurable in `points_config`; cap design is an open question in `planning/future.md`).
+- 1 participation tap = 1 pt (max 3 taps) — **linear**, always.
+- Likes received are **concave**: `like_value × N^like_exponent`, default exponent `0.5`. So 100 likes = 10 pts, and a 10 earned purely from likes needs 10,000. Per-class configurable; `like_exponent = 1.0` restores linear. The curve *is* the anti-cramming mechanism, so `like_cap` stays off (this closed open question 1 in `planning/future.md`).
 - Faltas injustificadas: **−10 pts (100-scale) each** — un punto entero (1.0 on the 10-scale, 10 décimas), NOT una décima.
 - Grades are always **computed, never stored**. Every grade-affecting event is an append-only `points_ledger` row; veto = revocation flag, never DELETE.
+- The ledger is the **event log**; the engine applies the maths. For participaciones, incentives, bonuses and penalties the contribution is `Σ row.points`. For likes it is **not** — the engine counts non-revoked `forum_like` rows and applies the concave curve, because the nth like is worth `√n − √(n−1)`, not 1. Never "fix" this by summing like rows.
 - Participaciones auto-count on publish; the teacher vetoes exceptions (never a routine approval queue).
 
 ## Core Model Rules

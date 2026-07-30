@@ -259,4 +259,4 @@ CI runs against PostgreSQL, and the migration-plus-drift guard added on 2026-07-
 - `Revisar`: entregas grouped by tarea, participaciones with one-tap veto
 - `incentives` table, CRUD, awarding
 - Class settings UI: weights, `tap_value`, `like_value`, `like_exponent`
-- `CLAUDE.md` wording for `Ledger = Σ rows` needs the amendment described in 2.4
+`CLAUDE.md` was amended on 2026-07-30 with the ledger wording from 2.4 and the concave like rule, and `planning/future.md` open question 1 was marked resolved. Neither is outstanding.
