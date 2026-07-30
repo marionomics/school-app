@@ -41,13 +41,13 @@ def test_no_award_for_ghost(db, ghost, klass):
     assert points.award_participacion(db, p) is None
 
 
-def test_no_award_for_teacher_recipient(db, teacher, klass):
+def test_no_award_for_teacher_recipient(db, teacher, student, klass):
+    # A real liker row: PostgreSQL enforces likes.user_id's FK, SQLite does not.
     p = _post(db, teacher, klass)
-    like_row = Like(user_id=999, post_id=p.id)
+    like_row = Like(user_id=student.id, post_id=p.id)
     db.add(like_row)
     db.commit()
-    fake_liker = type("U", (), {"role": "student"})()
-    assert points.award_like(db, like=like_row, post=p, liker=fake_liker) is None
+    assert points.award_like(db, like=like_row, post=p, liker=student) is None
 
 
 def test_like_award_and_revoke_cycle(db, student, student2, klass, enrolled):
