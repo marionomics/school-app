@@ -149,6 +149,34 @@ class Review(Base):
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
+class ClassSession(Base):
+    __tablename__ = "class_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    class_id: Mapped[int] = mapped_column(ForeignKey("classes.id"), index=True)
+    # Annotation is a string forward-ref on purpose: the attribute name "date"
+    # would otherwise shadow the `date` type imported at module scope when
+    # SQLAlchemy evaluates `Mapped[date]` eagerly, resolving to the
+    # MappedColumn instance instead of datetime.date.
+    date: Mapped["date"] = mapped_column(Date)
+    opened_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class AttendanceRecord(Base):
+    __tablename__ = "attendance_records"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[int] = mapped_column(ForeignKey("class_sessions.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    status: Mapped[str] = mapped_column(String(20))  # present|absent|late|excused
+    justification_text: Mapped[Optional[str]] = mapped_column(Text)
+    justification_file_key: Mapped[Optional[str]] = mapped_column(String(500))
+    justification_status: Mapped[Optional[str]] = mapped_column(String(20))  # pending|approved|rejected
+    reviewed_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
 class PointsLedger(Base):
     __tablename__ = "points_ledger"
 

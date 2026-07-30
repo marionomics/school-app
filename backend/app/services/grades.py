@@ -8,9 +8,11 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.models import Class, PointsConfig, Post, Review
+from app.models import (AttendanceRecord, Class, ClassSession, PointsConfig,
+                        PointsLedger, Post, Review)
 
 ON_TIME = Decimal("100")
 UNDER_24H = Decimal("90")
@@ -101,3 +103,129 @@ def tareas_rubro(db: Session, user_id: int, klass: Class, now: datetime) -> Rubr
     points = (total / len(due_tareas) / Decimal("100")) * weight
     return Rubro(evaluated=True, points=points, weight=weight,
                  count_due=len(due_tareas), count_entregadas=entregadas)
+
+
+FALTA_COST = Decimal("10")
+
+
+def like_points(n: int, like_value: Decimal, exponent: Decimal) -> Decimal:
+    """Concave by default: the nth like is worth sqrt(n) - sqrt(n-1), not 1.
+
+    NEVER sum the points column of forum_like ledger rows — those rows are the
+    event log. This function is the only source of like points.
+    """
+    if n <= 0:
+        return Decimal("0")
+    exponent = Decimal(exponent)
+    if exponent == Decimal("1"):
+        base = Decimal(n)
+    elif exponent == Decimal("0.5"):
+        base = Decimal(n).sqrt()
+    else:
+        base = (Decimal(n).ln() * exponent).exp()
+    return Decimal(like_value) * base
+
+
+def ledger_breakdown(db: Session, user_id: int, class_id: int) -> dict:
+    rows = (
+        db.query(PointsLedger)
+        .filter(PointsLedger.user_id == user_id,
+                PointsLedger.class_id == class_id,
+                PointsLedger.revoked_at.is_(None))
+        .all()
+    )
+    cfg = get_config(db, class_id)
+    participaciones = sum((r.points for r in rows if r.source_type == "participacion"),
+                          Decimal("0"))
+    likes_count = sum(1 for r in rows if r.source_type == "forum_like")
+    other = sum((r.points for r in rows
+                 if r.source_type not in ("participacion", "forum_like")),
+                Decimal("0"))
+    return {
+        "participaciones": participaciones,
+        "likes": like_points(likes_count, cfg.like_value, cfg.like_exponent),
+        "likes_count": likes_count,
+        "other": other,
+    }
+
+
+def faltas_breakdown(db: Session, user_id: int, class_id: int) -> tuple[int, Decimal]:
+    """Unjustified absences only.
+
+    The NULL case is spelled out: `!= 'approved'` alone silently drops NULL
+    rows in SQL, and justification_status is nullable.
+    """
+    count = (
+        db.query(AttendanceRecord)
+        .join(ClassSession, AttendanceRecord.session_id == ClassSession.id)
+        .filter(ClassSession.class_id == class_id,
+                AttendanceRecord.user_id == user_id,
+                AttendanceRecord.status == "absent",
+                or_(AttendanceRecord.justification_status.is_(None),
+                    AttendanceRecord.justification_status != "approved"))
+        .count()
+    )
+    return count, Decimal(count) * FALTA_COST
+
+
+@dataclass
+class GradeBreakdown:
+    tareas: Rubro
+    examenes: Rubro
+    ledger: dict
+    faltas_count: int
+    faltas_points: Decimal
+    total: Decimal
+
+
+def examenes_rubro(db: Session, user_id: int, klass: Class, now: datetime) -> Rubro:
+    """Exámenes are created in Phase 2b; until then this is always unevaluated.
+
+    The logic is written and tested now so the engine is finished in one pass.
+    """
+    closed = (
+        db.query(Post)
+        .filter(Post.class_id == klass.id,
+                Post.type == "examen",
+                Post.status == "active",
+                Post.due_date.isnot(None),
+                Post.due_date <= now)
+        .all()
+    )
+    weight = klass.examenes_weight
+    if not closed:
+        return Rubro(evaluated=False, points=Decimal("0"), weight=weight)
+
+    total = Decimal("0")
+    entregadas = 0
+    for examen in closed:
+        entrega = _counting_entrega(db, user_id, examen.id)
+        if entrega is None:
+            continue
+        entregadas += 1
+        review = db.query(Review).filter(Review.entrega_post_id == entrega.id).first()
+        if review is not None and review.score is not None:
+            total += Decimal(review.score) / Decimal("10")   # 1-10 scale
+    points = (total / len(closed)) * weight
+    return Rubro(evaluated=True, points=points, weight=weight,
+                 count_due=len(closed), count_entregadas=entregadas)
+
+
+def calculate_grade(db: Session, user_id: int, klass: Class,
+                    now: datetime) -> GradeBreakdown:
+    tareas = tareas_rubro(db, user_id, klass, now)
+    examenes = examenes_rubro(db, user_id, klass, now)
+    ledger = ledger_breakdown(db, user_id, klass.id)
+    faltas_count, faltas_points = faltas_breakdown(db, user_id, klass.id)
+
+    total = Decimal("0")
+    if tareas.evaluated:
+        total += tareas.points
+    if examenes.evaluated:
+        total += examenes.points
+    total += ledger["participaciones"] + ledger["likes"] + ledger["other"]
+    total -= faltas_points
+
+    return GradeBreakdown(tareas=tareas, examenes=examenes, ledger=ledger,
+                          faltas_count=faltas_count, faltas_points=faltas_points,
+                          total=total)

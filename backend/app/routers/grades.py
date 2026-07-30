@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth.deps import get_current_user
 from app.database import get_db
 from app.models import Class, Enrollment, PointsLedger, User, utcnow
-from app.services.grades import tareas_rubro
+from app.services.grades import calculate_grade
 
 router = APIRouter(prefix="/api/students/me", tags=["grades"])
 
@@ -19,7 +19,14 @@ def round_grade(value: Decimal) -> Decimal:
     return value.quantize(_CENTS, rounding=ROUND_HALF_UP)
 
 
+def _rubro_json(r) -> dict:
+    return {"evaluated": r.evaluated, "points": float(round_grade(r.points)),
+            "weight": r.weight, "count_due": r.count_due,
+            "count_entregadas": r.count_entregadas}
+
+
 def _summary(db: Session, user_id: int, klass: Class) -> dict:
+    g = calculate_grade(db, user_id, klass, now=utcnow())
     rows = (
         db.query(PointsLedger)
         .filter(PointsLedger.user_id == user_id,
@@ -28,32 +35,30 @@ def _summary(db: Session, user_id: int, klass: Class) -> dict:
         .order_by(PointsLedger.created_at.desc())
         .all()
     )
-    ledger_total = sum((r.points for r in rows), Decimal("0"))
-    tareas = tareas_rubro(db, user_id, klass, now=utcnow())
-    total = ledger_total + tareas.points   # stays Decimal end to end
-
-    summary = {
+    return {
         "class_id": klass.id,
         "class_name": klass.name,
-        "total": float(round_grade(total)),
+        "total": float(round_grade(g.total)),
+        # legacy key, still read by the deployed frontend; removed in Task 9
         "counts": {
             "participaciones": sum(1 for r in rows if r.source_type == "participacion"),
-            "likes_received": sum(1 for r in rows if r.source_type == "forum_like"),
+            "likes_received": g.ledger["likes_count"],
         },
+        "tareas": _rubro_json(g.tareas),
+        "examenes": _rubro_json(g.examenes),
+        "ledger": {
+            "participaciones": float(round_grade(g.ledger["participaciones"])),
+            "likes": float(round_grade(g.ledger["likes"])),
+            "likes_count": g.ledger["likes_count"],
+            "other": float(round_grade(g.ledger["other"])),
+        },
+        "faltas": {"count": g.faltas_count, "points": float(round_grade(g.faltas_points))},
         "events": [
             {"source_type": r.source_type, "points": float(r.points),
              "note": r.note, "created_at": r.created_at}
             for r in rows[:50]
         ],
-        "tareas": {
-            "evaluated": tareas.evaluated,
-            "points": float(round_grade(tareas.points)),
-            "weight": tareas.weight,
-            "count_due": tareas.count_due,
-            "count_entregadas": tareas.count_entregadas,
-        },
     }
-    return summary
 
 
 @router.get("/grade")

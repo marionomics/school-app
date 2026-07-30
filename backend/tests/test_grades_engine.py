@@ -3,9 +3,11 @@ from decimal import Decimal
 
 import pytest
 
-from app.models import Post
+from app.models import AttendanceRecord, ClassSession, Post, PointsLedger
 from app.routers.grades import round_grade
-from app.services.grades import lateness_score, get_config, tareas_rubro
+from app.services.grades import (calculate_grade, faltas_breakdown, get_config,
+                                 lateness_score, ledger_breakdown, like_points,
+                                 tareas_rubro)
 
 DUE = datetime(2026, 8, 9, 23, 59, tzinfo=timezone.utc)
 
@@ -107,3 +109,79 @@ def test_deleted_entrega_falls_back_to_zero(db, student, teacher, klass, enrolle
     db.commit()
     r = tareas_rubro(db, student.id, klass, now=DUE + timedelta(days=1))
     assert r.points == Decimal("0")
+
+
+def test_like_curve_basic_values():
+    one = Decimal("1.0")
+    assert like_points(0, one, Decimal("0.5")) == Decimal("0")
+    assert like_points(1, one, Decimal("0.5")) == Decimal("1")
+    assert round(like_points(100, one, Decimal("0.5")), 2) == Decimal("10.00")
+    assert round(like_points(10000, one, Decimal("0.5")), 2) == Decimal("100.00")
+
+
+def test_exponent_one_reproduces_linear_exactly():
+    one = Decimal("1.0")
+    for n in (1, 7, 50, 999):
+        assert round(like_points(n, one, Decimal("1.0")), 2) == Decimal(n)
+
+
+def _like_row(db, user, klass, revoked=False):
+    row = PointsLedger(user_id=user.id, class_id=klass.id,
+                       source_type="forum_like", source_id=0,
+                       points=Decimal("1.00"))
+    if revoked:
+        row.revoked_at = DUE
+    db.add(row)
+    db.commit()
+
+
+def test_likes_are_counted_not_summed(db, student, klass, enrolled):
+    for _ in range(9):
+        _like_row(db, student, klass)
+    out = ledger_breakdown(db, student.id, klass.id)
+    assert out["likes_count"] == 9
+    assert round(out["likes"], 2) == Decimal("3.00")     # sqrt(9), NOT 9
+
+
+def test_revoked_likes_leave_the_count_exact(db, student, klass, enrolled):
+    for _ in range(4):
+        _like_row(db, student, klass)
+    _like_row(db, student, klass, revoked=True)
+    out = ledger_breakdown(db, student.id, klass.id)
+    assert out["likes_count"] == 4
+    assert round(out["likes"], 2) == Decimal("2.00")     # sqrt(4)
+
+
+def test_participaciones_stay_linear(db, student, klass, enrolled):
+    db.add(PointsLedger(user_id=student.id, class_id=klass.id,
+                        source_type="participacion", source_id=1,
+                        points=Decimal("3.00")))
+    db.commit()
+    out = ledger_breakdown(db, student.id, klass.id)
+    assert out["participaciones"] == Decimal("3.00")
+
+
+def test_faltas_cost_ten_each_and_ignore_approved_justifications(db, student, teacher, klass, enrolled):
+    session = ClassSession(class_id=klass.id, date=DUE.date())
+    db.add(session)
+    db.flush()
+    db.add(AttendanceRecord(session_id=session.id, user_id=student.id, status="absent"))
+    db.add(AttendanceRecord(session_id=session.id, user_id=student.id, status="absent",
+                            justification_status="approved"))
+    db.add(AttendanceRecord(session_id=session.id, user_id=student.id, status="present"))
+    db.commit()
+    count, points = faltas_breakdown(db, student.id, klass.id)
+    assert count == 1                      # the approved one does not count
+    assert points == Decimal("10")
+
+
+def test_full_grade_assembly_excludes_unevaluated_rubros(db, student, teacher, klass, enrolled):
+    t = _tarea(db, teacher, klass, DUE)
+    _entrega(db, student, t, DUE - timedelta(hours=1))
+    for _ in range(9):
+        _like_row(db, student, klass)
+
+    g = calculate_grade(db, student.id, klass, now=DUE + timedelta(days=1))
+    assert g.tareas.evaluated is True
+    assert g.examenes.evaluated is False          # no exámenes exist yet
+    assert round(g.total, 2) == Decimal("33.00")  # 30 tareas + sqrt(9) likes

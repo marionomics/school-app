@@ -65,4 +65,7 @@ def test_grade_events_capped_at_50(client, db, auth_headers, enrolled, klass, st
     body = res.json()
     assert len(body["events"]) == 50          # events capped
     assert body["counts"]["likes_received"] == 55  # but counts reflect all non-revoked rows
-    assert body["total"] == 55.0              # and total reflects all non-revoked rows
+    # Likes are concave (like_value * n^exponent), NOT summed linearly: the
+    # points column on each forum_like row is an event-log entry, not an
+    # addend. sqrt(55) ~= 7.4162, rounded half-up to 2dp.
+    assert body["total"] == 7.42
