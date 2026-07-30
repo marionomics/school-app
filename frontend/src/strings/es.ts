@@ -93,4 +93,13 @@ export const es = {
     error: "No se pudo publicar. Intenta de nuevo.",
     cancelTap: "Cancelar",
   },
+  grade: {
+    points: "pts",
+    title: "Tu calificación",
+    participaciones: "Participaciones",
+    likes: "Likes recibidos",
+    empty: "Aún no tienes puntos. ¡Participa en clase o publica en el foro!",
+    error: "No se pudo cargar tu calificación",
+    close: "Cerrar",
+  },
 } as const;

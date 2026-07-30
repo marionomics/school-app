@@ -12,13 +12,13 @@ Cada fase se despliega a Railway y se prueba antes de pasar a la siguiente.
 - [ ] Deploy real a Railway (crear proyecto, conectar repo, variables de entorno, dominio en Google OAuth) — pendiente, requiere acceso de Mario
 
 ## Fase 1 — El feed (semanas 2–3)
-- [ ] Posts, replies (3 niveles), likes
-- [ ] Attachments vía R2 (fotos, PDFs)
-- [ ] Feed global cronológico con skeleton loading
-- [ ] Post tipo participación: botón de taps (1–3) con animación
-- [ ] Points ledger (append-only, revocación)
-- [ ] Chip de calificación en vivo + desglose completo
-- [ ] 🧪 Primera versión probable con usuarios reales
+- [x] Posts, replies (3 niveles), likes
+- [x] Attachments vía R2 (fotos, PDFs)
+- [x] Feed global cronológico con skeleton loading
+- [x] Post tipo participación: botón de taps (1–3) con animación
+- [x] Points ledger (append-only, revocación)
+- [x] Chip de calificación en vivo + desglose completo
+- [ ] 🧪 Primera versión probable con usuarios reales — pendiente, depende del deploy real a Railway
 
 ## Fase 2 — La economía completa (semanas 4–5)
 - [ ] Posts tipo tarea/examen (solo teacher; tarea default domingo, examen con ventana)

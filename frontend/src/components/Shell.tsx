@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
+import GradeChip from "@/components/GradeChip";
 import { es } from "@/strings/es";
 
 export default function Shell({ children }: { children: React.ReactNode }) {
@@ -20,7 +21,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           ☰
         </button>
         <span className="font-bold">{es.appName}</span>
-        <span className="w-6" />
+        {user?.role === "teacher" ? <span className="w-6" /> : <GradeChip />}
       </header>
 
       {menuOpen && (
