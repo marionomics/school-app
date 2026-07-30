@@ -123,6 +123,32 @@ class Attachment(Base):
     post: Mapped[Post] = relationship(back_populates="attachments")
 
 
+class PointsConfig(Base):
+    __tablename__ = "points_config"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    class_id: Mapped[int] = mapped_column(ForeignKey("classes.id"), unique=True, index=True)
+    tap_value: Mapped[Decimal] = mapped_column(Numeric(8, 2), default=Decimal("1.0"))
+    like_value: Mapped[Decimal] = mapped_column(Numeric(8, 2), default=Decimal("1.0"))
+    like_exponent: Mapped[Decimal] = mapped_column(Numeric(4, 3), default=Decimal("0.5"))
+    like_cap: Mapped[Optional[Decimal]] = mapped_column(Numeric(8, 2))
+    daily_post_limit: Mapped[int] = mapped_column(Integer, default=5)
+
+
+class Review(Base):
+    __tablename__ = "reviews"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entrega_post_id: Mapped[int] = mapped_column(ForeignKey("posts.id"), unique=True, index=True)
+    reviewer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
+    # Scale follows the PARENT post type: 0–100 for a tarea, 1–10 for an examen.
+    score: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 2))
+    auto_score: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 2))
+    feedback: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
 class PointsLedger(Base):
     __tablename__ = "points_ledger"
 

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_teacher, get_current_user
 from app.database import get_db
-from app.models import Class, Enrollment, User
+from app.models import Class, Enrollment, PointsConfig, User
 from app.schemas import ClassCreate, ClassDetail, ClassOut, JoinRequest, MemberOut, MyClasses
 from app.services.class_codes import generate_code
 
@@ -27,6 +27,8 @@ def create_class(
         examenes_weight=body.examenes_weight,
     )
     db.add(klass)
+    db.flush()
+    db.add(PointsConfig(class_id=klass.id))
     db.commit()
     db.refresh(klass)
     return klass

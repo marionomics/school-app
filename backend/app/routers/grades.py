@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_user
 from app.database import get_db
-from app.models import Class, Enrollment, PointsLedger, User
+from app.models import Class, Enrollment, PointsLedger, User, utcnow
+from app.services.grades import tareas_rubro
 
 router = APIRouter(prefix="/api/students/me", tags=["grades"])
 
@@ -21,7 +22,7 @@ def _summary(db: Session, user_id: int, klass: Class) -> dict:
         .all()
     )
     total = sum((r.points for r in rows), Decimal("0"))
-    return {
+    summary = {
         "class_id": klass.id,
         "class_name": klass.name,
         "total": float(total),
@@ -35,6 +36,17 @@ def _summary(db: Session, user_id: int, klass: Class) -> dict:
             for r in rows[:50]
         ],
     }
+
+    tareas = tareas_rubro(db, user_id, klass, now=utcnow())
+    summary["tareas"] = {
+        "evaluated": tareas.evaluated,
+        "points": float(round(tareas.points, 2)),
+        "weight": tareas.weight,
+        "count_due": tareas.count_due,
+        "count_entregadas": tareas.count_entregadas,
+    }
+    summary["total"] = float(round(Decimal(str(summary["total"])) + tareas.points, 2))
+    return summary
 
 
 @router.get("/grade")
