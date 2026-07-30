@@ -80,11 +80,13 @@ class Post(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    type: Mapped[str] = mapped_column(String(20), default="regular")  # regular|participacion (tarea|examen en Fase 2)
+    type: Mapped[str] = mapped_column(String(20), default="regular")  # regular|participacion|tarea (examen en Fase 2b)
     class_id: Mapped[Optional[int]] = mapped_column(ForeignKey("classes.id"), index=True)
     parent_id: Mapped[Optional[int]] = mapped_column(ForeignKey("posts.id"), index=True)
     content: Mapped[str] = mapped_column(Text, default="")
     taps: Mapped[Optional[int]] = mapped_column(Integer)
+    due_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    is_entrega: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="active")  # active|deleted|vetoed
     like_count: Mapped[int] = mapped_column(Integer, default=0)
     reply_count: Mapped[int] = mapped_column(Integer, default=0)
