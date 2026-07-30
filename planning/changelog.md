@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-30
+- **v2 en producción por primera vez**: https://school-app-production-e9f4.up.railway.app — Fase 0 + Fase 1 desplegadas. Verificado en vivo: `/api/health` ok, `/api/config` devuelve el client ID correcto, el SPA sirve rutas profundas (`/componer`) al refrescar, las rutas `/api/*` no las traga el fallback, y el feed responde 401 sin sesión.
+- **Build migrado de Nixpacks a Dockerfile.** Nixpacks instalaba solo los 466 paquetes del lockfile sin restricción `os`/`cpu` y se saltaba los 40 binarios nativos (rolldown, tailwind oxide, lightningcss), así que `vite build` moría con `Cannot find native binding`. `--include=optional` no lo corregía. GitHub CI instala 473 en linux-x64 con el mismo lockfile, o sea que era el entorno de Nixpacks, no el lockfile. Ahora: multi-stage `node:22-bookworm-slim` → `python:3.12-slim`, un solo servicio, `npm ci` intacto. Portable a AWS más adelante.
+- Antes de eso hubo que fijar Node 22 (`engines.node`): Nixpacks usaba Node 18 y Vite 8 necesita `styleText` de `node:util` (Node 20+).
+- Nuevo cliente OAuth de Google (el de v1 quedó retirado). v2 usa solo el flujo de ID token: **no necesita client secret** en producción.
+- Pendiente: dominio propio, R2 para adjuntos, y QA end-to-end en teléfono con alumnos reales. El `<title>` sigue siendo `vite-app` y el favicon el de Vite.
+
 ## 2026-07-29
 - **Fase 1 (El Feed) complete**: las 12 tareas del plan shipped.
 - Backend: modelos `Post`/`Like`/`Attachment`/`PointsLedger` con migración; servicio de puntos como único escritor del ledger append-only; storage R2 con URLs presignadas; creación de posts con atribución automática de clase; feed global con paginación keyset; thread (3 niveles); toggle de like; borrado suave con revocación; endpoint de calificación en vivo.

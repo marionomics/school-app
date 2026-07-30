@@ -9,7 +9,7 @@ Cada fase se despliega a Railway y se prueba antes de pasar a la siguiente.
 - [x] Onboarding: username único + bio al primer login
 - [x] Clases: crear (con horario, fechas, pesos), unirse por código, link de invitación
 - [x] Config lista para Railway (FastAPI sirve el build de Vite) + PostgreSQL — código listo, CI en GitHub Actions
-- [ ] Deploy real a Railway (crear proyecto, conectar repo, variables de entorno, dominio en Google OAuth) — pendiente, requiere acceso de Mario
+- [x] Deploy real a Railway (crear proyecto, conectar repo, variables de entorno, dominio en Google OAuth) — hecho 2026-07-30: https://school-app-production-e9f4.up.railway.app (build por Dockerfile, no Nixpacks). Falta dominio propio.
 
 ## Fase 1 — El feed (semanas 2–3)
 - [x] Posts, replies (3 niveles), likes
