@@ -38,3 +38,60 @@ export interface AuthResponse {
   user: User;
   needs_onboarding: boolean;
 }
+
+export interface Author {
+  id: number;
+  username: string | null;
+  name: string;
+  avatar_url: string | null;
+  role: "student" | "teacher";
+}
+
+export interface Attachment {
+  id: number;
+  file_name: string;
+  mime_type: string;
+}
+
+export interface Post {
+  id: number;
+  author: Author;
+  type: "regular" | "participacion";
+  class_id: number | null;
+  class_name: string | null;
+  content: string;
+  taps: number | null;
+  status: "active" | "deleted" | "vetoed";
+  like_count: number;
+  reply_count: number;
+  liked_by_me: boolean;
+  attachments: Attachment[];
+  created_at: string;
+  last_activity_at: string;
+  parent_id: number | null;
+}
+
+export interface FeedPage {
+  items: Post[];
+  next_cursor: string | null;
+}
+
+export interface ThreadResponse {
+  post: Post;
+  replies: Post[];
+}
+
+export interface GradeEvent {
+  source_type: string;
+  points: number;
+  note: string | null;
+  created_at: string;
+}
+
+export interface GradeSummary {
+  class_id: number;
+  class_name: string;
+  total: number;
+  counts: { participaciones: number; likes_received: number };
+  events: GradeEvent[];
+}

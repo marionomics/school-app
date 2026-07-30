@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -84,3 +85,39 @@ class JoinRequest(BaseModel):
 class MyClasses(BaseModel):
     teaching: List[ClassOut]
     enrolled: List[ClassOut]
+
+
+class AuthorOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    username: Optional[str]
+    name: str
+    avatar_url: Optional[str]
+    role: str
+
+
+class AttachmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    file_name: str
+    mime_type: str
+
+
+class PostOut(BaseModel):
+    id: int
+    author: AuthorOut
+    type: str
+    class_id: Optional[int]
+    class_name: Optional[str]
+    content: str
+    taps: Optional[int]
+    status: str
+    like_count: int
+    reply_count: int
+    liked_by_me: bool
+    attachments: List[AttachmentOut]
+    created_at: datetime
+    last_activity_at: datetime
+    parent_id: Optional[int]

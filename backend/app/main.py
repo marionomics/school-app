@@ -1,11 +1,14 @@
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import storage
 from app.auth.deps import get_current_user
 from app.config import settings
 from app.models import User
 from app.routers import auth as auth_router
 from app.routers import classes as classes_router
+from app.routers import grades as grades_router
+from app.routers import posts as posts_router
 from app.routers import users as users_router
 from app.schemas import UserOut
 
@@ -22,6 +25,10 @@ app.add_middleware(
 app.include_router(auth_router.router)
 app.include_router(users_router.router)
 app.include_router(classes_router.router)
+app.include_router(grades_router.router)
+app.include_router(posts_router.router)
+app.include_router(posts_router.feed_router)
+app.include_router(posts_router.attachments_router)
 
 
 @app.get("/api/health")
@@ -31,7 +38,10 @@ def health():
 
 @app.get("/api/config")
 def config():
-    return {"google_client_id": settings.google_client_id}
+    return {
+        "google_client_id": settings.google_client_id,
+        "file_uploads_enabled": storage.is_r2_configured(),
+    }
 
 
 @app.get("/api/auth/me", response_model=UserOut)

@@ -63,5 +63,13 @@ Environment variables to set in the Railway dashboard:
 - `GOOGLE_CLIENT_ID` — from Google Cloud Console
 - `TEACHER_EMAIL` — email that gets the teacher role on first login
 - `CORS_ORIGINS` — `https://<railway-domain>`
+- `TIMEZONE` — IANA name used for class-schedule attribution (defaults to `America/Mexico_City`)
+
+Cloudflare R2 (attachments). If these are unset, file uploads stay disabled — `/api/config` reports `file_uploads_enabled: false` and the composer hides the attach button, so the rest of the app works without them:
+
+- `R2_ACCESS_KEY_ID` — R2 API token access key
+- `R2_SECRET_ACCESS_KEY` — R2 API token secret
+- `R2_ENDPOINT` — `https://<account-id>.r2.cloudflarestorage.com`
+- `R2_BUCKET_NAME` — bucket that stores the attachments
 
 After deploying, add the Railway domain to the Google OAuth authorized origins.

@@ -8,6 +8,11 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     teacher_email: str = ""
     cors_origins: str = "http://localhost:5173"
+    timezone: str = "America/Mexico_City"
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_endpoint: str = ""
+    r2_bucket_name: str = ""
 
     @property
     def sqlalchemy_url(self) -> str:

@@ -1,7 +1,8 @@
 from datetime import date, datetime, timedelta, timezone
-from typing import Optional
+from decimal import Decimal
+from typing import List, Optional
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, JSON, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -72,3 +73,64 @@ class Enrollment(Base):
 
     user: Mapped[User] = relationship()
     klass: Mapped[Class] = relationship()
+
+
+class Post(Base):
+    __tablename__ = "posts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    type: Mapped[str] = mapped_column(String(20), default="regular")  # regular|participacion (tarea|examen en Fase 2)
+    class_id: Mapped[Optional[int]] = mapped_column(ForeignKey("classes.id"), index=True)
+    parent_id: Mapped[Optional[int]] = mapped_column(ForeignKey("posts.id"), index=True)
+    content: Mapped[str] = mapped_column(Text, default="")
+    taps: Mapped[Optional[int]] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(20), default="active")  # active|deleted|vetoed
+    like_count: Mapped[int] = mapped_column(Integer, default=0)
+    reply_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_activity_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    edited_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    author: Mapped[User] = relationship()
+    klass: Mapped[Optional[Class]] = relationship()
+    attachments: Mapped[List["Attachment"]] = relationship(back_populates="post")
+
+
+class Like(Base):
+    __tablename__ = "likes"
+    __table_args__ = (UniqueConstraint("user_id", "post_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("posts.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Attachment(Base):
+    __tablename__ = "attachments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("posts.id"), index=True)
+    file_key: Mapped[str] = mapped_column(String(500))
+    file_name: Mapped[str] = mapped_column(String(255))
+    file_size: Mapped[int] = mapped_column(Integer)
+    mime_type: Mapped[str] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    post: Mapped[Post] = relationship(back_populates="attachments")
+
+
+class PointsLedger(Base):
+    __tablename__ = "points_ledger"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    class_id: Mapped[Optional[int]] = mapped_column(ForeignKey("classes.id"), index=True)
+    source_type: Mapped[str] = mapped_column(String(30))  # participacion|forum_like|incentive|penalty|bonus|adjustment
+    source_id: Mapped[int] = mapped_column(Integer)  # NO FK on purpose: polymorphic; likes get hard-deleted
+    points: Mapped[Decimal] = mapped_column(Numeric(8, 2))
+    note: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    revoked_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
