@@ -169,6 +169,7 @@ def create_post(
     class_id: Optional[int] = Form(None),
     parent_id: Optional[int] = Form(None),
     due_date: Optional[str] = Form(None),
+    is_entrega: bool = Form(False),
     files: List[UploadFile] = File([]),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -193,6 +194,31 @@ def create_post(
             raise HTTPException(status_code=404, detail="Publicación no encontrada")
         if get_depth(db, parent) >= 3:
             raise HTTPException(status_code=422, detail="Máximo 3 niveles de respuestas")
+
+    entrega = False
+    if is_entrega:
+        if parent is None or parent.type not in ("tarea", "examen"):
+            raise HTTPException(
+                status_code=422,
+                detail="Solo puedes marcar como entrega una respuesta a una tarea")
+        active = (
+            db.query(Enrollment)
+            .filter(Enrollment.user_id == user.id,
+                    Enrollment.class_id == parent.class_id,
+                    Enrollment.status == "active")
+            .first()
+        )
+        if active is None:
+            raise HTTPException(
+                status_code=403,
+                detail="Necesitas estar inscrito en la clase para entregar")
+        # Latest wins: clear any previous entrega by this student on this tarea.
+        (db.query(Post)
+           .filter(Post.author_id == user.id,
+                   Post.parent_id == parent.id,
+                   Post.is_entrega.is_(True))
+           .update({"is_entrega": False}, synchronize_session=False))
+        entrega = True
 
     if type == "participacion":
         if parent is not None:
@@ -233,6 +259,7 @@ def create_post(
             if due_date
             else next_sunday_due(utcnow(), settings.timezone)
         ) if type == "tarea" else None,
+        is_entrega=entrega,
     )
     db.add(post)
     db.flush()
