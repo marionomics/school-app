@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,6 +11,13 @@ from app.services.grades import tareas_rubro
 
 router = APIRouter(prefix="/api/students/me", tags=["grades"])
 
+_CENTS = Decimal("0.01")
+
+
+def round_grade(value: Decimal) -> Decimal:
+    """The single API-boundary rounding point: 2 dp, half-up (not banker's)."""
+    return value.quantize(_CENTS, rounding=ROUND_HALF_UP)
+
 
 def _summary(db: Session, user_id: int, klass: Class) -> dict:
     rows = (
@@ -21,11 +28,14 @@ def _summary(db: Session, user_id: int, klass: Class) -> dict:
         .order_by(PointsLedger.created_at.desc())
         .all()
     )
-    total = sum((r.points for r in rows), Decimal("0"))
+    ledger_total = sum((r.points for r in rows), Decimal("0"))
+    tareas = tareas_rubro(db, user_id, klass, now=utcnow())
+    total = ledger_total + tareas.points   # stays Decimal end to end
+
     summary = {
         "class_id": klass.id,
         "class_name": klass.name,
-        "total": float(total),
+        "total": float(round_grade(total)),
         "counts": {
             "participaciones": sum(1 for r in rows if r.source_type == "participacion"),
             "likes_received": sum(1 for r in rows if r.source_type == "forum_like"),
@@ -35,17 +45,14 @@ def _summary(db: Session, user_id: int, klass: Class) -> dict:
              "note": r.note, "created_at": r.created_at}
             for r in rows[:50]
         ],
+        "tareas": {
+            "evaluated": tareas.evaluated,
+            "points": float(round_grade(tareas.points)),
+            "weight": tareas.weight,
+            "count_due": tareas.count_due,
+            "count_entregadas": tareas.count_entregadas,
+        },
     }
-
-    tareas = tareas_rubro(db, user_id, klass, now=utcnow())
-    summary["tareas"] = {
-        "evaluated": tareas.evaluated,
-        "points": float(round(tareas.points, 2)),
-        "weight": tareas.weight,
-        "count_due": tareas.count_due,
-        "count_entregadas": tareas.count_entregadas,
-    }
-    summary["total"] = float(round(Decimal(str(summary["total"])) + tareas.points, 2))
     return summary
 
 

@@ -4,6 +4,7 @@ from decimal import Decimal
 import pytest
 
 from app.models import Post
+from app.routers.grades import round_grade
 from app.services.grades import lateness_score, get_config, tareas_rubro
 
 DUE = datetime(2026, 8, 9, 23, 59, tzinfo=timezone.utc)
@@ -88,6 +89,15 @@ def test_latest_entrega_wins_even_when_worse(db, student, teacher, klass, enroll
     db.commit()
     r = tareas_rubro(db, student.id, klass, now=DUE + timedelta(days=1))
     assert r.points == Decimal("27.00")   # 90% of 30
+
+
+def test_round_grade_uses_half_up_not_bankers_rounding():
+    # 27.005 sits exactly on the .xx5 boundary: ROUND_HALF_EVEN (Python's
+    # `round()` default for Decimal) gives 27.00 here; ROUND_HALF_UP, which
+    # the spec requires, gives 27.01. A value that rounds the same way under
+    # both modes would prove nothing about which mode is actually wired up.
+    assert round(Decimal("27.005"), 2) == Decimal("27.00")   # sanity: banker's rounding
+    assert round_grade(Decimal("27.005")) == Decimal("27.01")
 
 
 def test_deleted_entrega_falls_back_to_zero(db, student, teacher, klass, enrolled):
