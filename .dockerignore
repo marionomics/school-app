@@ -1,0 +1,14 @@
+# Keep the build context small and never ship host-built artifacts.
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+frontend/dist
+backend/*.db
+.git
+.github
+.worktrees
+planning/archive-v1
+docs
+**/.env
