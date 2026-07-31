@@ -15,7 +15,8 @@ export default function Compose() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
-  const [mode, setMode] = useState<"regular" | "participacion">("regular");
+  const [mode, setMode] = useState<"regular" | "participacion" | "tarea">("regular");
+  const [dueDate, setDueDate] = useState<string>("");
   const [content, setContent] = useState("");
   const [classId, setClassId] = useState<number | null>(null);
   const [files, setFiles] = useState<File[]>([]);
@@ -45,8 +46,11 @@ export default function Compose() {
     mutationFn: (taps: number | null) => {
       const fd = new FormData();
       fd.set("content", content);
-      fd.set("type", taps ? "participacion" : "regular");
+      fd.set("type", mode === "participacion" ? "participacion" : mode);
       if (taps) fd.set("taps", String(taps));
+      if (mode === "tarea" && dueDate) {
+        fd.set("due_date", new Date(dueDate).toISOString());
+      }
       if (classId != null) fd.set("class_id", String(classId));
       for (const f of files) fd.append("files", f);
       return api<Post>("/api/posts", { method: "POST", body: fd });
@@ -105,6 +109,33 @@ export default function Compose() {
         </div>
       )}
 
+      {!isStudent && (
+        <div className="flex gap-2">
+          {(["regular", "tarea"] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`rounded-full px-3 py-1 text-sm ${mode === m ? "bg-primary text-primary-foreground" : "border"}`}
+            >
+              {m === "regular" ? es.compose.modeRegular : `📌 ${es.compose.modeTarea}`}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {mode === "tarea" && (
+        <label className="text-sm">
+          {es.compose.dueLabel}
+          <input
+            type="datetime-local"
+            className="ml-2 rounded-md border px-2 py-1"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+          />
+          <span className="ml-2 text-xs text-muted-foreground">{es.compose.dueHint}</span>
+        </label>
+      )}
+
       {enrolled.length > 1 && isStudent && (
         <label className="text-sm">
           {es.compose.classLabel}
@@ -124,7 +155,7 @@ export default function Compose() {
       <textarea
         autoFocus
         className="min-h-40 w-full resize-none rounded-lg border p-3"
-        placeholder={mode === "participacion" ? es.compose.participacionPlaceholder : es.compose.placeholder}
+        placeholder={mode === "participacion" ? es.compose.participacionPlaceholder : mode === "tarea" ? es.compose.tareaPlaceholder : es.compose.placeholder}
         value={content}
         onChange={(e) => setContent(e.target.value)}
       />
