@@ -56,7 +56,7 @@ export interface Attachment {
 export interface Post {
   id: number;
   author: Author;
-  type: "regular" | "participacion";
+  type: "regular" | "participacion" | "tarea" | "examen";
   class_id: number | null;
   class_name: string | null;
   content: string;

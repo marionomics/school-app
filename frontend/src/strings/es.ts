@@ -72,6 +72,12 @@ export const es = {
     deleteError: "No se pudo eliminar",
     replyError: "No se pudo publicar la respuesta",
     attachmentError: "No se pudo abrir el archivo",
+    entregaToggle: "Es mi entrega",
+    entregaOnTime: "Entrega a tiempo · 100%",
+    entregaUnder24h: "Con retraso · 90%",
+    entregaUnderWeek: "Con retraso · 50%",
+    entregaLate: "Muy atrasada · 20%",
+    entregaReplaces: "Reemplaza tu entrega anterior",
   },
   compose: {
     title: "Nueva publicación",
