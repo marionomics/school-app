@@ -69,6 +69,30 @@ def _counting_entrega(db: Session, user_id: int, tarea_id: int) -> Optional[Post
     )
 
 
+def counting_review(db: Session, item_post_id: int, student_id: int,
+                    entrega: Optional[Post]) -> Optional[Review]:
+    """The review for this (item, student), unless it is stale.
+
+    A review is stale when it was written against a submission the student has
+    since replaced — grading someone early must not freeze their score against
+    work that no longer exists. A paper examen has no entrega and never goes
+    stale.
+    """
+    review = (
+        db.query(Review)
+        .filter(Review.item_post_id == item_post_id,
+                Review.student_id == student_id)
+        .first()
+    )
+    if review is None:
+        return None
+    if review.entrega_post_id is None:
+        return review
+    if entrega is None or review.entrega_post_id != entrega.id:
+        return None
+    return review
+
+
 def tareas_rubro(db: Session, user_id: int, klass: Class, now: datetime) -> Rubro:
     due_tareas = (
         db.query(Post)
@@ -90,11 +114,7 @@ def tareas_rubro(db: Session, user_id: int, klass: Class, now: datetime) -> Rubr
         if entrega is None:
             continue
         entregadas += 1
-        review = (
-            db.query(Review)
-            .filter(Review.entrega_post_id == entrega.id)
-            .first()
-        )
+        review = counting_review(db, tarea.id, user_id, entrega)
         if review is not None and review.score is not None:
             total += Decimal(review.score)          # already 0–100 for a tarea
         else:

@@ -3,11 +3,11 @@ from decimal import Decimal
 
 import pytest
 
-from app.models import AttendanceRecord, ClassSession, Post, PointsLedger
+from app.models import AttendanceRecord, ClassSession, Post, PointsLedger, Review
 from app.routers.grades import round_grade
-from app.services.grades import (calculate_grade, faltas_breakdown, get_config,
-                                 lateness_score, ledger_breakdown, like_points,
-                                 tareas_rubro)
+from app.services.grades import (calculate_grade, counting_review, faltas_breakdown,
+                                 get_config, lateness_score, ledger_breakdown,
+                                 like_points, tareas_rubro)
 
 DUE = datetime(2026, 8, 9, 23, 59, tzinfo=timezone.utc)
 
@@ -185,3 +185,43 @@ def test_full_grade_assembly_excludes_unevaluated_rubros(db, student, teacher, k
     assert g.tareas.evaluated is True
     assert g.examenes.evaluated is False          # no exámenes exist yet
     assert round(g.total, 2) == Decimal("33.00")  # 30 tareas + sqrt(9) likes
+
+
+def _review(db, teacher, item, student, entrega, score):
+    r = Review(item_post_id=item.id, student_id=student.id,
+               entrega_post_id=entrega.id if entrega else None,
+               reviewer_id=teacher.id, score=Decimal(score))
+    db.add(r)
+    db.commit()
+    return r
+
+
+def test_review_overrides_the_lateness_auto_score(db, student, teacher, klass, enrolled):
+    t = _tarea(db, teacher, klass, DUE)
+    e = _entrega(db, student, t, DUE + timedelta(days=2))   # auto-score would be 50
+    _review(db, teacher, t, student, e, "80")
+    r = tareas_rubro(db, student.id, klass, now=DUE + timedelta(days=3))
+    assert r.points == Decimal("80") / Decimal("100") * klass.tareas_weight
+
+
+def test_review_written_against_a_replaced_entrega_is_ignored(db, student, teacher, klass, enrolled):
+    t = _tarea(db, teacher, klass, DUE)
+    first = _entrega(db, student, t, DUE - timedelta(hours=1))
+    _review(db, teacher, t, student, first, "100")
+    first.is_entrega = False                      # latest-wins cleared it
+    second = _entrega(db, student, t, DUE + timedelta(days=2))
+    db.commit()
+    r = tareas_rubro(db, student.id, klass, now=DUE + timedelta(days=3))
+    # stale review ignored -> falls back to the auto-score of the NEW entrega (50)
+    assert r.points == Decimal("50") / Decimal("100") * klass.tareas_weight
+    assert counting_review(db, t.id, student.id, second) is None
+
+
+def test_review_with_null_score_falls_back_to_auto_score(db, student, teacher, klass, enrolled):
+    t = _tarea(db, teacher, klass, DUE)
+    e = _entrega(db, student, t, DUE - timedelta(hours=1))
+    db.add(Review(item_post_id=t.id, student_id=student.id, entrega_post_id=e.id,
+                  reviewer_id=teacher.id, feedback="buen intento"))
+    db.commit()
+    r = tareas_rubro(db, student.id, klass, now=DUE + timedelta(days=1))
+    assert r.points == klass.tareas_weight        # on time, 100%
