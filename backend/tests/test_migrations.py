@@ -78,3 +78,22 @@ def test_tarea_migration_survives_existing_posts():
     is_entrega, due_date = row
     assert is_entrega == 0  # SQLite stores False as 0; server_default backfilled it
     assert due_date is None  # nullable column, no backfill needed
+
+
+def test_reviews_is_keyed_on_item_and_student(db):
+    from sqlalchemy import inspect
+
+    cols = {c["name"] for c in inspect(db.bind).get_columns("reviews")}
+    assert {"item_post_id", "student_id", "entrega_post_id"} <= cols
+    uniques = inspect(db.bind).get_unique_constraints("reviews")
+    indexes = inspect(db.bind).get_indexes("reviews")
+    keyed = [u["column_names"] for u in uniques] + \
+            [i["column_names"] for i in indexes if i.get("unique")]
+    assert ["item_post_id", "student_id"] in keyed
+
+
+def test_posts_has_examen_and_veto_columns(db):
+    from sqlalchemy import inspect
+
+    cols = {c["name"] for c in inspect(db.bind).get_columns("posts")}
+    assert {"examen_mode", "graded_at", "veto_reason"} <= cols

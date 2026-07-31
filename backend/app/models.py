@@ -80,13 +80,16 @@ class Post(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    type: Mapped[str] = mapped_column(String(20), default="regular")  # regular|participacion|tarea (examen en Fase 2b)
+    type: Mapped[str] = mapped_column(String(20), default="regular")  # regular|participacion|tarea|examen
     class_id: Mapped[Optional[int]] = mapped_column(ForeignKey("classes.id"), index=True)
     parent_id: Mapped[Optional[int]] = mapped_column(ForeignKey("posts.id"), index=True)
     content: Mapped[str] = mapped_column(Text, default="")
     taps: Mapped[Optional[int]] = mapped_column(Integer)
     due_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     is_entrega: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    examen_mode: Mapped[Optional[str]] = mapped_column(String(10))   # paper|digital, examen only
+    graded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    veto_reason: Mapped[Optional[str]] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="active")  # active|deleted|vetoed
     like_count: Mapped[int] = mapped_column(Integer, default=0)
     reply_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -137,11 +140,17 @@ class PointsConfig(Base):
 
 class Review(Base):
     __tablename__ = "reviews"
+    __table_args__ = (UniqueConstraint("item_post_id", "student_id",
+                                       name="uq_review_item_student"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    entrega_post_id: Mapped[int] = mapped_column(ForeignKey("posts.id"), unique=True, index=True)
+    # The tarea or examen being graded — NOT the entrega.
+    item_post_id: Mapped[int] = mapped_column(ForeignKey("posts.id"), index=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    # Which submission this score was written against. NULL for a paper examen.
+    entrega_post_id: Mapped[Optional[int]] = mapped_column(ForeignKey("posts.id"))
     reviewer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
-    # Scale follows the PARENT post type: 0–100 for a tarea, 1–10 for an examen.
+    # Scale follows the item type: 0–100 for a tarea, 1–10 for an examen.
     score: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 2))
     auto_score: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 2))
     feedback: Mapped[Optional[str]] = mapped_column(Text)
