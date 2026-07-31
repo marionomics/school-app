@@ -49,7 +49,7 @@ docs/       specs and plans
 
 - **The post is the atom.** `posts.type ∈ {regular, participacion, tarea, examen}`; replies are posts (`parent_id`, max 3 levels); an entrega is a reply with `is_entrega = true`.
 - The feed is **global** (all classes, all semesters). `posts.class_id` only marks which class a post counts for.
-- `deleted` ≠ `vetoed`: deletion keeps earned points; veto revokes them.
+- **No evidence, no points.** Both `deleted` and `vetoed` revoke what the post earned — the taps *and* the likes it received. A participación is its own evidence: if the post is gone or invalidated, nothing backs the points. Deleting and reposting is not a way to bank points twice. `deleted` ≠ `vetoed` is about *who acted and what stays visible* (author removes it vs teacher invalidates it, with a reason, post still in the thread), never about the ledger.
 - Lateness auto-score: 100 / 90 (<24 h) / 50 (<1 wk) / 20. All entregas accepted, penalty automatic.
 - Enrollment status: `active`, `ghost` 👻 (course over — posts yes, points no), `polizon` 🥷 (guest — points no).
 - Puntos extra are `incentives` rows, configurable in-app. **Never hardcode incentive types.**

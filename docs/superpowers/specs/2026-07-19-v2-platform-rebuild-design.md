@@ -60,7 +60,7 @@ The **post is the atomic unit**. Nine core tables:
 - Replies are posts with `parent_id`. Max 3 levels: post → comment → comment-on-comment.
 - `tarea`/`examen` types are teacher-only. Default tarea due date: next Sunday. Exámenes carry an entrega window (e.g., 24 h).
 - `is_entrega`: a reply to a tarea/examen flagged by the student as their formal submission (toggle in the reply composer; off = normal comment/question).
-- `deleted` ≠ `vetoed`: deleting a post does **not** remove points already earned; a veto does (via ledger revocation).
+- `deleted` and `vetoed` **both** revoke the post's points via ledger revocation — taps and likes received alike. No evidence, no points; otherwise delete-and-repost banks the same participación twice, since `award()` dedupes on `source_id` and a new post is a new source. The two states differ in who acted and what stays visible: the author removed it, or the teacher invalidated it with a reason and the post stays in the thread. (Corrected 2026-07-31; the original spec had this inverted.)
 
 ### attachments
 `id, post_id, file_key (R2), file_name, file_size, mime_type, created_at`

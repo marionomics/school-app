@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-07-31 (tarde)
+- **Corregida una regla mal escrita desde el día uno.** `CLAUDE.md` y el spec de v2 decían que borrar un post **conserva** los puntos ganados y que sólo el veto los revoca. Es al revés, y el código siempre estuvo bien: borrar revoca. La regla real es **sin evidencia no hay puntos** — una participación es su propia evidencia. Si no fuera así habría una fábrica de puntos: `award()` deduplica por `source_id`, así que publicar → borrar → volver a publicar acredita la misma participación dos veces. `deleted` ≠ `vetoed` sigue significando algo, pero no en el ledger: distingue quién actuó y qué queda visible (el autor lo quita, o el profesor lo invalida con motivo y el post se queda en el hilo).
+- Como consecuencia, el veto ahora también revoca los likes recibidos, no sólo los taps (§2.8 del spec de 2b-1, que decía lo contrario, reescrito). Un post invalidado no puede seguir pagando por ninguna vía.
+- Editar un post para corregirlo (en vez de borrar y republicar) queda pendiente, no urgente.
+
 ## 2026-07-31
 - **Revisión de la rama de Fase 2a.** Un bloqueador real: el profesor no podía crear una tarea desde la UI. El backend exige `class_id` para las tareas, pero el composer nunca lo mandaba — el selector de clase estaba detrás de `isStudent` y `resolve_default_class` sólo miraba `enrollments`, y un profesor **nunca** se inscribe en su propia clase (`create_class` no crea `Enrollment`). Resultado: 422 "Una tarea necesita una clase" en todos los intentos. La suite no lo detectó porque todos los tests mandan `class_id` explícito.
 - Arreglo: `resolve_default_class` ahora considera también las clases que impartes (in-session por horario primero, luego la única candidata); el composer muestra el selector al profesor sobre `teaching` y bloquea publicar mientras una tarea no tenga clase; el 422 se evalúa después de resolver la clase, no antes. Efecto lateral aceptado: las publicaciones normales del profesor también se atribuyen a su clase cuando sólo tiene una. +3 tests (106 backend, 11 frontend).

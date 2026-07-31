@@ -973,10 +973,10 @@ git commit -m "feat(backend): PUT /api/reviews upsert with per-type scale valida
 - Test: `backend/tests/test_veto.py` (create), `backend/tests/test_points_service.py`
 
 **Interfaces:**
-- Consumes: `points.revoke_for_source`.
-- Produces: `points.restore_for_source(db, *, source_type, source_id) -> int`; `points.veto_post(db, *, post, revoked_by) -> int`; `points.unveto_post(db, *, post) -> int`; `POST /api/posts/{id}/veto` and `DELETE /api/posts/{id}/veto`.
+- Consumes: `points.revoke_for_source`, `points.revoke_post`.
+- Produces: `points.restore_post(db, *, post) -> int`; `POST /api/posts/{id}/veto` and `DELETE /api/posts/{id}/veto`.
 
-**Context — a real bug this task fixes.** `remove_post` currently calls `revoke_post` on *both* branches: the author deleting their own post and the teacher vetoing it. CLAUDE.md's rule is `deleted ≠ vetoed` — deletion keeps earned points, only a veto revokes. Deletion must stop revoking. Separately, per spec §2.8 a veto must not touch the post's likes.
+**Context.** The existing revocation behaviour is **correct and stays**: `remove_post` revokes on both branches, and `revoke_post` revokes the participación's taps *and* the likes it received. The governing rule is *no evidence, no points* (CLAUDE.md; spec §2.8) — deleting and reposting must not bank the same participación twice, since `award()` dedupes on `source_id` and a fresh post is a fresh source. This task adds the explicit veto endpoints on top of that behaviour and the un-veto path that reverses it. **Do not change `remove_post`'s revocation.**
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1024,21 +1024,23 @@ def test_unveto_restores_them(client, db, teacher_headers, auth_headers, student
     assert db.get(Post, pid).veto_reason is None
 
 
-def test_veto_leaves_likes_alone(client, db, teacher_headers, auth_headers, student2_headers, student, enrolled):
+def test_veto_revokes_the_likes_too(client, db, teacher_headers, auth_headers, student2_headers, student, enrolled):
     pid = _participacion(client, auth_headers).json()["id"]
     client.post(f"/api/posts/{pid}/like", headers=student2_headers)
     assert _active_points(db, student.id) == Decimal("4.0")     # 3 taps + 1 like
     client.post(f"/api/posts/{pid}/veto", headers=teacher_headers)
     db.expire_all()
-    assert _active_points(db, student.id) == Decimal("1.0")     # the like survives
+    assert _active_points(db, student.id) == Decimal("0")       # no evidence, no points
 
 
-def test_deleting_your_own_post_keeps_the_points(client, db, auth_headers, student, enrolled):
+def test_deleting_your_own_post_revokes_the_points(client, db, auth_headers, student, enrolled):
+    """Deleting is not a way to bank points twice: award() dedupes on source_id,
+    so a repost would earn again on a fresh source."""
     pid = _participacion(client, auth_headers).json()["id"]
     client.delete(f"/api/posts/{pid}", headers=auth_headers)
     db.expire_all()
     assert db.get(Post, pid).status == "deleted"
-    assert _active_points(db, student.id) == Decimal("3.0")     # deleted != vetoed
+    assert _active_points(db, student.id) == Decimal("0")
 
 
 def test_student_cannot_veto(client, auth_headers, student2_headers, enrolled):
@@ -1047,16 +1049,16 @@ def test_student_cannot_veto(client, auth_headers, student2_headers, enrolled):
     assert r.status_code == 403
 ```
 
-In `backend/tests/test_points_service.py`, rename `test_revoke_post_revokes_everything` to `test_veto_post_revokes_taps_but_not_likes` and change its assertion to expect only the participación row revoked.
+`backend/tests/test_points_service.py` needs no changes — `test_revoke_post_revokes_everything` already asserts the behaviour this task keeps.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `cd backend && ../venv/bin/python -m pytest tests/test_veto.py -v`
-Expected: FAIL — 404 on `/veto`, and `test_deleting_your_own_post_keeps_the_points` fails because deletion currently revokes.
+Expected: FAIL — 404 on `/veto`. `test_deleting_your_own_post_revokes_the_points` should already PASS: that behaviour exists today and must survive this task.
 
-- [ ] **Step 3: Rework the points service**
+- [ ] **Step 3: Add the restore path to the points service**
 
-In `backend/app/services/points.py`, replace `revoke_post` with:
+In `backend/app/services/points.py`, keep `revoke_post` exactly as it is and add its inverse:
 
 ```python
 def restore_for_source(db: Session, *, source_type: str, source_id: int) -> int:
@@ -1077,32 +1079,18 @@ def restore_for_source(db: Session, *, source_type: str, source_id: int) -> int:
     return len(rows)
 
 
-def veto_post(db: Session, *, post: Post, revoked_by: int) -> int:
-    """Revoke what the post itself earned. Likes it received are NOT touched —
-    a like is the liker's action, not the author's claim."""
-    return revoke_for_source(db, source_type="participacion", source_id=post.id,
-                             revoked_by=revoked_by)
-
-
-def unveto_post(db: Session, *, post: Post) -> int:
-    return restore_for_source(db, source_type="participacion", source_id=post.id)
+def restore_post(db: Session, *, post: Post) -> int:
+    """Inverse of revoke_post: un-flag the taps and the likes it received."""
+    n = restore_for_source(db, source_type="participacion", source_id=post.id)
+    like_ids = [lid for (lid,) in db.query(Like.id).filter(Like.post_id == post.id).all()]
+    for lid in like_ids:
+        n += restore_for_source(db, source_type="forum_like", source_id=lid)
+    return n
 ```
 
-- [ ] **Step 4: Fix deletion and add the veto endpoints**
+- [ ] **Step 4: Add the veto endpoints**
 
-In `backend/app/routers/posts.py`, `remove_post`: delete the `points.revoke_post(...)` line entirely and replace the branch bodies:
-
-```python
-    if post.author_id == user.id:
-        post.status = "deleted"          # deleted != vetoed: points are kept
-    elif user.role == "teacher":
-        post.status = "vetoed"
-        points.veto_post(db, post=post, revoked_by=user.id)
-    else:
-        raise HTTPException(status_code=403, detail="No puedes eliminar esta publicación")
-```
-
-Append the endpoints:
+Leave `remove_post` untouched. Append the endpoints to `backend/app/routers/posts.py`:
 
 ```python
 class VetoIn(BaseModel):
@@ -1127,7 +1115,7 @@ def veto(post_id: int, body: VetoIn = VetoIn(),
     post = _teacher_of_post(db, post_id, user)
     post.status = "vetoed"
     post.veto_reason = body.reason
-    points.veto_post(db, post=post, revoked_by=user.id)
+    points.revoke_post(db, post=post, revoked_by=user.id)
     db.commit()
     return {"status": post.status, "veto_reason": post.veto_reason}
 
@@ -1138,7 +1126,7 @@ def unveto(post_id: int, user: User = Depends(get_current_user),
     post = _teacher_of_post(db, post_id, user)
     post.status = "active"
     post.veto_reason = None
-    points.unveto_post(db, post=post)
+    points.restore_post(db, post=post)
     db.commit()
     return {"status": post.status, "veto_reason": None}
 ```
@@ -1154,7 +1142,7 @@ Expected: PASS.
 
 ```bash
 git add backend/app/services/points.py backend/app/routers/posts.py backend/tests/test_veto.py backend/tests/test_points_service.py
-git commit -m "fix(backend): deletion keeps points, veto revokes them and spares likes"
+git commit -m "feat(backend): veto and un-veto endpoints for participaciones"
 ```
 
 ---
@@ -2592,5 +2580,5 @@ git commit -m "docs: close out Phase 2b-1"
 
 - The engine is the most-tested code in the repo and must stay that way. Tasks 2–4 are where a subtle mistake costs a real student real points.
 - `PUT /api/reviews` is the only write path for a score. If a later task needs to write one, it calls that endpoint rather than touching `Review` directly.
-- Task 7 changes existing behaviour: deletion no longer revokes points. That is the documented rule (`deleted ≠ vetoed`), not a regression.
+- Task 7 adds endpoints but must NOT change how deletion touches the ledger. Revoking on delete is deliberate — *no evidence, no points* — and a test in that task pins it.
 - Nothing in this phase writes attendance. The faltas term stays at zero until Phase 3.

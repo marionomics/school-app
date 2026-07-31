@@ -85,9 +85,15 @@ If the course ends and a rubro never had a single item — no exámenes assigned
 
 Trigger: `now > class.end_date`. Applies only when the rubro had **zero** items ever. A rubro with items behaves normally: a student who skipped every tarea still scores 0.
 
-### 2.8 A veto does not touch likes
+### 2.8 A veto revokes everything the post earned
 
-Vetoing a participación revokes the ledger rows the participación itself earned. Likes the post received stay: a like is the liker's action, not the author's claim, and the liker earned nothing to revoke. The post stays in the thread with `status = vetoed`.
+Vetoing a participación revokes every ledger row the post produced — its taps **and** the likes it received. The governing rule is *no evidence, no points*: once the teacher has ruled the participación invalid, nothing it attracted should keep paying. This matches deletion, which revokes on the same principle, and it is the rule a student can be told in one sentence.
+
+An earlier draft of this spec had veto sparing likes, on the theory that a like is the liker's action rather than the author's claim. That was overturned on 2026-07-31: it left a vetoed post still paying its author, which is both hard to explain and easy to exploit.
+
+The liker keeps their own behaviour intact — likes are not points *for the liker*, so there is nothing of theirs to revoke. The post stays in the thread with `status = vetoed` and its reason visible to its author.
+
+Un-vetoing restores exactly what was revoked, by clearing the same flags.
 
 ## 3. Data model
 
