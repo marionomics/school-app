@@ -24,10 +24,9 @@ Cada fase se despliega a Railway y se prueba antes de pasar a la siguiente.
 - [x] Posts tipo tarea (solo teacher; tarea default domingo) — examen en 2b
 - [x] Toggle "Es mi entrega" en replies + preview de penalización
 - [x] Auto-score por lateness (100/90/50/20) — override del profe en 2b
-- [ ] Sección Revisar (entregas por tarea, participaciones con veto, cola) — 2b
 - [x] Motor de calificación completo (rubros + ledger + faltas) con tests
-- [ ] Puntos extra configurables (incentives) + admin — 2b
-- [ ] Calificar desde el feed — 2b
+- [ ] **2b-1 Calificar** — exámenes (papel y digital) 1–10, `graded_at`, override del profe, sección Revisar (3 pestañas), calificar desde el feed, regla de rubro vacío a fin de curso
+- [ ] **2b-2 Configurar** — puntos extra configurables (incentives) + admin, UI de configuración de clase (pesos, `tap_value`, `like_value`, `like_exponent`)
 
 ## Fase 3 — Listo para clases (semana 6)
 - [ ] Asistencia mínima: sesiones desde horario, lista tap-por-alumno, −10/100 por falta injustificada (un punto entero)
