@@ -89,7 +89,10 @@ export default function Thread() {
       {p.id !== post.id && p.parent_id === post.id && (
         <button
           className="mb-2 ml-4 text-xs text-muted-foreground"
-          onClick={() => setReplyTo(p)}
+          onClick={() => {
+            setReplyTo(p);
+            setIsEntrega(false);
+          }}
         >
           ↩ {es.post.replySubmit}
         </button>
@@ -122,7 +125,7 @@ export default function Thread() {
             <button type="button" onClick={() => setReplyTo(null)}>×</button>
           </p>
         )}
-        {post.type === "tarea" && (
+        {post.type === "tarea" && replyTo === null && (
           <div className="mb-1 flex flex-col gap-1">
             <label className="flex items-center gap-2 text-sm">
               <input
