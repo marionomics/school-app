@@ -56,7 +56,7 @@ export interface Attachment {
 export interface Post {
   id: number;
   author: Author;
-  type: "regular" | "participacion";
+  type: "regular" | "participacion" | "tarea" | "examen";
   class_id: number | null;
   class_name: string | null;
   content: string;
@@ -69,6 +69,8 @@ export interface Post {
   created_at: string;
   last_activity_at: string;
   parent_id: number | null;
+  due_date: string | null;
+  is_entrega: boolean;
 }
 
 export interface FeedPage {
@@ -88,10 +90,28 @@ export interface GradeEvent {
   created_at: string;
 }
 
+export interface Rubro {
+  evaluated: boolean;
+  points: number;
+  weight: number;
+  count_due: number;
+  count_entregadas: number;
+}
+
+export interface LedgerBreakdown {
+  participaciones: number;
+  likes: number;
+  likes_count: number;
+  other: number;
+}
+
 export interface GradeSummary {
   class_id: number;
   class_name: string;
   total: number;
-  counts: { participaciones: number; likes_received: number };
+  tareas: Rubro;
+  examenes: Rubro;
+  ledger: LedgerBreakdown;
+  faltas: { count: number; points: number };
   events: GradeEvent[];
 }

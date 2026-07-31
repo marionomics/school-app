@@ -15,7 +15,8 @@ export default function Compose() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
-  const [mode, setMode] = useState<"regular" | "participacion">("regular");
+  const [mode, setMode] = useState<"regular" | "participacion" | "tarea">("regular");
+  const [dueDate, setDueDate] = useState<string>("");
   const [content, setContent] = useState("");
   const [classId, setClassId] = useState<number | null>(null);
   const [files, setFiles] = useState<File[]>([]);
@@ -45,8 +46,11 @@ export default function Compose() {
     mutationFn: (taps: number | null) => {
       const fd = new FormData();
       fd.set("content", content);
-      fd.set("type", taps ? "participacion" : "regular");
+      fd.set("type", mode === "participacion" ? "participacion" : mode);
       if (taps) fd.set("taps", String(taps));
+      if (mode === "tarea" && dueDate) {
+        fd.set("due_date", new Date(dueDate).toISOString());
+      }
       if (classId != null) fd.set("class_id", String(classId));
       for (const f of files) fd.append("files", f);
       return api<Post>("/api/posts", { method: "POST", body: fd });
@@ -67,6 +71,10 @@ export default function Compose() {
 
   const isStudent = user?.role !== "teacher";
   const enrolled = mine.data?.enrolled ?? [];
+  const teaching = mine.data?.teaching ?? [];
+  // A teacher picks among the classes they teach; a student among enrollments.
+  const pickable = isStudent ? enrolled : teaching;
+  const needsClass = mode === "tarea" && classId == null;
   const contentOk = content.trim().length >= MIN_PARTICIPACION_CHARS;
   const ringPct = tapCtl.active ? (tapCtl.msLeft / tapCtl.windowMs) * 100 : 0;
 
@@ -75,9 +83,9 @@ export default function Compose() {
       <div className="flex items-center justify-between">
         <button onClick={() => navigate(-1)} aria-label={es.post.cancel}>×</button>
         <h1 className="font-bold">{es.compose.title}</h1>
-        {mode === "regular" ? (
+        {mode !== "participacion" ? (
           <button
-            disabled={(!content.trim() && files.length === 0) || publish.isPending}
+            disabled={(!content.trim() && files.length === 0) || needsClass || publish.isPending}
             onClick={() => publish.mutate(null)}
             className="rounded-full bg-primary px-4 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
           >
@@ -105,7 +113,34 @@ export default function Compose() {
         </div>
       )}
 
-      {enrolled.length > 1 && isStudent && (
+      {!isStudent && (
+        <div className="flex gap-2">
+          {(["regular", "tarea"] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`rounded-full px-3 py-1 text-sm ${mode === m ? "bg-primary text-primary-foreground" : "border"}`}
+            >
+              {m === "regular" ? es.compose.modeRegular : `📌 ${es.compose.modeTarea}`}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {mode === "tarea" && (
+        <label className="text-sm">
+          {es.compose.dueLabel}
+          <input
+            type="datetime-local"
+            className="ml-2 rounded-md border px-2 py-1"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+          />
+          <span className="ml-2 text-xs text-muted-foreground">{es.compose.dueHint}</span>
+        </label>
+      )}
+
+      {(pickable.length > 1 || needsClass) && pickable.length > 0 && (
         <label className="text-sm">
           {es.compose.classLabel}
           <select
@@ -114,7 +149,7 @@ export default function Compose() {
             onChange={(e) => setClassId(Number(e.target.value))}
           >
             <option value="" disabled>—</option>
-            {enrolled.map((k) => (
+            {pickable.map((k) => (
               <option key={k.id} value={k.id}>{k.name}</option>
             ))}
           </select>
@@ -124,7 +159,7 @@ export default function Compose() {
       <textarea
         autoFocus
         className="min-h-40 w-full resize-none rounded-lg border p-3"
-        placeholder={mode === "participacion" ? es.compose.participacionPlaceholder : es.compose.placeholder}
+        placeholder={mode === "participacion" ? es.compose.participacionPlaceholder : mode === "tarea" ? es.compose.tareaPlaceholder : es.compose.placeholder}
         value={content}
         onChange={(e) => setContent(e.target.value)}
       />

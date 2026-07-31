@@ -43,14 +43,38 @@ export default function GradeChip() {
                   </span>
                 </div>
                 <dl className="mt-2 space-y-1 text-sm">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between gap-2">
+                    <dt>📌 {es.grade.tareas}</dt>
+                    <dd className="text-right">
+                      {g.tareas.evaluated
+                        ? `${g.tareas.points} / ${g.tareas.weight}`
+                        : `${es.grade.notEvaluated} ${es.grade.noTareasYet}`}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <dt>📝 {es.grade.examenes}</dt>
+                    <dd className="text-right">
+                      {g.examenes.evaluated
+                        ? `${g.examenes.points} / ${g.examenes.weight}`
+                        : `${es.grade.notEvaluated} ${es.grade.noExamenesYet}`}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-2">
                     <dt>🗣️ {es.grade.participaciones}</dt>
-                    <dd>{g.counts.participaciones}</dd>
+                    <dd>{g.ledger.participaciones}</dd>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between gap-2">
                     <dt>♥ {es.grade.likes}</dt>
-                    <dd>{g.counts.likes_received}</dd>
+                    <dd className="text-right">
+                      {g.ledger.likes} · {es.grade.likesWithCount.replace("{n}", String(g.ledger.likes_count))}
+                    </dd>
                   </div>
+                  {g.faltas.count > 0 && (
+                    <div className="flex justify-between gap-2 text-destructive">
+                      <dt>🚫 {es.grade.faltas}</dt>
+                      <dd>−{g.faltas.points}</dd>
+                    </div>
+                  )}
                 </dl>
                 <ul className="mt-3 space-y-1 border-t pt-2 text-xs text-muted-foreground">
                   {g.events.slice(0, 15).map((ev, i) => (

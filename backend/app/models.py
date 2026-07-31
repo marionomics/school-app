@@ -80,11 +80,13 @@ class Post(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    type: Mapped[str] = mapped_column(String(20), default="regular")  # regular|participacion (tarea|examen en Fase 2)
+    type: Mapped[str] = mapped_column(String(20), default="regular")  # regular|participacion|tarea (examen en Fase 2b)
     class_id: Mapped[Optional[int]] = mapped_column(ForeignKey("classes.id"), index=True)
     parent_id: Mapped[Optional[int]] = mapped_column(ForeignKey("posts.id"), index=True)
     content: Mapped[str] = mapped_column(Text, default="")
     taps: Mapped[Optional[int]] = mapped_column(Integer)
+    due_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    is_entrega: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="active")  # active|deleted|vetoed
     like_count: Mapped[int] = mapped_column(Integer, default=0)
     reply_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -119,6 +121,60 @@ class Attachment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     post: Mapped[Post] = relationship(back_populates="attachments")
+
+
+class PointsConfig(Base):
+    __tablename__ = "points_config"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    class_id: Mapped[int] = mapped_column(ForeignKey("classes.id"), unique=True, index=True)
+    tap_value: Mapped[Decimal] = mapped_column(Numeric(8, 2), default=Decimal("1.0"))
+    like_value: Mapped[Decimal] = mapped_column(Numeric(8, 2), default=Decimal("1.0"))
+    like_exponent: Mapped[Decimal] = mapped_column(Numeric(4, 3), default=Decimal("0.5"))
+    like_cap: Mapped[Optional[Decimal]] = mapped_column(Numeric(8, 2))
+    daily_post_limit: Mapped[int] = mapped_column(Integer, default=5)
+
+
+class Review(Base):
+    __tablename__ = "reviews"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entrega_post_id: Mapped[int] = mapped_column(ForeignKey("posts.id"), unique=True, index=True)
+    reviewer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
+    # Scale follows the PARENT post type: 0–100 for a tarea, 1–10 for an examen.
+    score: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 2))
+    auto_score: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 2))
+    feedback: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class ClassSession(Base):
+    __tablename__ = "class_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    class_id: Mapped[int] = mapped_column(ForeignKey("classes.id"), index=True)
+    # Annotation is a string forward-ref on purpose: the attribute name "date"
+    # would otherwise shadow the `date` type imported at module scope when
+    # SQLAlchemy evaluates `Mapped[date]` eagerly, resolving to the
+    # MappedColumn instance instead of datetime.date.
+    date: Mapped["date"] = mapped_column(Date)
+    opened_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class AttendanceRecord(Base):
+    __tablename__ = "attendance_records"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[int] = mapped_column(ForeignKey("class_sessions.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    status: Mapped[str] = mapped_column(String(20))  # present|absent|late|excused
+    justification_text: Mapped[Optional[str]] = mapped_column(Text)
+    justification_file_key: Mapped[Optional[str]] = mapped_column(String(500))
+    justification_status: Mapped[Optional[str]] = mapped_column(String(20))  # pending|approved|rejected
+    reviewed_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
 class PointsLedger(Base):

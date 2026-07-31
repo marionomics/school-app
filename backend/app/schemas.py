@@ -113,6 +113,8 @@ class PostOut(BaseModel):
     class_name: Optional[str]
     content: str
     taps: Optional[int]
+    due_date: Optional[datetime] = None
+    is_entrega: bool = False
     status: str
     like_count: int
     reply_count: int

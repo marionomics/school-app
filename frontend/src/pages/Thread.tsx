@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useLikeMutation, openAttachment } from "@/lib/likes";
+import { latenessTier } from "@/lib/lateness";
 import PostCard from "@/components/PostCard";
 import { FeedSkeleton } from "@/components/Skeletons";
 import { useToast } from "@/components/Toaster";
@@ -20,6 +21,7 @@ export default function Thread() {
   const [reply, setReply] = useState("");
   const [replyTo, setReplyTo] = useState<Post | null>(null);
   const [confirming, setConfirming] = useState<Post | null>(null);
+  const [isEntrega, setIsEntrega] = useState(false);
 
   const q = useQuery({
     queryKey: ["thread", id],
@@ -31,11 +33,13 @@ export default function Thread() {
       const fd = new FormData();
       fd.set("content", reply);
       fd.set("parent_id", String(replyTo ? replyTo.id : id));
+      if (isEntrega) fd.set("is_entrega", "true");
       return api<Post>("/api/posts", { method: "POST", body: fd });
     },
     onSuccess: () => {
       setReply("");
       setReplyTo(null);
+      setIsEntrega(false);
       void qc.invalidateQueries({ queryKey: ["thread", id] });
       void qc.invalidateQueries({ queryKey: ["feed"] });
     },
@@ -58,6 +62,16 @@ export default function Thread() {
     return <p className="p-6 text-center text-muted-foreground">{es.feed.error}</p>;
 
   const { post, replies } = q.data;
+  const tierLabel = (() => {
+    if (post.type !== "tarea" || !post.due_date) return null;
+    const { key } = latenessTier(new Date(), new Date(post.due_date));
+    return {
+      onTime: es.post.entregaOnTime,
+      under24h: es.post.entregaUnder24h,
+      underWeek: es.post.entregaUnderWeek,
+      late: es.post.entregaLate,
+    }[key];
+  })();
   const canDelete = (p: Post) => user != null && (user.id === p.author.id || user.role === "teacher");
   const level2 = replies.filter((r) => r.parent_id === post.id);
   const childrenOf = (rid: number) => replies.filter((r) => r.parent_id === rid);
@@ -75,7 +89,10 @@ export default function Thread() {
       {p.id !== post.id && p.parent_id === post.id && (
         <button
           className="mb-2 ml-4 text-xs text-muted-foreground"
-          onClick={() => setReplyTo(p)}
+          onClick={() => {
+            setReplyTo(p);
+            setIsEntrega(false);
+          }}
         >
           ↩ {es.post.replySubmit}
         </button>
@@ -107,6 +124,21 @@ export default function Thread() {
             ↩ @{replyTo.author.username ?? replyTo.author.name}{" "}
             <button type="button" onClick={() => setReplyTo(null)}>×</button>
           </p>
+        )}
+        {post.type === "tarea" && replyTo === null && (
+          <div className="mb-1 flex flex-col gap-1">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={isEntrega}
+                onChange={(e) => setIsEntrega(e.target.checked)}
+              />
+              {es.post.entregaToggle}
+            </label>
+            {isEntrega && tierLabel && (
+              <p className="text-xs text-muted-foreground">{tierLabel}</p>
+            )}
+          </div>
         )}
         <div className="flex gap-2">
           <input

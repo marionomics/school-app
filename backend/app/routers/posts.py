@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import List, Optional, Set
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
@@ -5,17 +6,29 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth.deps import get_current_user
+from app.config import settings
 from app.database import get_db
 from app.models import Attachment, Class, Enrollment, Like, Post, User, utcnow
 from app.schemas import AttachmentOut, AuthorOut, PostOut
 from app.services import points
 from app.services.attribution import resolve_default_class
 from app.services.cursor import decode_cursor, encode_cursor
+from app.services.dates import next_sunday_due
 from app import storage
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
 
 MAX_FILES = 4
+
+
+def _parse_due_date(raw: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Fecha de entrega inválida")
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
 def get_depth(db: Session, post: Post) -> int:
@@ -43,6 +56,8 @@ def serialize_post(post: Post, liked_ids: Set[int]) -> PostOut:
         class_name=post.klass.name if post.klass else None,
         content="" if removed else post.content,
         taps=post.taps,
+        due_date=post.due_date,
+        is_entrega=post.is_entrega,
         status=post.status,
         like_count=post.like_count,
         reply_count=post.reply_count,
@@ -153,14 +168,20 @@ def create_post(
     taps: Optional[int] = Form(None),
     class_id: Optional[int] = Form(None),
     parent_id: Optional[int] = Form(None),
+    due_date: Optional[str] = Form(None),
+    is_entrega: bool = Form(False),
     files: List[UploadFile] = File([]),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if type not in ("regular", "participacion"):
+    if type not in ("regular", "participacion", "tarea"):
         raise HTTPException(status_code=422, detail="Tipo de publicación inválido")
     if not content.strip() and not files:
         raise HTTPException(status_code=422, detail="La publicación está vacía")
+
+    if type == "tarea" and user.role != "teacher":
+        raise HTTPException(status_code=403,
+                            detail="Solo el profesor puede crear tareas")
 
     parent = None
     if parent_id is not None:
@@ -169,6 +190,31 @@ def create_post(
             raise HTTPException(status_code=404, detail="Publicación no encontrada")
         if get_depth(db, parent) >= 3:
             raise HTTPException(status_code=422, detail="Máximo 3 niveles de respuestas")
+
+    entrega = False
+    if is_entrega:
+        if parent is None or parent.type not in ("tarea", "examen"):
+            raise HTTPException(
+                status_code=422,
+                detail="Solo puedes marcar como entrega una respuesta a una tarea")
+        active = (
+            db.query(Enrollment)
+            .filter(Enrollment.user_id == user.id,
+                    Enrollment.class_id == parent.class_id,
+                    Enrollment.status == "active")
+            .first()
+        )
+        if active is None:
+            raise HTTPException(
+                status_code=403,
+                detail="Necesitas estar inscrito en la clase para entregar")
+        # Latest wins: clear any previous entrega by this student on this tarea.
+        (db.query(Post)
+           .filter(Post.author_id == user.id,
+                   Post.parent_id == parent.id,
+                   Post.is_entrega.is_(True))
+           .update({"is_entrega": False}, synchronize_session=False))
+        entrega = True
 
     if type == "participacion":
         if parent is not None:
@@ -186,6 +232,14 @@ def create_post(
         if klass is None or klass.teacher_id != user.id:
             raise HTTPException(status_code=403, detail="No eres profesor de esa clase")
         resolved_class = class_id
+    else:
+        # A teacher is never *enrolled*, so attribution falls back to the class
+        # they teach — otherwise a tarea composed without an explicit class_id
+        # has nothing to attach to.
+        resolved_class = resolve_default_class(db, user)
+
+    if type == "tarea" and resolved_class is None:
+        raise HTTPException(status_code=422, detail="Una tarea necesita una clase")
 
     if files and len(files) > MAX_FILES:
         raise HTTPException(status_code=422, detail="Máximo 4 archivos por publicación")
@@ -204,6 +258,12 @@ def create_post(
         author_id=user.id, type=type, class_id=resolved_class,
         parent_id=parent_id, content=content.strip(),
         taps=taps if type == "participacion" else None,
+        due_date=(
+            _parse_due_date(due_date)
+            if due_date
+            else next_sunday_due(utcnow(), settings.timezone)
+        ) if type == "tarea" else None,
+        is_entrega=entrega,
     )
     db.add(post)
     db.flush()

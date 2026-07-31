@@ -57,6 +57,18 @@ export default function PostCard({
             {post.class_name ? ` · ${post.class_name}` : ""}
           </span>
         )}
+        {post.type === "tarea" && !removed && (
+          <span className="mt-1 inline-block rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700">
+            📌 {es.feed.tareaBadge}
+            {post.due_date && ` · ${es.feed.dueOn.replace(
+              "{date}", new Date(post.due_date).toLocaleDateString("es-MX"))}`}
+          </span>
+        )}
+        {post.is_entrega && !removed && (
+          <span className="mt-1 inline-block rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700">
+            ✅ {es.feed.entregaBadge}
+          </span>
+        )}
         {linkToThread && !removed ? (
           <Link to={`/post/${post.id}`} className="mt-1 block">
             {body}
