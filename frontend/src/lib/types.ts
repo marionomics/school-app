@@ -109,7 +109,6 @@ export interface GradeSummary {
   class_id: number;
   class_name: string;
   total: number;
-  counts: { participaciones: number; likes_received: number };
   tareas: Rubro;
   examenes: Rubro;
   ledger: LedgerBreakdown;

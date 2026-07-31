@@ -23,7 +23,10 @@ def test_grade_totals_ignore_revoked(client, db, auth_headers, enrolled, klass, 
     assert res.status_code == 200
     body = res.json()
     assert body["total"] == 3.0
-    assert body["counts"] == {"participaciones": 1, "likes_received": 1}
+    # revoked like excluded: only the non-revoked like counts, and the
+    # revoked-forum_like row must not leak into the participaciones sum
+    assert body["ledger"]["participaciones"] == 2.0
+    assert body["ledger"]["likes_count"] == 1
     assert len(body["events"]) == 2
 
 
@@ -64,7 +67,7 @@ def test_grade_events_capped_at_50(client, db, auth_headers, enrolled, klass, st
     res = client.get(f"/api/students/me/grade?class_id={klass.id}", headers=auth_headers)
     body = res.json()
     assert len(body["events"]) == 50          # events capped
-    assert body["counts"]["likes_received"] == 55  # but counts reflect all non-revoked rows
+    assert body["ledger"]["likes_count"] == 55  # but the ledger reflects all non-revoked rows
     # Likes are concave (like_value * n^exponent), NOT summed linearly: the
     # points column on each forum_like row is an event-log entry, not an
     # addend. sqrt(55) ~= 7.4162, rounded half-up to 2dp.

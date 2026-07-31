@@ -21,13 +21,13 @@ Cada fase se despliega a Railway y se prueba antes de pasar a la siguiente.
 - [ ] 🧪 Primera versión probable con usuarios reales — pendiente, depende del deploy real a Railway
 
 ## Fase 2 — La economía completa (semanas 4–5)
-- [ ] Posts tipo tarea/examen (solo teacher; tarea default domingo, examen con ventana)
-- [ ] Toggle "Es mi entrega" en replies + preview de penalización
-- [ ] Auto-score por lateness (100/90/50/20) + override del profe
-- [ ] Sección Revisar (entregas por tarea, participaciones con veto, cola)
-- [ ] Motor de calificación completo (rubros + ledger + faltas) con tests
-- [ ] Puntos extra configurables (incentives) + admin
-- [ ] Calificar desde el feed
+- [x] Posts tipo tarea (solo teacher; tarea default domingo) — examen en 2b
+- [x] Toggle "Es mi entrega" en replies + preview de penalización
+- [x] Auto-score por lateness (100/90/50/20) — override del profe en 2b
+- [ ] Sección Revisar (entregas por tarea, participaciones con veto, cola) — 2b
+- [x] Motor de calificación completo (rubros + ledger + faltas) con tests
+- [ ] Puntos extra configurables (incentives) + admin — 2b
+- [ ] Calificar desde el feed — 2b
 
 ## Fase 3 — Listo para clases (semana 6)
 - [ ] Asistencia mínima: sesiones desde horario, lista tap-por-alumno, −10/100 por falta injustificada (un punto entero)

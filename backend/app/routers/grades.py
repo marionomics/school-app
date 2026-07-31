@@ -39,11 +39,6 @@ def _summary(db: Session, user_id: int, klass: Class) -> dict:
         "class_id": klass.id,
         "class_name": klass.name,
         "total": float(round_grade(g.total)),
-        # legacy key, still read by the deployed frontend; removed in Task 9
-        "counts": {
-            "participaciones": sum(1 for r in rows if r.source_type == "participacion"),
-            "likes_received": g.ledger["likes_count"],
-        },
         "tareas": _rubro_json(g.tareas),
         "examenes": _rubro_json(g.examenes),
         "ledger": {
