@@ -19,6 +19,8 @@ const post = (id: number): Post =>
     created_at: "2026-07-22T00:00:00Z",
     last_activity_at: "2026-07-22T00:00:00Z",
     parent_id: null,
+    due_date: null,
+    is_entrega: false,
   }) as Post;
 
 describe("mergePages", () => {
