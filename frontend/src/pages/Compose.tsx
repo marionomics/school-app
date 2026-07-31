@@ -71,6 +71,10 @@ export default function Compose() {
 
   const isStudent = user?.role !== "teacher";
   const enrolled = mine.data?.enrolled ?? [];
+  const teaching = mine.data?.teaching ?? [];
+  // A teacher picks among the classes they teach; a student among enrollments.
+  const pickable = isStudent ? enrolled : teaching;
+  const needsClass = mode === "tarea" && classId == null;
   const contentOk = content.trim().length >= MIN_PARTICIPACION_CHARS;
   const ringPct = tapCtl.active ? (tapCtl.msLeft / tapCtl.windowMs) * 100 : 0;
 
@@ -81,7 +85,7 @@ export default function Compose() {
         <h1 className="font-bold">{es.compose.title}</h1>
         {mode !== "participacion" ? (
           <button
-            disabled={(!content.trim() && files.length === 0) || publish.isPending}
+            disabled={(!content.trim() && files.length === 0) || needsClass || publish.isPending}
             onClick={() => publish.mutate(null)}
             className="rounded-full bg-primary px-4 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
           >
@@ -136,7 +140,7 @@ export default function Compose() {
         </label>
       )}
 
-      {enrolled.length > 1 && isStudent && (
+      {(pickable.length > 1 || needsClass) && pickable.length > 0 && (
         <label className="text-sm">
           {es.compose.classLabel}
           <select
@@ -145,7 +149,7 @@ export default function Compose() {
             onChange={(e) => setClassId(Number(e.target.value))}
           >
             <option value="" disabled>—</option>
-            {enrolled.map((k) => (
+            {pickable.map((k) => (
               <option key={k.id} value={k.id}>{k.name}</option>
             ))}
           </select>

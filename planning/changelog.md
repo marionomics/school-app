@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-31
+- **Revisión de la rama de Fase 2a.** Un bloqueador real: el profesor no podía crear una tarea desde la UI. El backend exige `class_id` para las tareas, pero el composer nunca lo mandaba — el selector de clase estaba detrás de `isStudent` y `resolve_default_class` sólo miraba `enrollments`, y un profesor **nunca** se inscribe en su propia clase (`create_class` no crea `Enrollment`). Resultado: 422 "Una tarea necesita una clase" en todos los intentos. La suite no lo detectó porque todos los tests mandan `class_id` explícito.
+- Arreglo: `resolve_default_class` ahora considera también las clases que impartes (in-session por horario primero, luego la única candidata); el composer muestra el selector al profesor sobre `teaching` y bloquea publicar mientras una tarea no tenga clase; el 422 se evalúa después de resolver la clase, no antes. Efecto lateral aceptado: las publicaciones normales del profesor también se atribuyen a su clase cuando sólo tiene una. +3 tests (106 backend, 11 frontend).
+- Anotados en `bugs.md` y aquí, sin arreglar: borrar tu entrega más reciente pierde la tarea entera (bug 2), y en `examenes_rubro` una entrega sin `Review.score` suma 0 con el examen ya en el denominador — entre que cierra el examen y lo califica el profesor, el rubro se lee como un cero real. Las tareas tienen el fallback de lateness; los exámenes no tienen equivalente. Se decide en 2b junto con la regla de fin de curso.
+- `es.post.entregaReplaces` quedó en el módulo de strings sin usarse; se deja como placeholder para el aviso de "reemplaza tu entrega anterior" en 2b.
+
 ## 2026-07-30
 - **Fase 2a (Tareas y el motor de calificación) complete**: 9 tareas del plan shipped.
 - Nuevo tipo de post `tarea` (solo teacher), con fecha límite default al próximo domingo 23:59 en el timezone de la clase. Las replies ganan un toggle "Es mi entrega" — latest-wins (la última entrega activa es la que cuenta) — que muestra la penalización por lateness *antes* de confirmar.

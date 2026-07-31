@@ -53,8 +53,47 @@ def test_student_cannot_create_tarea(client, auth_headers, klass):
 
 
 def test_tarea_requires_class(client, teacher_headers):
+    # teacher with no classes at all: nothing to fall back to
     r = client.post("/api/posts", data={
         "content": "tarea sin clase",
         "type": "tarea",
     }, headers=teacher_headers)
     assert r.status_code == 422
+
+
+def test_teacher_tarea_falls_back_to_their_only_class(client, teacher_headers, klass):
+    """The teacher owns the class but is never *enrolled* in it — attribution
+    has to look at classes taught, or the composer can't post a tarea at all."""
+    r = client.post("/api/posts", data={
+        "content": "tarea sin class_id explícito",
+        "type": "tarea",
+    }, headers=teacher_headers)
+    assert r.status_code == 201, r.text
+    assert r.json()["class_id"] == klass.id
+
+
+def test_default_class_for_teacher_is_their_class(client, teacher_headers, klass):
+    r = client.get("/api/posts/default-class", headers=teacher_headers)
+    assert r.status_code == 200
+    assert r.json()["class_id"] == klass.id
+
+
+def test_default_class_ambiguous_for_teacher_with_two_classes(
+    client, db, teacher, teacher_headers, klass
+):
+    from datetime import date
+
+    from app.models import Class
+
+    other = Class(
+        name="Macro", code="MACRO2026TEST", teacher_id=teacher.id,
+        start_date=date(2026, 8, 17), end_date=date(2026, 12, 4),
+        schedule_json=[],
+    )
+    db.add(other)
+    # No schedule on either class: otherwise this test would pass or fail
+    # depending on the wall clock when CI happens to run.
+    klass.schedule_json = []
+    db.commit()
+    r = client.get("/api/posts/default-class", headers=teacher_headers)
+    assert r.json()["class_id"] is None

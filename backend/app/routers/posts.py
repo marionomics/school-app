@@ -179,13 +179,9 @@ def create_post(
     if not content.strip() and not files:
         raise HTTPException(status_code=422, detail="La publicación está vacía")
 
-    if type == "tarea":
-        if user.role != "teacher":
-            raise HTTPException(status_code=403,
-                                detail="Solo el profesor puede crear tareas")
-        if class_id is None:
-            raise HTTPException(status_code=422,
-                                detail="Una tarea necesita una clase")
+    if type == "tarea" and user.role != "teacher":
+        raise HTTPException(status_code=403,
+                            detail="Solo el profesor puede crear tareas")
 
     parent = None
     if parent_id is not None:
@@ -236,6 +232,14 @@ def create_post(
         if klass is None or klass.teacher_id != user.id:
             raise HTTPException(status_code=403, detail="No eres profesor de esa clase")
         resolved_class = class_id
+    else:
+        # A teacher is never *enrolled*, so attribution falls back to the class
+        # they teach — otherwise a tarea composed without an explicit class_id
+        # has nothing to attach to.
+        resolved_class = resolve_default_class(db, user)
+
+    if type == "tarea" and resolved_class is None:
+        raise HTTPException(status_code=422, detail="Una tarea necesita una clase")
 
     if files and len(files) > MAX_FILES:
         raise HTTPException(status_code=422, detail="Máximo 4 archivos por publicación")
