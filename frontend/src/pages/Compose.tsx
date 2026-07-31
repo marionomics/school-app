@@ -79,7 +79,7 @@ export default function Compose() {
       <div className="flex items-center justify-between">
         <button onClick={() => navigate(-1)} aria-label={es.post.cancel}>×</button>
         <h1 className="font-bold">{es.compose.title}</h1>
-        {mode === "regular" ? (
+        {mode !== "participacion" ? (
           <button
             disabled={(!content.trim() && files.length === 0) || publish.isPending}
             onClick={() => publish.mutate(null)}
