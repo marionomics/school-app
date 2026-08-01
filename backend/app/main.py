@@ -5,6 +5,7 @@ from app import storage
 from app.auth.deps import get_current_user
 from app.config import settings
 from app.models import User
+from app.routers import attendance as attendance_router
 from app.routers import auth as auth_router
 from app.routers import classes as classes_router
 from app.routers import grades as grades_router
@@ -30,6 +31,7 @@ app.include_router(auth_router.router)
 app.include_router(users_router.router)
 app.include_router(classes_router.router)
 app.include_router(grades_router.router)
+app.include_router(grades_router.class_grades_router)
 app.include_router(posts_router.router)
 app.include_router(posts_router.feed_router)
 app.include_router(posts_router.attachments_router)
@@ -37,6 +39,7 @@ app.include_router(reviews_router.router)
 app.include_router(review_queue_router.router)
 app.include_router(incentives_router.router)
 app.include_router(settings_router.router)
+app.include_router(attendance_router.router)
 
 
 @app.get("/api/health")

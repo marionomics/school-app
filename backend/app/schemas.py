@@ -181,6 +181,36 @@ class ClassSettingsOut(BaseModel):
     like_exponent: Decimal
 
 
+class SessionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    class_id: int
+    date: date
+    opened_at: Optional[datetime]
+    closed_at: Optional[datetime]
+    attendance_count: int = 0
+
+
+class AttendanceRecordIn(BaseModel):
+    user_id: int
+    status: str  # present|absent|late
+
+
+class AttendancePut(BaseModel):
+    records: List[AttendanceRecordIn]
+
+
+class RosterStudent(BaseModel):
+    id: int
+    name: str
+    username: Optional[str]
+    avatar_url: Optional[str]
+    status: str  # active|ghost|polizon
+    grade: float
+    faltas: int
+
+
 class PostOut(BaseModel):
     id: int
     author: AuthorOut

@@ -4,10 +4,11 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.auth.deps import get_current_user
+from app.auth.deps import get_current_teacher, get_current_user
 from app.database import get_db
 from app.models import Class, Enrollment, PointsLedger, User, utcnow
-from app.services.grades import calculate_grade
+from app.schemas import RosterStudent
+from app.services.grades import calculate_grade, faltas_breakdown
 
 router = APIRouter(prefix="/api/students/me", tags=["grades"])
 
@@ -70,3 +71,64 @@ def my_grade(class_id: Optional[int] = None, user: User = Depends(get_current_us
             raise HTTPException(status_code=404, detail="No estás inscrito en esa clase")
         return _summary(db, user.id, db.get(Class, class_id))
     return [_summary(db, user.id, db.get(Class, cid)) for cid in by_class]
+
+
+class_grades_router = APIRouter(tags=["grades"])
+
+
+def _teacher_class(db: Session, class_id: int, teacher: User) -> Class:
+    klass = db.get(Class, class_id)
+    if klass is None:
+        raise HTTPException(status_code=404, detail="Clase no encontrada")
+    if klass.teacher_id != teacher.id:
+        raise HTTPException(status_code=403, detail="No eres profesor de esa clase")
+    return klass
+
+
+@class_grades_router.get("/api/classes/{class_id}/roster")
+def class_roster(
+    class_id: int,
+    teacher: User = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    klass = _teacher_class(db, class_id, teacher)
+    enrollments = (
+        db.query(Enrollment)
+        .filter(Enrollment.class_id == class_id)
+        .all()
+    )
+    now = utcnow()
+    students = []
+    for e in enrollments:
+        g = calculate_grade(db, e.user_id, klass, now=now)
+        faltas_count, _ = faltas_breakdown(db, e.user_id, class_id)
+        students.append(RosterStudent(
+            id=e.user.id,
+            name=e.user.name,
+            username=e.user.username,
+            avatar_url=e.user.avatar_url,
+            status=e.status,
+            grade=float(round_grade(g.total)),
+            faltas=faltas_count,
+        ))
+    return {"students": students}
+
+
+@class_grades_router.get("/api/classes/{class_id}/students/{student_id}/grade")
+def student_grade_for_teacher(
+    class_id: int,
+    student_id: int,
+    teacher: User = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    klass = _teacher_class(db, class_id, teacher)
+    enrollment = (
+        db.query(Enrollment)
+        .filter(Enrollment.user_id == student_id,
+                Enrollment.class_id == class_id)
+        .first()
+    )
+    if enrollment is None:
+        raise HTTPException(status_code=404,
+                            detail="Ese alumno no está en esta clase")
+    return _summary(db, student_id, klass)
