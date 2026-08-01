@@ -138,6 +138,20 @@ class PointsConfig(Base):
     daily_post_limit: Mapped[int] = mapped_column(Integer, default=5)
 
 
+class Incentive(Base):
+    __tablename__ = "incentives"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    class_id: Mapped[int] = mapped_column(ForeignKey("classes.id"), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    points: Mapped[Decimal] = mapped_column(Numeric(8, 2))
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    klass: Mapped["Class"] = relationship()
+
+
 class Review(Base):
     __tablename__ = "reviews"
     __table_args__ = (UniqueConstraint("item_post_id", "student_id",

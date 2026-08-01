@@ -97,3 +97,11 @@ def test_posts_has_examen_and_veto_columns(db):
 
     cols = {c["name"] for c in inspect(db.bind).get_columns("posts")}
     assert {"examen_mode", "graded_at", "veto_reason"} <= cols
+
+
+def test_incentives_table_has_required_columns(db):
+    from sqlalchemy import inspect
+
+    cols = {c["name"] for c in inspect(db.bind).get_columns("incentives")}
+    assert {"id", "class_id", "name", "points", "description",
+            "created_at", "deleted_at"} <= cols
