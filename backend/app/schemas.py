@@ -115,6 +115,8 @@ class PostOut(BaseModel):
     taps: Optional[int]
     due_date: Optional[datetime] = None
     is_entrega: bool = False
+    examen_mode: Optional[str] = None
+    graded_at: Optional[datetime] = None
     status: str
     like_count: int
     reply_count: int

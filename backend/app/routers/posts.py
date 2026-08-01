@@ -58,6 +58,8 @@ def serialize_post(post: Post, liked_ids: Set[int]) -> PostOut:
         taps=post.taps,
         due_date=post.due_date,
         is_entrega=post.is_entrega,
+        examen_mode=post.examen_mode,
+        graded_at=post.graded_at,
         status=post.status,
         like_count=post.like_count,
         reply_count=post.reply_count,
@@ -170,18 +172,23 @@ def create_post(
     parent_id: Optional[int] = Form(None),
     due_date: Optional[str] = Form(None),
     is_entrega: bool = Form(False),
+    examen_mode: Optional[str] = Form(None),
     files: List[UploadFile] = File([]),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if type not in ("regular", "participacion", "tarea"):
+    if type not in ("regular", "participacion", "tarea", "examen"):
         raise HTTPException(status_code=422, detail="Tipo de publicación inválido")
     if not content.strip() and not files:
         raise HTTPException(status_code=422, detail="La publicación está vacía")
 
-    if type == "tarea" and user.role != "teacher":
+    if type in ("tarea", "examen") and user.role != "teacher":
         raise HTTPException(status_code=403,
-                            detail="Solo el profesor puede crear tareas")
+                            detail="Solo el profesor puede crear tareas y exámenes")
+    if type == "examen":
+        examen_mode = examen_mode or "paper"
+        if examen_mode not in ("paper", "digital"):
+            raise HTTPException(status_code=422, detail="Modalidad de examen inválida")
 
     parent = None
     if parent_id is not None:
@@ -238,7 +245,7 @@ def create_post(
         # has nothing to attach to.
         resolved_class = resolve_default_class(db, user)
 
-    if type == "tarea" and resolved_class is None:
+    if type in ("tarea", "examen") and resolved_class is None:
         raise HTTPException(status_code=422, detail="Una tarea necesita una clase")
 
     if files and len(files) > MAX_FILES:
@@ -264,6 +271,7 @@ def create_post(
             else next_sunday_due(utcnow(), settings.timezone)
         ) if type == "tarea" else None,
         is_entrega=entrega,
+        examen_mode=examen_mode if type == "examen" else None,
     )
     db.add(post)
     db.flush()
@@ -338,6 +346,39 @@ def remove_post(post_id: int, user: User = Depends(get_current_user),
         root = get_root(db, post)
         root.reply_count = max(0, root.reply_count - 1)
     db.commit()
+
+
+def _teacher_item(db: Session, post_id: int, user: User) -> Post:
+    """A tarea/examen in a class this teacher owns, or the right HTTP error."""
+    post = db.get(Post, post_id)
+    if post is None or post.status != "active":
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+    if user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Solo el profesor puede calificar")
+    if post.type not in ("tarea", "examen"):
+        raise HTTPException(status_code=422, detail="Esta publicación no se califica")
+    klass = db.get(Class, post.class_id) if post.class_id else None
+    if klass is None or klass.teacher_id != user.id:
+        raise HTTPException(status_code=403, detail="No eres profesor de esa clase")
+    return post
+
+
+@router.post("/{post_id}/graded")
+def mark_graded(post_id: int, user: User = Depends(get_current_user),
+                db: Session = Depends(get_db)):
+    post = _teacher_item(db, post_id, user)
+    post.graded_at = utcnow()
+    db.commit()
+    return {"graded_at": post.graded_at}
+
+
+@router.delete("/{post_id}/graded")
+def unmark_graded(post_id: int, user: User = Depends(get_current_user),
+                  db: Session = Depends(get_db)):
+    post = _teacher_item(db, post_id, user)
+    post.graded_at = None
+    db.commit()
+    return {"graded_at": None}
 
 
 @attachments_router.get("/{attachment_id}/url")
