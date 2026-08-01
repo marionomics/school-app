@@ -71,6 +71,67 @@ export interface Post {
   parent_id: number | null;
   due_date: string | null;
   is_entrega: boolean;
+  examen_mode: "paper" | "digital" | null;
+  graded_at: string | null;
+  my_review: Review | null;
+  veto_reason: string | null;
+}
+
+export interface Review {
+  id: number;
+  item_post_id: number;
+  student_id: number;
+  entrega_post_id: number | null;
+  score: number | null;
+  auto_score: number | null;
+  feedback: string | null;
+  updated_at: string | null;
+}
+
+export interface QueueStudent {
+  id: number;
+  username: string | null;
+  name: string;
+}
+
+export interface EntregaRow {
+  student: QueueStudent;
+  entrega_post_id: number;
+  created_at: string;
+  auto_score: number | null;
+  reviewed: boolean;
+  score: number | null;
+}
+
+export interface EntregaGroup {
+  tarea: { id: number; content: string; due_date: string | null };
+  pending: number;
+  entregas: EntregaRow[];
+}
+
+export interface ExamenListItem {
+  id: number;
+  content: string;
+  examen_mode: "paper" | "digital";
+  graded_at: string | null;
+  created_at: string;
+}
+
+export interface ExamenRoster {
+  examen: { id: number; content: string; examen_mode: "paper" | "digital";
+            graded_at: string | null };
+  rows: { student: QueueStudent; entrega_post_id: number | null; score: number | null }[];
+}
+
+export interface ParticipacionRow {
+  post_id: number;
+  student: QueueStudent;
+  content: string;
+  taps: number | null;
+  points: number;
+  vetoed: boolean;
+  veto_reason: string | null;
+  created_at: string;
 }
 
 export interface FeedPage {

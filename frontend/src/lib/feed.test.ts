@@ -21,6 +21,10 @@ const post = (id: number): Post =>
     parent_id: null,
     due_date: null,
     is_entrega: false,
+    examen_mode: null,
+    graded_at: null,
+    my_review: null,
+    veto_reason: null,
   }) as Post;
 
 describe("mergePages", () => {
