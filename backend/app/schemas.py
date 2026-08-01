@@ -140,6 +140,8 @@ class PostOut(BaseModel):
     is_entrega: bool = False
     examen_mode: Optional[str] = None
     graded_at: Optional[datetime] = None
+    my_review: Optional["ReviewOut"] = None
+    veto_reason: Optional[str] = None
     status: str
     like_count: int
     reply_count: int

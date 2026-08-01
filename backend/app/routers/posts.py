@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth.deps import get_current_user
 from app.config import settings
 from app.database import get_db
-from app.models import Attachment, Class, Enrollment, Like, Post, User, utcnow
-from app.schemas import AttachmentOut, AuthorOut, PostOut
+from app.models import Attachment, Class, Enrollment, Like, Post, Review, User, utcnow
+from app.schemas import AttachmentOut, AuthorOut, PostOut, ReviewOut
 from app.services import points
 from app.services.attribution import resolve_default_class
 from app.services.cursor import decode_cursor, encode_cursor
@@ -48,8 +48,14 @@ def get_root(db: Session, post: Post) -> Post:
     return cur
 
 
-def serialize_post(post: Post, liked_ids: Set[int]) -> PostOut:
+def serialize_post(post: Post, liked_ids: Set[int], *, viewer: Optional[User] = None,
+                   review_by_post: Optional[dict] = None) -> PostOut:
     removed = post.status != "active"
+    # Scores, feedback and veto reasons belong only to the student who wrote the
+    # post. Classmates read the same thread, so this is withheld server-side.
+    private = viewer is not None and (
+        viewer.id == post.author_id or viewer.role == "teacher")
+    review = (review_by_post or {}).get(post.id) if private else None
     return PostOut(
         id=post.id,
         author=AuthorOut.model_validate(post.author),
@@ -62,6 +68,8 @@ def serialize_post(post: Post, liked_ids: Set[int]) -> PostOut:
         is_entrega=post.is_entrega,
         examen_mode=post.examen_mode,
         graded_at=post.graded_at,
+        my_review=ReviewOut.model_validate(review) if review is not None else None,
+        veto_reason=post.veto_reason if private else None,
         status=post.status,
         like_count=post.like_count,
         reply_count=post.reply_count,
@@ -131,7 +139,7 @@ def get_feed(
     posts = posts[:limit]
     liked = _liked_ids(db, user, [p.id for p in posts])
     next_cursor = encode_cursor(posts[-1].last_activity_at, posts[-1].id) if (has_more and posts) else None
-    return {"items": [serialize_post(p, liked) for p in posts], "next_cursor": next_cursor}
+    return {"items": [serialize_post(p, liked, viewer=user) for p in posts], "next_cursor": next_cursor}
 
 
 @router.get("/{post_id}")
@@ -143,7 +151,7 @@ def get_thread(post_id: int, user: User = Depends(get_current_user),
                  selectinload(Post.attachments))
         .filter(Post.id == post_id).first()
     )
-    if post is None or (post.status != "active" and post.reply_count == 0):
+    if post is None or (post.status == "deleted" and post.reply_count == 0):
         raise HTTPException(status_code=404, detail="Publicación no encontrada")
     level2 = (
         db.query(Post)
@@ -161,8 +169,14 @@ def get_thread(post_id: int, user: User = Depends(get_current_user),
         )
     replies = sorted(level2 + level3, key=lambda p: p.created_at)
     liked = _liked_ids(db, user, [post.id] + [r.id for r in replies])
-    return {"post": serialize_post(post, liked),
-            "replies": [serialize_post(r, liked) for r in replies]}
+    entrega_ids = [r.id for r in replies if r.is_entrega]
+    review_by_post = {}
+    if entrega_ids:
+        for rv in db.query(Review).filter(Review.entrega_post_id.in_(entrega_ids)).all():
+            review_by_post[rv.entrega_post_id] = rv
+    return {"post": serialize_post(post, liked, viewer=user),
+            "replies": [serialize_post(r, liked, viewer=user,
+                                       review_by_post=review_by_post) for r in replies]}
 
 
 @router.post("", response_model=PostOut, status_code=201)
