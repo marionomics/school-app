@@ -128,6 +128,59 @@ class ReviewOut(BaseModel):
     updated_at: Optional[datetime]
 
 
+class IncentiveCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    points: Decimal = Field(gt=0)
+    description: Optional[str] = None
+
+
+class IncentiveOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    class_id: int
+    name: str
+    points: Decimal
+    description: Optional[str]
+    created_at: datetime
+    deleted_at: Optional[datetime]
+
+
+class AwardBody(BaseModel):
+    student_id: int
+
+
+class LedgerRowOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: int
+    class_id: Optional[int]
+    source_type: str
+    source_id: int
+    points: Decimal
+    note: Optional[str]
+    created_at: datetime
+
+
+class ClassSettingsUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tareas_weight: Optional[int] = Field(default=None, ge=0, le=100)
+    examenes_weight: Optional[int] = Field(default=None, ge=0, le=100)
+    tap_value: Optional[Decimal] = Field(default=None, gt=0)
+    like_value: Optional[Decimal] = Field(default=None, gt=0)
+    like_exponent: Optional[Decimal] = Field(default=None, ge=Decimal("0.1"), le=Decimal("2.0"))
+
+
+class ClassSettingsOut(BaseModel):
+    tareas_weight: int
+    examenes_weight: int
+    tap_value: Decimal
+    like_value: Decimal
+    like_exponent: Decimal
+
+
 class PostOut(BaseModel):
     id: int
     author: AuthorOut
