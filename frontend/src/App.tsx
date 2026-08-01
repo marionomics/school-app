@@ -10,6 +10,7 @@ import JoinByLink from "@/pages/JoinByLink";
 import Thread from "@/pages/Thread";
 import Compose from "@/pages/Compose";
 import Revisar from "@/pages/Revisar";
+import Configurar from "@/pages/Configurar";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -88,6 +89,16 @@ export default function App() {
                 <RequireAuth>
                   <Shell>
                     <Revisar />
+                  </Shell>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/configurar"
+              element={
+                <RequireAuth>
+                  <Shell>
+                    <Configurar />
                   </Shell>
                 </RequireAuth>
               }

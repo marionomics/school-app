@@ -134,6 +134,24 @@ export interface ParticipacionRow {
   created_at: string;
 }
 
+export interface Incentive {
+  id: number;
+  class_id: number;
+  name: string;
+  points: number;
+  description: string | null;
+  created_at: string;
+  deleted_at: string | null;
+}
+
+export interface ClassSettings {
+  tareas_weight: number;
+  examenes_weight: number;
+  tap_value: number;
+  like_value: number;
+  like_exponent: number;
+}
+
 export interface FeedPage {
   items: Post[];
   next_cursor: string | null;
