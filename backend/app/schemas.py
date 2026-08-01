@@ -2,6 +2,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
 
+
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -103,6 +105,27 @@ class AttachmentOut(BaseModel):
     id: int
     file_name: str
     mime_type: str
+
+
+class ReviewIn(BaseModel):
+    item_post_id: int
+    student_id: int
+    entrega_post_id: Optional[int] = None
+    score: Optional[Decimal] = None
+    feedback: Optional[str] = None
+
+
+class ReviewOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    item_post_id: int
+    student_id: int
+    entrega_post_id: Optional[int]
+    score: Optional[Decimal]
+    auto_score: Optional[Decimal]
+    feedback: Optional[str]
+    updated_at: Optional[datetime]
 
 
 class PostOut(BaseModel):
