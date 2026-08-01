@@ -29,9 +29,9 @@ Cada fase se despliega a Railway y se prueba antes de pasar a la siguiente.
 - [x] **2b-2 Configurar** — puntos extra configurables (incentives) + admin, UI de configuración de clase (pesos, `tap_value`, `like_value`, `like_exponent`)
 
 ## Fase 3 — Listo para clases (semana 6)
-- [ ] Asistencia mínima: sesiones desde horario, lista tap-por-alumno, −10/100 por falta injustificada (un punto entero)
-- [ ] Panel de clase: roster, lista de calificaciones → perfil con desglose
-- [ ] Polish pass móvil + seed data
+- [x] Asistencia mínima: sesiones desde horario, lista tap-por-alumno, −10/100 por falta injustificada (un punto entero)
+- [x] Panel de clase: roster, lista de calificaciones → perfil con desglose
+- [x] Polish pass móvil + seed data
 - [ ] Beta con ex-alumnos
 
 ## → Inicio de semestre: v2.0 live

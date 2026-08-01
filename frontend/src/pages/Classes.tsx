@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { es } from "@/strings/es";
@@ -18,7 +19,9 @@ function ClassCard({ klass }: { klass: ClassOut }) {
   return (
     <div className="flex flex-col gap-2 rounded-lg border p-4">
       <div className="flex items-center justify-between">
-        <span className="font-semibold">{klass.name}</span>
+        <Link to={`/clases/${klass.id}`} className="font-semibold hover:underline">
+          {klass.name}
+        </Link>
         <code className="rounded bg-muted px-2 py-0.5 text-sm">{klass.code}</code>
       </div>
       <p className="text-sm text-muted-foreground">

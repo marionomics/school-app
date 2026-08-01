@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-31 (Phase 3 Listo para clases — completa)
+- **10 tareas shipped.** 194 tests en backend (pytest, +20 desde 2b-2); frontend TypeScript limpio en CI.
+- **Asistencia mínima.** `POST /api/classes/{id}/sessions` abre una sesión (una por día, 409 si ya existe). `DELETE` la cierra. `GET .../active` devuelve la sesión abierta o `null`. `PUT /api/sessions/{id}/attendance` es un upsert delete-then-insert: reemplaza la lista completa en cada save. Status `present|absent|late`; `late` no cuenta como falta.
+- **Panel de clase (`/clases/:id`).** Tab "Lista" con todos los inscritos (incluyendo 👻 y 🥷). Tab "Calificaciones" con grade + faltas en vivo por alumno; tap en un alumno abre un bottom sheet con el desglose completo (tareas, exámenes, participaciones, faltas). Botón de sesión en el banner: abre, cierra, o navega a "Tomar lista".
+- **Pasar lista (`/pasar-lista/:class_id/:session_id`).** Full-screen sin Shell. Lista de alumnos activos; toca el badge para ciclar P→F→T. "Guardar" manda el PUT y vuelve al panel.
+- **`GET /api/classes/{id}/roster`** — teacher-only; devuelve todos los enrollments con `grade` y `faltas` calculados en vivo.
+- **`GET /api/classes/{id}/students/{student_id}/grade`** — teacher-only; mismo payload que el endpoint del alumno.
+- **Seed actualizado.** Teacher + 3 alumnos + clase + tarea + 2 entregas + examen + participaciones con ledger + sesión abierta con asistencia.
+- **Link desde Mis Clases.** El nombre de cada clase es ahora un link a `/clases/:id`.
+
 ## 2026-07-31 (Phase 2b-2 Configurar — completa)
 - **7 tareas shipped.** 174 tests en backend (pytest, +22 desde 2b-1); frontend TypeScript limpio en CI.
 - **`Incentive` model + tabla `incentives`.** Tipos de puntos extra configurables en-app por clase — nunca hardcodeados. El profesor los nombra (ej. "Libreta completa", "Todo en inglés"). Awarding escribe directamente a `points_ledger` con `source_type='incentive'`; el motor ya sumaba ese bucket en `ledger.other`, así que el chip de calificación se actualiza sin cambios en el engine.

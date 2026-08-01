@@ -152,6 +152,39 @@ export interface ClassSettings {
   like_exponent: number;
 }
 
+export interface SessionOut {
+  id: number;
+  class_id: number;
+  date: string;
+  opened_at: string | null;
+  closed_at: string | null;
+  attendance_count: number;
+}
+
+export interface RosterStudent {
+  id: number;
+  name: string;
+  username: string | null;
+  avatar_url: string | null;
+  status: "active" | "ghost" | "polizon";
+  grade: number;
+  faltas: number;
+}
+
+export interface MemberOut {
+  id: number;
+  name: string;
+  username: string | null;
+  avatar_url: string | null;
+  status: "active" | "ghost" | "polizon";
+}
+
+export interface ClassDetailWithMembers extends ClassOut {
+  members: MemberOut[];
+}
+
+export type StudentGradeView = GradeSummary;
+
 export interface FeedPage {
   items: Post[];
   next_cursor: string | null;

@@ -11,6 +11,8 @@ import Thread from "@/pages/Thread";
 import Compose from "@/pages/Compose";
 import Revisar from "@/pages/Revisar";
 import Configurar from "@/pages/Configurar";
+import ClassPanel from "@/pages/ClassPanel";
+import PasarLista from "@/pages/PasarLista";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -100,6 +102,24 @@ export default function App() {
                   <Shell>
                     <Configurar />
                   </Shell>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/clases/:id"
+              element={
+                <RequireAuth>
+                  <Shell>
+                    <ClassPanel />
+                  </Shell>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/pasar-lista/:class_id/:session_id"
+              element={
+                <RequireAuth>
+                  <PasarLista />
                 </RequireAuth>
               }
             />
