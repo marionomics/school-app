@@ -276,3 +276,41 @@ def test_unmarking_graded_removes_the_examen_again(db, student, teacher, klass, 
     db.commit()
     r = examenes_rubro(db, student.id, klass, now=DUE)
     assert r.evaluated is False
+
+
+from datetime import date
+from app.services.grades import empty_rubro_payout
+
+AFTER_COURSE = datetime(2027, 1, 15, tzinfo=timezone.utc)   # klass.end_date is 2026-12-04
+
+
+def test_rubro_with_no_items_pays_full_weight_after_the_course_ends(db, student, teacher, klass, enrolled):
+    r = examenes_rubro(db, student.id, klass, now=AFTER_COURSE)
+    assert r.evaluated is True
+    assert r.points == Decimal(klass.examenes_weight)
+
+
+def test_rubro_with_no_items_pays_nothing_before_the_course_ends(db, student, teacher, klass, enrolled):
+    r = examenes_rubro(db, student.id, klass, now=DUE)
+    assert r.evaluated is False
+    assert r.points == Decimal("0")
+
+
+def test_an_ungraded_examen_still_counts_as_having_items(db, student, teacher, klass, enrolled):
+    _examen(db, teacher, klass)                      # exists, never graded
+    r = examenes_rubro(db, student.id, klass, now=AFTER_COURSE)
+    assert r.evaluated is False                      # NOT a free 30
+    assert r.points == Decimal("0")
+
+
+def test_tareas_rubro_also_pays_out_when_none_were_ever_assigned(db, student, teacher, klass, enrolled):
+    r = tareas_rubro(db, student.id, klass, now=AFTER_COURSE)
+    assert r.evaluated is True
+    assert r.points == Decimal(klass.tareas_weight)
+
+
+def test_a_student_who_skipped_every_tarea_still_scores_zero(db, student, teacher, klass, enrolled):
+    _tarea(db, teacher, klass, DUE)
+    r = tareas_rubro(db, student.id, klass, now=AFTER_COURSE)
+    assert r.evaluated is True
+    assert r.points == Decimal("0")

@@ -93,6 +93,22 @@ def counting_review(db: Session, item_post_id: int, student_id: int,
     return review
 
 
+def empty_rubro_payout(klass: Class, weight: int, now: datetime,
+                       has_items: bool) -> Optional[Rubro]:
+    """Full weight for a rubro that never had a single item, once the course ends.
+
+    Nobody is penalised for work the teacher chose not to assign, and the
+    reachable maximum stays where students believed it was all semester. An item
+    that exists but was never graded still counts as an item — this rule is for
+    the teacher who assigned no exámenes at all, not the one who has not
+    finished grading.
+    """
+    if has_items or klass.end_date is None or now.date() <= klass.end_date:
+        return None
+    return Rubro(evaluated=True, points=Decimal(weight), weight=weight,
+                 count_due=0, count_entregadas=0)
+
+
 def tareas_rubro(db: Session, user_id: int, klass: Class, now: datetime) -> Rubro:
     due_tareas = (
         db.query(Post)
@@ -104,6 +120,15 @@ def tareas_rubro(db: Session, user_id: int, klass: Class, now: datetime) -> Rubr
         .all()
     )
     weight = klass.tareas_weight
+    all_tareas = (
+        db.query(Post)
+        .filter(Post.class_id == klass.id, Post.type == "tarea",
+                Post.status == "active")
+        .count()
+    )
+    payout = empty_rubro_payout(klass, weight, now, has_items=all_tareas > 0)
+    if payout is not None:
+        return payout
     if not due_tareas:
         return Rubro(evaluated=False, points=Decimal("0"), weight=weight)
 
@@ -215,6 +240,15 @@ def examenes_rubro(db: Session, user_id: int, klass: Class, now: datetime) -> Ru
         .all()
     )
     weight = klass.examenes_weight
+    all_examenes = (
+        db.query(Post)
+        .filter(Post.class_id == klass.id, Post.type == "examen",
+                Post.status == "active")
+        .count()
+    )
+    payout = empty_rubro_payout(klass, weight, now, has_items=all_examenes > 0)
+    if payout is not None:
+        return payout
     if not graded:
         return Rubro(evaluated=False, points=Decimal("0"), weight=weight)
 
