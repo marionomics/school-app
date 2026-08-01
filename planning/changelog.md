@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-31 (Phase 2b-2 Configurar — completa)
+- **7 tareas shipped.** 174 tests en backend (pytest, +22 desde 2b-1); frontend TypeScript limpio en CI.
+- **`Incentive` model + tabla `incentives`.** Tipos de puntos extra configurables en-app por clase — nunca hardcodeados. El profesor los nombra (ej. "Libreta completa", "Todo en inglés"). Awarding escribe directamente a `points_ledger` con `source_type='incentive'`; el motor ya sumaba ese bucket en `ledger.other`, así que el chip de calificación se actualiza sin cambios en el engine.
+- **Soft-delete inteligente.** Si un incentivo ya fue otorgado, `DELETE` lo marca con `deleted_at` pero conserva las rows del ledger (los puntos siguen contando). Si nunca fue otorgado, se borra físicamente. El alumno nunca pierde puntos por limpiar la lista.
+- **Se puede otorgar el mismo incentivo múltiples veces.** No hay dedup — la lógica es que "libreta completa semana 3" y "libreta completa semana 5" son awards distintos del mismo tipo. El teacher controla la frecuencia.
+- **`GET/PATCH /api/classes/{id}/settings`.** Permite editar `tareas_weight`, `examenes_weight`, `tap_value`, `like_value`, `like_exponent` con una PATCH parcial. `like_cap` y `daily_post_limit` no están expuestos (la curva cóncava es el mecanismo anti-cramming, no un cap). `extra='forbid'` en el schema rechaza 422 cualquier campo no reconocido.
+- **Página `/configurar` (solo teacher).** Dos secciones: (A) formulario de pesos y valores con save explícito, (B) lista de incentivos con crear, eliminar (con confirmación), y otorgar (modal con selector de alumno). La lista de alumnos viene del `GET /api/classes/{id}` ya existente.
+
 ## 2026-07-31 (Phase 2b-1 Calificar — completa)
 - **16 tareas shipped.** 151 tests en backend (pytest); los tests de frontend (vitest) pasan en CI (Node 22) pero no en local (Node 16, incompatible con Vite 8 — sin solución hasta actualizar Node en el Mac).
 - **Exámenes como tipo de post.** Un post `type=examen` lleva `examen_mode` (`paper` o `digital`) y `graded_at`. Los exámenes sólo entran en el rubro cuando el profesor marca `graded_at`; antes de eso el rubro los ignora completamente para que un "0" antes de calificar no asuste a nadie. Desmarcar borra `graded_at` y el rubro vuelve a ignorarlo.
