@@ -8,7 +8,9 @@ This pass exists because the app works and doesn't feel like one product. Phases
 
 ## 1. Why this is needed
 
-`frontend/src/components/ui/` contains exactly one file, `button.tsx`. Despite `CLAUDE.md` naming shadcn preset `b3SkwD0Ou`, no `input`, `select`, `card`, `dialog` or `slider` was ever installed, and `lucide-react` is absent from `package.json`. Every form control in the app is therefore a hand-rolled `<input className="rounded-md border px-2 py-1">`, and every icon is an emoji, because those were the only options available.
+The design system was **configured and then never used**. `frontend/components.json` sets shadcn style `base-sera`, base color zinc, icon library `remixicon`; `index.css` imports `shadcn/tailwind.css` with the full token set and the Geist variable font; `@remixicon/react`, `@base-ui/react` and the `shadcn` CLI are all already dependencies.
+
+But `frontend/src/components/ui/` contains exactly one file, `button.tsx`. No `input`, `select`, `card`, `dialog` or `slider` was ever added. So every form control in the app is a hand-rolled `<input className="rounded-md border px-2 py-1">`, and every icon is an emoji — not because the tools were missing, but because nobody reached for them.
 
 `Configurar.tsx` shows the consequence most clearly: a single `field()` helper renders five settings into a two-column grid, giving a percentage weight, a point value and a mathematical exponent the identical control with no indication that they are different kinds of thing. That page is not badly styled. It is unstructured.
 
@@ -25,6 +27,14 @@ The purpose is to not confront the teacher with every decision in the app the mo
 In any form or settings surface, one thing per line. No two controls side by side, ever.
 
 **Consulted exception:** list screens where each row is "who" plus "what you're setting" — the examen roster (student → score) and pasar lista (student → P/F/T) — keep name and control on one aligned row. Stacking them would double the scrolling for forty students. This exception covers list rows only and does not extend to forms.
+
+### 2.2b The preset is adopted untouched
+
+Components come from `npx shadcn add` and are used **as they arrive**. No token overrides, no editing `--radius`, no stripping `uppercase` from the button variants, no bespoke wrappers that re-style a primitive.
+
+`base-sera` is angular, uppercase-labelled and typographically technical. That is accepted deliberately, including on the student-facing feed. The alternative considered and rejected was softening the preset toward a rounder look: it would have matched the mockups drawn during brainstorming, but every component added later would arrive in preset style and need the same manual treatment, which is how a codebase ends up a patchwork of configurations — the exact failure this pass exists to end.
+
+Consistency is the goal. Where a preset component is a poor fit for a surface, the fix is to choose a different preset component, never to restyle one.
 
 ### 2.3 The card must earn its space
 
@@ -76,7 +86,7 @@ Fuerte is the default and stays recommended. The stored column keeps accepting a
 
 ### 2.7 Flat icons, with two survivors
 
-All UI iconography becomes `lucide-react`. Emojis leave the interface.
+All UI iconography becomes `@remixicon/react`, the library `components.json` already names and `package.json` already carries. **No new icon dependency** — an earlier draft of this spec called for `lucide-react`, which would have fought the preset. Emojis leave the interface.
 
 **Kept:** 👻 ghost and 🥷 polizón as enrollment-status markers. The v2 spec names those two specifically, they carry meaning rather than decoration, and the playfulness is intended. Everything else — 📌 ✅ 🗣️ 📝 ⚖ ⚡ — becomes an icon.
 
@@ -110,7 +120,7 @@ The participaciones tab defaults to unhandled items. Vetoing removes the row fro
   └── /configurar/clase            name, dates, schedule
 ```
 
-Each index row renders: lucide icon, group name, current-state summary, chevron.
+Each index row renders: remixicon glyph, group name, current-state summary, chevron.
 
 **Pesos** — the two weights, each its own card, each typed. Below them a read-only line stating that the remainder of the grade comes from participaciones, likes and puntos extra, which are uncapped. **Never** warn that the weights don't total 100; the gap is the design (`CLAUDE.md`).
 
@@ -155,7 +165,7 @@ Existing backend tests must stay green — 194 at the time of writing. The count
 
 Order, each step deployable on its own:
 
-1. Primitives and `lucide-react` installed; units helper written and tested. Nothing visible changes.
+1. Preset primitives added via `npx shadcn add`; units helper written and tested. Nothing visible changes.
 2. Settings architecture: index plus the six group pages.
 3. Revisar and the class panel, with the §2.10 queue fix.
 4. Student surfaces: feed, thread, composer, with §2.8 and §2.9.
