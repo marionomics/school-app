@@ -87,6 +87,33 @@ def revoke_like(db: Session, *, like_id: int, revoked_by: int) -> int:
                              revoked_by=revoked_by)
 
 
+def restore_for_source(db: Session, *, source_type: str, source_id: int) -> int:
+    """Undo a revocation. The row is never deleted, only un-flagged."""
+    rows = (
+        db.query(PointsLedger)
+        .filter(
+            PointsLedger.source_type == source_type,
+            PointsLedger.source_id == source_id,
+            PointsLedger.revoked_at.isnot(None),
+        )
+        .all()
+    )
+    for row in rows:
+        row.revoked_at = None
+        row.revoked_by = None
+    db.flush()
+    return len(rows)
+
+
+def restore_post(db: Session, *, post: Post) -> int:
+    """Inverse of revoke_post: un-flag the taps and the likes it received."""
+    n = restore_for_source(db, source_type="participacion", source_id=post.id)
+    like_ids = [lid for (lid,) in db.query(Like.id).filter(Like.post_id == post.id).all()]
+    for lid in like_ids:
+        n += restore_for_source(db, source_type="forum_like", source_id=lid)
+    return n
+
+
 def revoke_post(db: Session, *, post: Post, revoked_by: int) -> int:
     n = revoke_for_source(db, source_type="participacion", source_id=post.id,
                           revoked_by=revoked_by)

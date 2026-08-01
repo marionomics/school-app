@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from typing import List, Optional, Set
 
+from pydantic import BaseModel
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, selectinload
@@ -379,6 +381,44 @@ def unmark_graded(post_id: int, user: User = Depends(get_current_user),
     post.graded_at = None
     db.commit()
     return {"graded_at": None}
+
+
+class VetoIn(BaseModel):
+    reason: Optional[str] = None
+
+
+def _teacher_of_post(db: Session, post_id: int, user: User) -> Post:
+    post = db.get(Post, post_id)
+    if post is None:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+    if user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Solo el profesor puede vetar")
+    klass = db.get(Class, post.class_id) if post.class_id else None
+    if klass is None or klass.teacher_id != user.id:
+        raise HTTPException(status_code=403, detail="No eres profesor de esa clase")
+    return post
+
+
+@router.post("/{post_id}/veto")
+def veto(post_id: int, body: VetoIn = VetoIn(),
+         user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    post = _teacher_of_post(db, post_id, user)
+    post.status = "vetoed"
+    post.veto_reason = body.reason
+    points.revoke_post(db, post=post, revoked_by=user.id)
+    db.commit()
+    return {"status": post.status, "veto_reason": post.veto_reason}
+
+
+@router.delete("/{post_id}/veto")
+def unveto(post_id: int, user: User = Depends(get_current_user),
+           db: Session = Depends(get_db)):
+    post = _teacher_of_post(db, post_id, user)
+    post.status = "active"
+    post.veto_reason = None
+    points.restore_post(db, post=post)
+    db.commit()
+    return {"status": post.status, "veto_reason": None}
 
 
 @attachments_router.get("/{attachment_id}/url")
