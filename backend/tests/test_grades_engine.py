@@ -225,3 +225,54 @@ def test_review_with_null_score_falls_back_to_auto_score(db, student, teacher, k
     db.commit()
     r = tareas_rubro(db, student.id, klass, now=DUE + timedelta(days=1))
     assert r.points == klass.tareas_weight        # on time, 100%
+
+
+from app.services.grades import examenes_rubro
+
+
+def _examen(db, teacher, klass, mode="paper", graded_at=None):
+    p = Post(author_id=teacher.id, class_id=klass.id, type="examen",
+             content="parcial", examen_mode=mode, graded_at=graded_at)
+    db.add(p)
+    db.commit()
+    return p
+
+
+def test_ungraded_examen_does_not_count(db, student, teacher, klass, enrolled):
+    _examen(db, teacher, klass)                       # graded_at is None
+    r = examenes_rubro(db, student.id, klass, now=DUE)
+    assert r.evaluated is False
+    assert r.points == Decimal("0")
+
+
+def test_graded_paper_examen_scores_from_the_review(db, student, teacher, klass, enrolled):
+    x = _examen(db, teacher, klass, graded_at=DUE)
+    _review(db, teacher, x, student, None, "8")       # 1–10 scale
+    r = examenes_rubro(db, student.id, klass, now=DUE)
+    assert r.evaluated is True
+    assert r.points == Decimal("8") / Decimal("10") * klass.examenes_weight
+
+
+def test_graded_examen_with_no_review_scores_zero(db, student, teacher, klass, enrolled):
+    _examen(db, teacher, klass, graded_at=DUE)
+    r = examenes_rubro(db, student.id, klass, now=DUE)
+    assert r.evaluated is True
+    assert r.points == Decimal("0")
+    assert r.count_due == 1
+
+
+def test_digital_examen_scores_the_same_as_paper(db, student, teacher, klass, enrolled):
+    x = _examen(db, teacher, klass, mode="digital", graded_at=DUE)
+    e = _entrega(db, student, x, DUE - timedelta(hours=1))
+    _review(db, teacher, x, student, e, "8")
+    r = examenes_rubro(db, student.id, klass, now=DUE)
+    assert r.points == Decimal("8") / Decimal("10") * klass.examenes_weight
+
+
+def test_unmarking_graded_removes_the_examen_again(db, student, teacher, klass, enrolled):
+    x = _examen(db, teacher, klass, graded_at=DUE)
+    _review(db, teacher, x, student, None, "8")
+    x.graded_at = None
+    db.commit()
+    r = examenes_rubro(db, student.id, klass, now=DUE)
+    assert r.evaluated is False

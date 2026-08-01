@@ -199,36 +199,37 @@ class GradeBreakdown:
 
 
 def examenes_rubro(db: Session, user_id: int, klass: Class, now: datetime) -> Rubro:
-    """Exámenes are created in Phase 2b; until then this is always unevaluated.
+    """An examen counts only once the teacher marks it calificado.
 
-    The logic is written and tested now so the engine is finished in one pass.
+    Unlike a tarea, an examen has no auto-score: until somebody types a number
+    there is nothing to average, so an ungraded examen stays invisible instead
+    of reading as a zero. Once graded, it counts for every active enrollment —
+    a student with no review scored 0, which is the 'didn't take it' case.
     """
-    closed = (
+    graded = (
         db.query(Post)
         .filter(Post.class_id == klass.id,
                 Post.type == "examen",
                 Post.status == "active",
-                Post.due_date.isnot(None),
-                Post.due_date <= now)
+                Post.graded_at.isnot(None))
         .all()
     )
     weight = klass.examenes_weight
-    if not closed:
+    if not graded:
         return Rubro(evaluated=False, points=Decimal("0"), weight=weight)
 
     total = Decimal("0")
     entregadas = 0
-    for examen in closed:
+    for examen in graded:
         entrega = _counting_entrega(db, user_id, examen.id)
-        if entrega is None:
-            continue
-        entregadas += 1
-        review = db.query(Review).filter(Review.entrega_post_id == entrega.id).first()
+        if entrega is not None:
+            entregadas += 1
+        review = counting_review(db, examen.id, user_id, entrega)
         if review is not None and review.score is not None:
-            total += Decimal(review.score) / Decimal("10")   # 1-10 scale
-    points = (total / len(closed)) * weight
+            total += Decimal(review.score) / Decimal("10")   # 1–10 scale
+    points = (total / len(graded)) * weight
     return Rubro(evaluated=True, points=points, weight=weight,
-                 count_due=len(closed), count_entregadas=entregadas)
+                 count_due=len(graded), count_entregadas=entregadas)
 
 
 def calculate_grade(db: Session, user_id: int, klass: Class,
