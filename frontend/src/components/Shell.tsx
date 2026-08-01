@@ -31,6 +31,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <Link to="/clases" className="rounded-md px-3 py-2 hover:bg-accent" onClick={() => setMenuOpen(false)}>
               {es.nav.classes}
             </Link>
+            {user?.role === "teacher" && (
+              <Link to="/revisar" className="rounded-md px-3 py-2 hover:bg-accent" onClick={() => setMenuOpen(false)}>
+                {es.revisar.title}
+              </Link>
+            )}
             <button onClick={handleLogout} className="mt-auto rounded-md px-3 py-2 text-left text-destructive hover:bg-accent">
               {es.nav.logout}
             </button>
