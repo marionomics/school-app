@@ -15,7 +15,8 @@ export default function Compose() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
-  const [mode, setMode] = useState<"regular" | "participacion" | "tarea">("regular");
+  const [mode, setMode] = useState<"regular" | "participacion" | "tarea" | "examen">("regular");
+  const [examenMode, setExamenMode] = useState<"paper" | "digital">("paper");
   const [dueDate, setDueDate] = useState<string>("");
   const [content, setContent] = useState("");
   const [classId, setClassId] = useState<number | null>(null);
@@ -51,6 +52,7 @@ export default function Compose() {
       if (mode === "tarea" && dueDate) {
         fd.set("due_date", new Date(dueDate).toISOString());
       }
+      if (mode === "examen") fd.set("examen_mode", examenMode);
       if (classId != null) fd.set("class_id", String(classId));
       for (const f of files) fd.append("files", f);
       return api<Post>("/api/posts", { method: "POST", body: fd });
@@ -74,7 +76,7 @@ export default function Compose() {
   const teaching = mine.data?.teaching ?? [];
   // A teacher picks among the classes they teach; a student among enrollments.
   const pickable = isStudent ? enrolled : teaching;
-  const needsClass = mode === "tarea" && classId == null;
+  const needsClass = (mode === "tarea" || mode === "examen") && classId == null;
   const contentOk = content.trim().length >= MIN_PARTICIPACION_CHARS;
   const ringPct = tapCtl.active ? (tapCtl.msLeft / tapCtl.windowMs) * 100 : 0;
 
@@ -115,16 +117,36 @@ export default function Compose() {
 
       {!isStudent && (
         <div className="flex gap-2">
-          {(["regular", "tarea"] as const).map((m) => (
+          {(["regular", "tarea", "examen"] as const).map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
               className={`rounded-full px-3 py-1 text-sm ${mode === m ? "bg-primary text-primary-foreground" : "border"}`}
             >
-              {m === "regular" ? es.compose.modeRegular : `📌 ${es.compose.modeTarea}`}
+              {m === "regular"
+                ? es.compose.modeRegular
+                : m === "tarea"
+                  ? `📌 ${es.compose.modeTarea}`
+                  : `📝 ${es.compose.modeExamen}`}
             </button>
           ))}
         </div>
+      )}
+
+      {mode === "examen" && (
+        <label className="text-sm">
+          {es.compose.examenModeLabel}
+          <select
+            className="ml-2 rounded-md border px-2 py-1"
+            value={examenMode}
+            onChange={(e) =>
+              setExamenMode(e.target.value as "paper" | "digital")
+            }
+          >
+            <option value="paper">{es.compose.examenPaper}</option>
+            <option value="digital">{es.compose.examenDigital}</option>
+          </select>
+        </label>
       )}
 
       {mode === "tarea" && (
@@ -159,7 +181,15 @@ export default function Compose() {
       <textarea
         autoFocus
         className="min-h-40 w-full resize-none rounded-lg border p-3"
-        placeholder={mode === "participacion" ? es.compose.participacionPlaceholder : mode === "tarea" ? es.compose.tareaPlaceholder : es.compose.placeholder}
+        placeholder={
+          mode === "participacion"
+            ? es.compose.participacionPlaceholder
+            : mode === "tarea"
+              ? es.compose.tareaPlaceholder
+              : mode === "examen"
+                ? es.compose.examenPlaceholder
+                : es.compose.placeholder
+        }
         value={content}
         onChange={(e) => setContent(e.target.value)}
       />
