@@ -69,6 +69,27 @@ export default function PostCard({
             ✅ {es.feed.entregaBadge}
           </span>
         )}
+        {post.my_review?.score != null && !removed && (
+          <span className="mt-1 inline-block rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-medium text-sky-700">
+            {es.post.scoreBadge.replace("{n}", String(post.my_review.score))}
+          </span>
+        )}
+        {post.my_review?.feedback && !removed && (
+          <p className="mt-1 rounded-lg bg-muted p-2 text-xs">
+            <span className="font-medium">{es.post.feedbackFrom}: </span>
+            {post.my_review.feedback}
+          </p>
+        )}
+        {post.status === "vetoed" && post.veto_reason && (
+          <p className="mt-1 text-xs text-destructive">
+            {es.post.vetoedNotice} · {post.veto_reason}
+          </p>
+        )}
+        {post.type === "examen" && !removed && (
+          <span className="mt-1 inline-block rounded-full bg-violet-500/15 px-2 py-0.5 text-xs font-medium text-violet-700">
+            {es.post.examenBadge}
+          </span>
+        )}
         {linkToThread && !removed ? (
           <Link to={`/post/${post.id}`} className="mt-1 block">
             {body}

@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { useLikeMutation, openAttachment } from "@/lib/likes";
 import { latenessTier } from "@/lib/lateness";
 import PostCard from "@/components/PostCard";
+import ReviewSheet from "@/components/ReviewSheet";
 import { FeedSkeleton } from "@/components/Skeletons";
 import { useToast } from "@/components/Toaster";
 import { es } from "@/strings/es";
@@ -22,6 +23,7 @@ export default function Thread() {
   const [replyTo, setReplyTo] = useState<Post | null>(null);
   const [confirming, setConfirming] = useState<Post | null>(null);
   const [isEntrega, setIsEntrega] = useState(false);
+  const [grading, setGrading] = useState<Post | null>(null);
 
   const q = useQuery({
     queryKey: ["thread", id],
@@ -95,6 +97,14 @@ export default function Thread() {
           }}
         >
           ↩ {es.post.replySubmit}
+        </button>
+      )}
+      {user?.role === "teacher" && p.is_entrega && (
+        <button
+          className="mb-2 ml-4 text-xs text-muted-foreground"
+          onClick={() => setGrading(p)}
+        >
+          ✎ {es.revisar.scoreLabel}
         </button>
       )}
     </div>
@@ -171,6 +181,32 @@ export default function Thread() {
             </div>
           </div>
         </div>
+      )}
+      {grading && (
+        <ReviewSheet
+          item={{ id: post.id, type: post.type === "examen" ? "examen" : "tarea" }}
+          student={{
+            id: grading.author.id,
+            username: grading.author.username,
+            name: grading.author.name,
+          }}
+          entregaPostId={grading.id}
+          autoScore={
+            post.due_date
+              ? latenessTier(
+                  new Date(grading.created_at),
+                  new Date(post.due_date),
+                ).pct
+              : null
+          }
+          initialScore={grading.my_review?.score ?? null}
+          initialFeedback={grading.my_review?.feedback ?? ""}
+          onSaved={() => {
+            void qc.invalidateQueries({ queryKey: ["thread", id] });
+            void qc.invalidateQueries({ queryKey: ["grade"] });
+          }}
+          onClose={() => setGrading(null)}
+        />
       )}
     </div>
   );
