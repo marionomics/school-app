@@ -125,3 +125,28 @@ def test_other_teacher_cannot_update_settings(client, db, klass):
         headers=headers,
     )
     assert r.status_code == 403
+
+
+def test_settings_expose_attendance_minimum(client, teacher_headers, klass):
+    r = client.get(f"/api/classes/{klass.id}/settings", headers=teacher_headers)
+    assert r.status_code == 200
+    assert r.json()["attendance_required_pct"] == 80
+
+
+def test_teacher_can_change_the_attendance_minimum(client, teacher_headers, klass):
+    r = client.patch(
+        f"/api/classes/{klass.id}/settings",
+        json={"attendance_required_pct": 70},
+        headers=teacher_headers,
+    )
+    assert r.status_code == 200
+    assert r.json()["attendance_required_pct"] == 70
+
+
+def test_attendance_minimum_above_100_is_rejected(client, teacher_headers, klass):
+    r = client.patch(
+        f"/api/classes/{klass.id}/settings",
+        json={"attendance_required_pct": 140},
+        headers=teacher_headers,
+    )
+    assert r.status_code == 422
