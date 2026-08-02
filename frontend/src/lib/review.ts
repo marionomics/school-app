@@ -1,5 +1,8 @@
-import { api } from "@/lib/api";
-import type { Review } from "@/lib/types";
+// Relative, like every other module in src/lib. The "@/" alias does not
+// resolve under vitest, so a module using it makes its own test file
+// unrunnable — which is what had happened to review.test.ts.
+import { api } from "./api";
+import type { Review } from "./types";
 
 export type ItemType = "tarea" | "examen";
 
