@@ -53,7 +53,11 @@ export function useLikeMutation() {
       toast.show(es.post.likeError);
     },
     onSettled: () => {
-      void qc.invalidateQueries({ queryKey: ["feed"] });
+      // Deliberately NOT invalidating ["feed"]: the server bumps
+      // last_activity_at on a like, so a refetch re-sorts the list and yanks
+      // the post to the top while the user is still reading it. onMutate above
+      // already applied the correct like state in place, so there is nothing
+      // to reconcile. The feed re-sorts only on an explicit refresh.
       void qc.invalidateQueries({ queryKey: ["thread"] });
     },
   });
