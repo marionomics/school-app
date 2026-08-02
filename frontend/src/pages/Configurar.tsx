@@ -9,8 +9,6 @@ import type { ClassSettings, Incentive, MyClasses } from "@/lib/types";
 
 export default function Configurar() {
   const { user } = useAuth();
-  if (user?.role !== "teacher") return <Navigate to="/" replace />;
-
   const [classId, setClassId] = useState<number | null>(null);
 
   const mine = useQuery({
@@ -19,6 +17,11 @@ export default function Configurar() {
   });
   const teaching = mine.data?.teaching ?? [];
   const activeClass = classId ?? teaching[0]?.id ?? null;
+
+  // The guard has to sit below every hook: returning above them changes the
+  // hook order between renders once `user` resolves, which React treats as a
+  // fatal error rather than a warning.
+  if (user?.role !== "teacher") return <Navigate to="/" replace />;
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 p-4">
