@@ -10,7 +10,13 @@ import JoinByLink from "@/pages/JoinByLink";
 import Thread from "@/pages/Thread";
 import Compose from "@/pages/Compose";
 import Revisar from "@/pages/Revisar";
-import Configurar from "@/pages/Configurar";
+import ConfigurarIndex from "@/pages/configurar/Index";
+import Pesos from "@/pages/configurar/Pesos";
+import Foro from "@/pages/configurar/Foro";
+import Extras from "@/pages/configurar/Extras";
+import Asistencia from "@/pages/configurar/Asistencia";
+import Salvando from "@/pages/configurar/Salvando";
+import Clase from "@/pages/configurar/Clase";
 import ClassPanel from "@/pages/ClassPanel";
 import PasarLista from "@/pages/PasarLista";
 
@@ -100,7 +106,67 @@ export default function App() {
               element={
                 <RequireAuth>
                   <Shell>
-                    <Configurar />
+                    <ConfigurarIndex />
+                  </Shell>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/configurar/pesos"
+              element={
+                <RequireAuth>
+                  <Shell>
+                    <Pesos />
+                  </Shell>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/configurar/foro"
+              element={
+                <RequireAuth>
+                  <Shell>
+                    <Foro />
+                  </Shell>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/configurar/extras"
+              element={
+                <RequireAuth>
+                  <Shell>
+                    <Extras />
+                  </Shell>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/configurar/asistencia"
+              element={
+                <RequireAuth>
+                  <Shell>
+                    <Asistencia />
+                  </Shell>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/configurar/salvando"
+              element={
+                <RequireAuth>
+                  <Shell>
+                    <Salvando />
+                  </Shell>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/configurar/clase"
+              element={
+                <RequireAuth>
+                  <Shell>
+                    <Clase />
                   </Shell>
                 </RequireAuth>
               }

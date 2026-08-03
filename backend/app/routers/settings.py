@@ -32,6 +32,7 @@ def _to_out(klass: Class, cfg: PointsConfig) -> ClassSettingsOut:
         tap_value=cfg.tap_value,
         like_value=cfg.like_value,
         like_exponent=cfg.like_exponent,
+        attendance_required_pct=klass.attendance_required_pct,
     )
 
 
@@ -63,6 +64,8 @@ def update_settings(
         cfg.like_value = body.like_value
     if body.like_exponent is not None:
         cfg.like_exponent = body.like_exponent
+    if body.attendance_required_pct is not None:
+        klass.attendance_required_pct = body.attendance_required_pct
     db.commit()
     db.refresh(klass)
     db.refresh(cfg)

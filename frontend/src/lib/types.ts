@@ -150,6 +150,7 @@ export interface ClassSettings {
   tap_value: number;
   like_value: number;
   like_exponent: number;
+  attendance_required_pct: number;
 }
 
 export interface SessionOut {

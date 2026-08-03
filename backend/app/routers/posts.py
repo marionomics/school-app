@@ -50,7 +50,10 @@ def get_root(db: Session, post: Post) -> Post:
 
 def serialize_post(post: Post, liked_ids: Set[int], *, viewer: Optional[User] = None,
                    review_by_post: Optional[dict] = None) -> PostOut:
-    removed = post.status != "active"
+    # Only a DELETED post loses its text. A veto removes the points, not the
+    # student's words — blanking them would leave an unexplained empty card in
+    # the feed, and the veto reason it carries would have nothing to attach to.
+    removed = post.status == "deleted"
     # Scores, feedback and veto reasons belong only to the student who wrote the
     # post. Classmates read the same thread, so this is withheld server-side.
     private = viewer is not None and (
@@ -125,7 +128,12 @@ def get_feed(
         db.query(Post)
         .options(selectinload(Post.author), selectinload(Post.klass),
                  selectinload(Post.attachments))
-        .filter(Post.parent_id.is_(None), Post.status == "active")
+        # Vetoed posts stay in the feed: a student whose post silently vanished
+        # gets no explanation, which is the opposite of what the veto flow
+        # intends. They keep their text and carry a veto_reason that
+        # serialize_post shows only to the author and the teacher. Deleted
+        # posts stay hidden.
+        .filter(Post.parent_id.is_(None), Post.status.in_(("active", "vetoed")))
     )
     if cursor:
         try:

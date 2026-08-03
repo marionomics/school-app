@@ -10,6 +10,10 @@ Cosas deliberadamente pospuestas. Nada aquí bloquea el MVP.
 4. **DMs.** "Maybe we don't really need those" vs "probablemente valga la pena para engagement". Decidir después de que existan notificaciones.
 5. **Exención.** Licenciatura: ≥ 8.5 exenta ordinario; si no, ordinario se promedia. Posgrado: distinto. Definir mecánica exacta como settings de clase.
 
+## Huecos conocidos (pequeños, con dueño claro)
+
+- **Editar nombre, fechas y horario de la clase.** Hoy sólo se pueden fijar al crearla: `ClassSettingsUpdate` acepta pesos, valores de puntos y el mínimo de asistencia, nada más. La página `/configurar/clase` los muestra en solo lectura. Falta un endpoint; se dejó fuera del design pass a propósito porque era scope de backend que esa fase no tenía. (2026-08-02)
+
 ## Ideas de largo plazo
 
 - **Wiki** con tagging `[[artículo]]` desde el foro (estilo Obsidian) y menciones `@compañero`

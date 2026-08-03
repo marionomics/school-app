@@ -19,4 +19,14 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // Generated shadcn primitives. They export variant objects alongside their
+    // components, which trips the hot-reload rule. These files are used exactly
+    // as the preset ships them and are never hand-edited, so the exemption goes
+    // here rather than into the files.
+    files: ['src/components/ui/**/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

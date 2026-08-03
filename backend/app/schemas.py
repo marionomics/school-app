@@ -171,6 +171,7 @@ class ClassSettingsUpdate(BaseModel):
     tap_value: Optional[Decimal] = Field(default=None, gt=0)
     like_value: Optional[Decimal] = Field(default=None, gt=0)
     like_exponent: Optional[Decimal] = Field(default=None, ge=Decimal("0.1"), le=Decimal("2.0"))
+    attendance_required_pct: Optional[int] = Field(default=None, ge=0, le=100)
 
 
 class ClassSettingsOut(BaseModel):
@@ -179,6 +180,7 @@ class ClassSettingsOut(BaseModel):
     tap_value: Decimal
     like_value: Decimal
     like_exponent: Decimal
+    attendance_required_pct: int
 
 
 class SessionOut(BaseModel):
