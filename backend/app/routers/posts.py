@@ -443,6 +443,37 @@ def unveto(post_id: int, user: User = Depends(get_current_user),
     return {"status": post.status, "veto_reason": None}
 
 
+def _teacher_participacion(db: Session, post_id: int, user: User) -> Post:
+    post = _teacher_of_post(db, post_id, user)
+    if post.type != "participacion":
+        raise HTTPException(status_code=422,
+                            detail="Sólo las participaciones se revisan")
+    return post
+
+
+@router.post("/{post_id}/reviewed")
+def mark_reviewed(post_id: int, user: User = Depends(get_current_user),
+                  db: Session = Depends(get_db)):
+    """Records that the teacher looked. Moves no points — the student earned
+    them on publish. This is the non-destructive twin of veto, and the two must
+    never be collapsed into one control."""
+    post = _teacher_participacion(db, post_id, user)
+    post.reviewed_at = utcnow()
+    post.reviewed_by = user.id
+    db.commit()
+    return {"reviewed": True}
+
+
+@router.delete("/{post_id}/reviewed")
+def unmark_reviewed(post_id: int, user: User = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    post = _teacher_participacion(db, post_id, user)
+    post.reviewed_at = None
+    post.reviewed_by = None
+    db.commit()
+    return {"reviewed": False}
+
+
 @attachments_router.get("/{attachment_id}/url")
 def attachment_url(attachment_id: int, user: User = Depends(get_current_user),
                    db: Session = Depends(get_db)):
