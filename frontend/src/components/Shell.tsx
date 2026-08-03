@@ -2,6 +2,12 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import GradeChip from "@/components/GradeChip";
+import {
+  RiAddLine,
+  RiHome5Line,
+  RiMenuLine,
+  RiUserLine,
+} from "@remixicon/react";
 import { es } from "@/strings/es";
 
 export default function Shell({ children }: { children: React.ReactNode }) {
@@ -17,8 +23,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-20 flex items-center justify-between border-b bg-background px-4 py-3">
-        <button aria-label={es.nav.menu} onClick={() => setMenuOpen(true)} className="text-xl">
-          ☰
+        <button aria-label={es.nav.menu} onClick={() => setMenuOpen(true)}>
+          <RiMenuLine className="size-5" />
         </button>
         <span className="font-bold">{es.appName}</span>
         {user?.role === "teacher" ? <span className="w-6" /> : <GradeChip />}
@@ -52,14 +58,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <main className="flex-1 pb-16">{children}</main>
 
       <nav className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-around border-t bg-background py-2">
-        <Link to="/" aria-label={es.nav.home} className="p-2 text-xl">
-          🏠
+        <Link to="/" aria-label={es.nav.home} className="p-2">
+          <RiHome5Line className="size-5" />
         </Link>
-        <Link to="/componer" aria-label={es.nav.create} className="p-2 text-xl">
-          ➕
+        <Link to="/componer" aria-label={es.nav.create} className="p-2">
+          <RiAddLine className="size-5" />
         </Link>
-        <Link to="/onboarding" aria-label={es.nav.profile} className="p-2 text-xl">
-          👤
+        <Link to="/onboarding" aria-label={es.nav.profile} className="p-2">
+          <RiUserLine className="size-5" />
         </Link>
       </nav>
     </div>

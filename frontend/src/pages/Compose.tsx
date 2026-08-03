@@ -109,7 +109,7 @@ export default function Compose() {
               }}
               className={`rounded-full px-3 py-1 text-sm ${mode === m ? "bg-primary text-primary-foreground" : "border"}`}
             >
-              {m === "regular" ? es.compose.modeRegular : `🗣️ ${es.compose.modeParticipacion}`}
+              {m === "regular" ? es.compose.modeRegular : es.compose.modeParticipacion}
             </button>
           ))}
         </div>
@@ -126,8 +126,8 @@ export default function Compose() {
               {m === "regular"
                 ? es.compose.modeRegular
                 : m === "tarea"
-                  ? `📌 ${es.compose.modeTarea}`
-                  : `📝 ${es.compose.modeExamen}`}
+                  ? es.compose.modeTarea
+                  : es.compose.modeExamen}
             </button>
           ))}
         </div>

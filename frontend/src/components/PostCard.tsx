@@ -1,5 +1,13 @@
 import { Link } from "react-router-dom";
 import Avatar from "@/components/Avatar";
+import {
+  RiCheckLine,
+  RiChat3Line,
+  RiFileTextLine,
+  RiHeart3Fill,
+  RiHeart3Line,
+  RiPushpinLine,
+} from "@remixicon/react";
 import { es } from "@/strings/es";
 import type { Post } from "@/lib/types";
 
@@ -56,26 +64,26 @@ export default function PostCard({
           )}
         </div>
         {post.type === "participacion" && !removed && (
-          <span className="mt-1 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-            🗣️ {es.feed.participacionBadge}
+          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            <RiChat3Line className="size-3" /> {es.feed.participacionBadge}
             {post.taps && post.taps > 1 ? ` ×${post.taps}` : ""}
             {post.class_name ? ` · ${post.class_name}` : ""}
           </span>
         )}
         {post.type === "tarea" && !removed && (
-          <span className="mt-1 inline-block rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700">
-            📌 {es.feed.tareaBadge}
+          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700">
+            <RiPushpinLine className="size-3" /> {es.feed.tareaBadge}
             {post.due_date && ` · ${es.feed.dueOn.replace(
               "{date}", new Date(post.due_date).toLocaleDateString("es-MX"))}`}
           </span>
         )}
         {post.is_entrega && !removed && (
-          <span className="mt-1 inline-block rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700">
-            ✅ {es.feed.entregaBadge}
+          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700">
+            <RiCheckLine className="size-3" /> {es.feed.entregaBadge}
           </span>
         )}
         {post.my_review?.score != null && !removed && (
-          <span className="mt-1 inline-block rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-medium text-sky-700">
+          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-medium text-sky-700">
             {es.post.scoreBadge.replace("{n}", String(post.my_review.score))}
           </span>
         )}
@@ -96,8 +104,8 @@ export default function PostCard({
           </p>
         )}
         {post.type === "examen" && !removed && (
-          <span className="mt-1 inline-block rounded-full bg-violet-500/15 px-2 py-0.5 text-xs font-medium text-violet-700">
-            {es.post.examenBadge}
+          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-xs font-medium text-violet-700">
+            <RiFileTextLine className="size-3" /> {es.post.examenBadge}
           </span>
         )}
         {linkToThread && !removed ? (
@@ -134,7 +142,12 @@ export default function PostCard({
             aria-pressed={post.liked_by_me}
             className={post.liked_by_me ? "text-destructive" : ""}
           >
-            {post.liked_by_me ? "♥" : "♡"} {post.like_count > 0 ? post.like_count : ""}
+            {post.liked_by_me ? (
+              <RiHeart3Fill className="size-4" />
+            ) : (
+              <RiHeart3Line className="size-4" />
+            )}
+            {post.like_count > 0 ? post.like_count : ""}
           </button>
           <span>
             💬 {post.reply_count > 0 ? post.reply_count : ""}
