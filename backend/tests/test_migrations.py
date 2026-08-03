@@ -105,3 +105,10 @@ def test_incentives_table_has_required_columns(db):
     cols = {c["name"] for c in inspect(db.bind).get_columns("incentives")}
     assert {"id", "class_id", "name", "points", "description",
             "created_at", "deleted_at"} <= cols
+
+
+def test_posts_has_reviewed_columns(db):
+    from sqlalchemy import inspect
+
+    cols = {c["name"] for c in inspect(db.bind).get_columns("posts")}
+    assert {"reviewed_at", "reviewed_by"} <= cols
