@@ -1,6 +1,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_user
@@ -119,17 +120,21 @@ def examen_roster(examen_id: int, user: User = Depends(get_current_user),
 
 
 @router.get("/participaciones")
-def participaciones(class_id: int, limit: int = Query(50, ge=1, le=200),
+def participaciones(class_id: int, status: str = Query("pending"),
+                    limit: int = Query(50, ge=1, le=200),
                     user: User = Depends(get_current_user),
                     db: Session = Depends(get_db)):
     klass = _owned_class(db, class_id, user)
-    posts = (
-        db.query(Post)
-        .filter(Post.class_id == klass.id, Post.type == "participacion")
-        .order_by(Post.created_at.desc())
-        .limit(limit)
-        .all()
-    )
+    q = db.query(Post).filter(Post.class_id == klass.id,
+                              Post.type == "participacion")
+    # "Pending" means it still needs you: not looked at, and not cancelled.
+    # Without this the queue never drains and the only control that clears a
+    # row is the one that takes the student's points.
+    if status == "pending":
+        q = q.filter(Post.reviewed_at.is_(None), Post.status != "vetoed")
+    else:
+        q = q.filter(or_(Post.reviewed_at.isnot(None), Post.status == "vetoed"))
+    posts = q.order_by(Post.created_at.desc()).limit(limit).all()
     items = []
     for p in posts:
         row = (
@@ -145,6 +150,7 @@ def participaciones(class_id: int, limit: int = Query(50, ge=1, le=200),
             "taps": p.taps,
             "points": float(row.points) if row is not None else 0.0,
             "vetoed": p.status == "vetoed",
+            "reviewed": p.reviewed_at is not None,
             "veto_reason": p.veto_reason,
             "created_at": p.created_at,
         })
