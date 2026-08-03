@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import {
+  RiChat3Line,
+  RiCloseCircleLine,
+  RiFileTextLine,
+  RiHeart3Line,
+  RiPushpinLine,
+} from "@remixicon/react";
+import { formatPoints } from "@/lib/points";
 import { es } from "@/strings/es";
 import type { GradeSummary } from "@/lib/types";
 
@@ -44,7 +52,7 @@ export default function GradeChip() {
                 </div>
                 <dl className="mt-2 space-y-1 text-sm">
                   <div className="flex justify-between gap-2">
-                    <dt>📌 {es.grade.tareas}</dt>
+                    <dt className="flex items-center gap-1"><RiPushpinLine className="size-3.5" /> {es.grade.tareas}</dt>
                     <dd className="text-right">
                       {g.tareas.evaluated
                         ? `${g.tareas.points} / ${g.tareas.weight}`
@@ -52,7 +60,7 @@ export default function GradeChip() {
                     </dd>
                   </div>
                   <div className="flex justify-between gap-2">
-                    <dt>📝 {es.grade.examenes}</dt>
+                    <dt className="flex items-center gap-1"><RiFileTextLine className="size-3.5" /> {es.grade.examenes}</dt>
                     <dd className="text-right">
                       {g.examenes.evaluated
                         ? `${g.examenes.points} / ${g.examenes.weight}`
@@ -60,26 +68,41 @@ export default function GradeChip() {
                     </dd>
                   </div>
                   <div className="flex justify-between gap-2">
-                    <dt>🗣️ {es.grade.participaciones}</dt>
+                    <dt className="flex items-center gap-1"><RiChat3Line className="size-3.5" /> {es.grade.participaciones}</dt>
                     <dd>{g.ledger.participaciones}</dd>
                   </div>
                   <div className="flex justify-between gap-2">
-                    <dt>♥ {es.grade.likes}</dt>
+                    <dt className="flex items-center gap-1"><RiHeart3Line className="size-3.5" /> {es.grade.likes}</dt>
                     <dd className="text-right">
                       {g.ledger.likes} · {es.grade.likesWithCount.replace("{n}", String(g.ledger.likes_count))}
                     </dd>
                   </div>
                   {g.faltas.count > 0 && (
                     <div className="flex justify-between gap-2 text-destructive">
-                      <dt>🚫 {es.grade.faltas}</dt>
-                      <dd>−{g.faltas.points}</dd>
+                      <dt className="flex items-center gap-1"><RiCloseCircleLine className="size-3.5" /> {es.grade.faltas}</dt>
+                      {/* A falta costs a whole point on the 10-scale, not a
+                          décima. Showing the bare number is exactly how that
+                          gets misread. */}
+                      <dd className="text-right">
+                        −{g.faltas.points}
+                        <span className="block text-[10px] opacity-80">
+                          {formatPoints(g.faltas.points)}
+                        </span>
+                      </dd>
                     </div>
                   )}
                 </dl>
                 <ul className="mt-3 space-y-1 border-t pt-2 text-xs text-muted-foreground">
                   {g.events.slice(0, 15).map((ev, i) => (
                     <li key={i} className="flex justify-between">
-                      <span>{ev.source_type === "participacion" ? "🗣️" : "♥"} {new Date(ev.created_at).toLocaleDateString("es-MX")}</span>
+                      <span className="flex items-center gap-1">
+                        {ev.source_type === "participacion" ? (
+                          <RiChat3Line className="size-3" />
+                        ) : (
+                          <RiHeart3Line className="size-3" />
+                        )}
+                        {new Date(ev.created_at).toLocaleDateString("es-MX")}
+                      </span>
                       <span>+{ev.points}</span>
                     </li>
                   ))}

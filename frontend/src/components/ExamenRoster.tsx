@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { isScoreValid, markGraded, saveReview } from "@/lib/review";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/Toaster";
 import { es } from "@/strings/es";
 import type { ExamenRoster } from "@/lib/types";
@@ -51,19 +53,24 @@ export default function ExamenRosterPanel({ examenId }: { examenId: number }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <ul className="divide-y rounded-lg border">
+      {/* The consulted exception to one-control-per-line: a roster row is a
+          person plus the one thing you are setting. Stacking them would double
+          the scrolling for forty students. */}
+      <ul className="divide-y border-y">
         {rows.map((r) => (
           <li
             key={r.student.id}
-            className="flex items-center justify-between px-3 py-2"
+            className="flex items-center justify-between py-2"
           >
-            <span>@{r.student.username ?? r.student.name}</span>
-            <input
+            <span className="text-sm">
+              @{r.student.username ?? r.student.name}
+            </span>
+            <Input
               type="number"
               inputMode="numeric"
               min={1}
               max={10}
-              className="w-20 rounded-md border px-2 py-1 text-right"
+              className="w-20 text-right tabular-nums"
               value={
                 draft[r.student.id] ??
                 (r.score != null ? String(r.score) : "")
@@ -85,14 +92,14 @@ export default function ExamenRosterPanel({ examenId }: { examenId: number }) {
           {es.revisar.markGradedWarning.replace("{n}", String(missing))}
         </p>
       )}
-      <button
+      <Button
+        variant={examen.graded_at == null ? "default" : "outline"}
         onClick={() => flip.mutate(examen.graded_at == null)}
-        className="rounded-full border px-4 py-2 text-sm"
       >
         {examen.graded_at == null
           ? es.revisar.markGraded
           : es.revisar.unmarkGraded}
-      </button>
+      </Button>
     </div>
   );
 }

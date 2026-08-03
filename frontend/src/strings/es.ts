@@ -107,6 +107,9 @@ export const es = {
     unveto: "Quitar veto",
     vetoReasonLabel: "Motivo (opcional)",
     vetoed: "Vetada",
+    filterPending: "Pendientes",
+    filterHandled: "Vistas",
+    noneHandled: "Nada vetado todavía",
     saveError: "No se pudo guardar",
   },
   compose: {

@@ -5,6 +5,9 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useTapWindow } from "@/hooks/useTapWindow";
 import { useToast } from "@/components/Toaster";
+import { RiAttachment2 } from "@remixicon/react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { es } from "@/strings/es";
 import type { MyClasses, Post } from "@/lib/types";
 
@@ -109,7 +112,7 @@ export default function Compose() {
               }}
               className={`rounded-full px-3 py-1 text-sm ${mode === m ? "bg-primary text-primary-foreground" : "border"}`}
             >
-              {m === "regular" ? es.compose.modeRegular : `🗣️ ${es.compose.modeParticipacion}`}
+              {m === "regular" ? es.compose.modeRegular : es.compose.modeParticipacion}
             </button>
           ))}
         </div>
@@ -126,18 +129,19 @@ export default function Compose() {
               {m === "regular"
                 ? es.compose.modeRegular
                 : m === "tarea"
-                  ? `📌 ${es.compose.modeTarea}`
-                  : `📝 ${es.compose.modeExamen}`}
+                  ? es.compose.modeTarea
+                  : es.compose.modeExamen}
             </button>
           ))}
         </div>
       )}
 
       {mode === "examen" && (
-        <label className="text-sm">
-          {es.compose.examenModeLabel}
+        <div>
+          <Label htmlFor="examen-mode">{es.compose.examenModeLabel}</Label>
           <select
-            className="ml-2 rounded-md border px-2 py-1"
+            id="examen-mode"
+            className="mt-2 w-full border bg-transparent px-2 py-2 text-sm"
             value={examenMode}
             onChange={(e) =>
               setExamenMode(e.target.value as "paper" | "digital")
@@ -146,27 +150,31 @@ export default function Compose() {
             <option value="paper">{es.compose.examenPaper}</option>
             <option value="digital">{es.compose.examenDigital}</option>
           </select>
-        </label>
+        </div>
       )}
 
       {mode === "tarea" && (
-        <label className="text-sm">
-          {es.compose.dueLabel}
-          <input
+        <div>
+          <Label htmlFor="due-date">{es.compose.dueLabel}</Label>
+          <Input
+            id="due-date"
             type="datetime-local"
-            className="ml-2 rounded-md border px-2 py-1"
+            className="mt-2"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
           />
-          <span className="ml-2 text-xs text-muted-foreground">{es.compose.dueHint}</span>
-        </label>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {es.compose.dueHint}
+          </p>
+        </div>
       )}
 
       {(pickable.length > 1 || needsClass) && pickable.length > 0 && (
-        <label className="text-sm">
-          {es.compose.classLabel}
+        <div>
+          <Label htmlFor="class-picker">{es.compose.classLabel}</Label>
           <select
-            className="ml-2 rounded-md border px-2 py-1"
+            id="class-picker"
+            className="mt-2 w-full border bg-transparent px-2 py-2 text-sm"
             value={classId ?? ""}
             onChange={(e) => setClassId(Number(e.target.value))}
           >
@@ -175,7 +183,7 @@ export default function Compose() {
               <option key={k.id} value={k.id}>{k.name}</option>
             ))}
           </select>
-        </label>
+        </div>
       )}
 
       <textarea
@@ -204,7 +212,7 @@ export default function Compose() {
             onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, 4))}
           />
           <button onClick={() => fileInput.current?.click()} className="rounded-md border px-3 py-1.5 text-sm">
-            📎 {es.compose.attach}
+            <RiAttachment2 className="size-4" /> {es.compose.attach}
           </button>
           {files.map((f) => (
             <span key={f.name} className="ml-2 text-xs text-muted-foreground">{f.name}</span>

@@ -1,12 +1,30 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { isScoreValid, saveReview, scoreRange, type ItemType } from "@/lib/review";
+import {
+  isScoreValid,
+  saveReview,
+  scoreRange,
+  type ItemType,
+} from "@/lib/review";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/Toaster";
+import { formatPoints } from "@/lib/points";
 import { es } from "@/strings/es";
 import type { QueueStudent } from "@/lib/types";
 
+/** The one place a score is entered, wherever grading was started from —
+ *  the Revisar queue or an entrega in the feed thread. */
 export default function ReviewSheet({
-  item, student, entregaPostId, autoScore, initialScore, initialFeedback, onSaved, onClose,
+  item,
+  student,
+  entregaPostId,
+  autoScore,
+  initialScore,
+  initialFeedback,
+  onSaved,
+  onClose,
 }: {
   item: { id: number; type: ItemType };
   student: QueueStudent;
@@ -35,54 +53,76 @@ export default function ReviewSheet({
         score: value,
         feedback: feedback.trim() || null,
       }),
-    onSuccess: () => { onSaved(); onClose(); },
+    onSuccess: () => {
+      onSaved();
+      onClose();
+    },
     onError: () => toast.show(es.revisar.saveError),
   });
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end bg-black/40" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-40 flex items-end bg-black/40"
+      onClick={onClose}
+    >
       <div
-        className="max-h-[85dvh] w-full overflow-y-auto rounded-t-2xl bg-background p-4"
+        className="max-h-[85dvh] w-full overflow-y-auto border-t bg-background p-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="font-bold">@{student.username ?? student.name}</p>
+        <p className="text-sm font-semibold">
+          @{student.username ?? student.name}
+        </p>
         {autoScore != null && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {es.revisar.autoScore.replace("{n}", String(autoScore))}
           </p>
         )}
-        <label className="mt-3 block text-sm">
+
+        <Label htmlFor="review-score" className="mt-4 block">
           {es.revisar.scoreLabel}
-          <input
-            type="number"
-            inputMode="numeric"
-            min={low}
-            max={high}
-            className="ml-2 w-24 rounded-md border px-2 py-1"
-            value={score}
-            onChange={(e) => setScore(e.target.value)}
-          />
-        </label>
-        {!valid && score !== "" && (
-          <p className="mt-1 text-xs text-destructive">
-            {es.revisar.scoreInvalid.replace("{low}", String(low)).replace("{high}", String(high))}
+        </Label>
+        <Input
+          id="review-score"
+          type="number"
+          inputMode="numeric"
+          min={low}
+          max={high}
+          className="mt-2 w-28"
+          value={score}
+          onChange={(e) => setScore(e.target.value)}
+        />
+        {/* A tarea is scored 0–100, an examen 1–10. Showing the décima
+            equivalent keeps the two scales from blurring together. */}
+        {valid && item.type === "tarea" && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {formatPoints(value)}
           </p>
         )}
-        <label className="mt-3 block text-sm">
+        {!valid && score !== "" && (
+          <p className="mt-1 text-xs text-destructive">
+            {es.revisar.scoreInvalid
+              .replace("{low}", String(low))
+              .replace("{high}", String(high))}
+          </p>
+        )}
+
+        <Label htmlFor="review-feedback" className="mt-4 block">
           {es.revisar.feedbackLabel}
-          <textarea
-            className="mt-1 min-h-24 w-full rounded-lg border p-2"
-            value={feedback}
-            onChange={(e) => setFeedback(e.target.value)}
-          />
-        </label>
-        <button
+        </Label>
+        <textarea
+          id="review-feedback"
+          className="mt-2 min-h-24 w-full border bg-transparent p-2 text-sm"
+          value={feedback}
+          onChange={(e) => setFeedback(e.target.value)}
+        />
+
+        <Button
+          className="mt-4 w-full"
           disabled={!valid || save.isPending}
           onClick={() => save.mutate()}
-          className="mt-3 w-full rounded-full bg-primary py-2 text-primary-foreground disabled:opacity-50"
         >
           {es.revisar.save}
-        </button>
+        </Button>
       </div>
     </div>
   );
