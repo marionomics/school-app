@@ -15,6 +15,7 @@ from app.schemas import AttachmentOut, AuthorOut, PostOut, ReviewOut
 from app.services import points
 from app.services.attribution import resolve_default_class
 from app.services.cursor import decode_cursor, encode_cursor
+from app.services.grades import _counting_entrega
 from app.services.dates import next_sunday_due
 from app import storage
 
@@ -117,6 +118,29 @@ def _liked_ids(db: Session, user: User, post_ids: List[int]) -> Set[int]:
     return {pid for (pid,) in rows}
 
 
+def _pinned_tareas(db: Session, user: User, class_ids: List[int]) -> List[Post]:
+    """Open tareas the viewer has not delivered yet.
+
+    Kept out of the paginated query on purpose: pinning inside it would mean
+    ordering by a per-student, time-dependent condition on top of a keyset
+    cursor over a mutable sort key — the same fragility that made likes
+    reorder the feed under the reader's thumb.
+    """
+    if not class_ids:
+        return []
+    tareas = (
+        db.query(Post)
+        .options(selectinload(Post.author), selectinload(Post.klass),
+                 selectinload(Post.attachments))
+        .filter(Post.type == "tarea", Post.status == "active",
+                Post.class_id.in_(class_ids),
+                Post.due_date.isnot(None), Post.due_date > utcnow())
+        .order_by(Post.due_date.asc())
+        .all()
+    )
+    return [t for t in tareas if _counting_entrega(db, user.id, t.id) is None]
+
+
 @feed_router.get("")
 def get_feed(
     cursor: Optional[str] = Query(None),
@@ -163,9 +187,12 @@ def get_feed(
     posts = q.order_by(Post.last_activity_at.desc(), Post.id.desc()).limit(limit + 1).all()
     has_more = len(posts) > limit
     posts = posts[:limit]
-    liked = _liked_ids(db, user, [p.id for p in posts])
+    pinned = _pinned_tareas(db, user, my_class_ids)
+    liked = _liked_ids(db, user, [p.id for p in posts] + [p.id for p in pinned])
     next_cursor = encode_cursor(posts[-1].last_activity_at, posts[-1].id) if (has_more and posts) else None
-    return {"items": [serialize_post(p, liked, viewer=user) for p in posts], "next_cursor": next_cursor}
+    return {"items": [serialize_post(p, liked, viewer=user) for p in posts],
+            "pinned": [serialize_post(p, liked, viewer=user) for p in pinned],
+            "next_cursor": next_cursor}
 
 
 @router.get("/{post_id}")
