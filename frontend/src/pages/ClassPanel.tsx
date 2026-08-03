@@ -3,6 +3,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import {
+  RiArrowLeftSLine,
+  RiChat3Line,
+  RiCloseCircleLine,
+  RiFileTextLine,
+  RiPushpinLine,
+} from "@remixicon/react";
+import { Button } from "@/components/ui/button";
 import { es } from "@/strings/es";
 import type {
   ClassDetailWithMembers,
@@ -77,48 +85,51 @@ export default function ClassPanel() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4 p-4">
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
+        className="self-start"
         onClick={() => navigate("/clases")}
-        className="self-start text-sm text-primary underline"
       >
-        ← {es.asistencia.back}
-      </button>
+        <RiArrowLeftSLine className="size-4" /> {es.asistencia.back}
+      </Button>
 
-      <h1 className="text-xl font-bold">
+      <h1 className="text-sm font-semibold tracking-widest uppercase">
         {klass?.name ?? es.common.loading}
       </h1>
 
       {isTeacher && (
-        <div className="flex items-center justify-between rounded-lg border p-3 text-sm">
+        <div className="flex items-center justify-between border p-3 text-sm">
           <span>
             {session ? es.panel.sessionOpen : es.panel.noActiveSession}
           </span>
           {session ? (
             <div className="flex gap-2">
-              <button
+              <Button
+                size="xs"
                 onClick={() =>
                   navigate(`/pasar-lista/${classId}/${session.id}`)
                 }
-                className="rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground"
               >
                 {es.panel.tomarLista}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="outline"
+                size="xs"
                 onClick={() => closeSession.mutate(session.id)}
                 disabled={closeSession.isPending}
-                className="rounded-md border px-3 py-1 text-xs"
               >
                 {es.panel.closeSession}
-              </button>
+              </Button>
             </div>
           ) : (
-            <button
+            <Button
+              size="xs"
               onClick={() => openSession.mutate()}
               disabled={openSession.isPending}
-              className="rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground"
             >
               {es.panel.openSession}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -126,21 +137,20 @@ export default function ClassPanel() {
       {isTeacher && (
         <div className="flex gap-2">
           {(["roster", "calificaciones"] as const).map((t) => (
-            <button
+            <Button
               key={t}
+              variant={tab === t ? "secondary" : "ghost"}
+              size="sm"
               onClick={() => setTab(t)}
-              className={`rounded-full px-3 py-1 text-sm ${
-                tab === t ? "bg-primary text-primary-foreground" : "border"
-              }`}
             >
               {t === "roster" ? es.panel.tabRoster : es.panel.tabCalificaciones}
-            </button>
+            </Button>
           ))}
         </div>
       )}
 
       {tab === "roster" && (
-        <ul className="divide-y rounded-lg border">
+        <ul className="divide-y border-y">
           {detail.isPending && (
             <li className="px-4 py-3 text-sm text-muted-foreground">
               {es.panel.loadingRoster}
@@ -177,7 +187,7 @@ export default function ClassPanel() {
       )}
 
       {tab === "calificaciones" && isTeacher && (
-        <ul className="divide-y rounded-lg border">
+        <ul className="divide-y border-y">
           {roster.isPending && (
             <li className="px-4 py-3 text-sm text-muted-foreground">
               {es.panel.loadingCalif}
@@ -224,7 +234,7 @@ export default function ClassPanel() {
           onClick={() => setSelectedStudentId(null)}
         >
           <div
-            className="max-h-[80dvh] w-full overflow-y-auto rounded-t-2xl bg-background p-5"
+            className="max-h-[80dvh] w-full overflow-y-auto border-t bg-background p-5"
             onClick={(e) => e.stopPropagation()}
           >
             {studentGrade.isPending && (
@@ -240,7 +250,7 @@ export default function ClassPanel() {
                 </div>
                 <dl className="mt-3 space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <dt>📌 {es.grade.tareas}</dt>
+                    <dt className="flex items-center gap-1"><RiPushpinLine className="size-3.5" /> {es.grade.tareas}</dt>
                     <dd>
                       {studentGrade.data.tareas.evaluated
                         ? `${studentGrade.data.tareas.points} / ${studentGrade.data.tareas.weight}`
@@ -248,7 +258,7 @@ export default function ClassPanel() {
                     </dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt>📝 {es.grade.examenes}</dt>
+                    <dt className="flex items-center gap-1"><RiFileTextLine className="size-3.5" /> {es.grade.examenes}</dt>
                     <dd>
                       {studentGrade.data.examenes.evaluated
                         ? `${studentGrade.data.examenes.points} / ${studentGrade.data.examenes.weight}`
@@ -256,24 +266,25 @@ export default function ClassPanel() {
                     </dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt>🗣️ {es.grade.participaciones}</dt>
+                    <dt className="flex items-center gap-1"><RiChat3Line className="size-3.5" /> {es.grade.participaciones}</dt>
                     <dd>{studentGrade.data.ledger.participaciones}</dd>
                   </div>
                   {studentGrade.data.faltas.count > 0 && (
                     <div className="flex justify-between text-destructive">
-                      <dt>🚫 {es.grade.faltas}</dt>
+                      <dt className="flex items-center gap-1"><RiCloseCircleLine className="size-3.5" /> {es.grade.faltas}</dt>
                       <dd>−{studentGrade.data.faltas.points}</dd>
                     </div>
                   )}
                 </dl>
               </>
             )}
-            <button
+            <Button
+              variant="outline"
               onClick={() => setSelectedStudentId(null)}
-              className="mt-5 w-full rounded-md border py-2 text-sm"
+              className="mt-5 w-full"
             >
               {es.grade.close}
-            </button>
+            </Button>
           </div>
         </div>
       )}

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { RiArrowLeftSLine } from "@remixicon/react";
+import { Button } from "@/components/ui/button";
 import { es } from "@/strings/es";
 import type { ClassDetailWithMembers, MemberOut } from "@/lib/types";
 
@@ -71,20 +73,19 @@ export default function PasarLista() {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-4 py-3">
-        <button
-          onClick={() => navigate(-1)}
-          className="text-sm text-primary underline"
-        >
-          ← {es.asistencia.back}
-        </button>
-        <h1 className="font-bold">{es.asistencia.title}</h1>
-        <button
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+          <RiArrowLeftSLine className="size-4" /> {es.asistencia.back}
+        </Button>
+        <h1 className="text-xs font-semibold tracking-widest uppercase">
+          {es.asistencia.title}
+        </h1>
+        <Button
+          size="sm"
           onClick={() => save.mutate()}
           disabled={save.isPending || detail.isPending}
-          className="rounded-md bg-primary px-3 py-1 text-sm text-primary-foreground disabled:opacity-50"
         >
           {save.isPending ? es.asistencia.saving : es.asistencia.saveButton}
-        </button>
+        </Button>
       </header>
 
       <main className="flex-1 overflow-y-auto">
@@ -112,9 +113,12 @@ export default function PasarLista() {
                     </p>
                   )}
                 </div>
+                {/* One row per student, tap to cycle P -> F -> T. Kept as a
+                    paired row on purpose: stacking it would double the
+                    scrolling for a full class. */}
                 <button
                   onClick={() => cycle(m.id)}
-                  className={`min-w-[3rem] rounded-full px-4 py-2 text-sm font-bold ${colorFor(status)}`}
+                  className={`min-w-12 px-4 py-3 text-sm font-semibold tracking-widest uppercase ${colorFor(status)}`}
                 >
                   {labelFor(status)}
                 </button>
