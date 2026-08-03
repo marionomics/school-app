@@ -135,6 +135,24 @@ def get_feed(
         # posts stay hidden.
         .filter(Post.parent_id.is_(None), Post.status.in_(("active", "vetoed")))
     )
+
+    # Social content is global — all classes, all semesters. Assignments are
+    # not: a student cannot tell another class's tarea from work they owe, and
+    # that confusion is worse than the loss of reach. No status filter on the
+    # enrollment lookup on purpose — ghost and polizón are in the class.
+    my_class_ids = [
+        cid for (cid,) in db.query(Enrollment.class_id)
+        .filter(Enrollment.user_id == user.id).all()
+    ]
+    my_class_ids += [
+        cid for (cid,) in db.query(Class.id)
+        .filter(Class.teacher_id == user.id).all()
+    ]
+    q = q.filter(or_(
+        Post.type.notin_(("tarea", "examen")),
+        Post.class_id.in_(my_class_ids),
+    ))
+
     if cursor:
         try:
             c_dt, c_id = decode_cursor(cursor)
