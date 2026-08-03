@@ -26,7 +26,12 @@ export default function PostCard({
   canDelete?: boolean;
   onOpenAttachment?: (id: number) => void;
 }) {
-  const removed = post.status !== "active";
+  // Only a DELETED post loses its body. A veto takes the points, not the
+  // student's words — mirrors serialize_post on the backend, which stopped
+  // blanking vetoed content. Treating vetoed as removed here would show the
+  // author "[eliminado]" over a post that is still theirs and still visible.
+  const removed = post.status === "deleted";
+  const vetoed = post.status === "vetoed";
   const body = removed ? (
     <p className="italic text-muted-foreground">{es.feed.deletedPost}</p>
   ) : (
@@ -80,9 +85,14 @@ export default function PostCard({
             {post.my_review.feedback}
           </p>
         )}
-        {post.status === "vetoed" && post.veto_reason && (
+        {/* The notice does not depend on a reason: the reason is private to
+            the author, so gating on it would leave a vetoed post looking
+            entirely normal to everyone else — and to its own author whenever
+            the teacher vetoed without typing one. */}
+        {vetoed && (
           <p className="mt-1 text-xs text-destructive">
-            {es.post.vetoedNotice} · {post.veto_reason}
+            {es.post.vetoedNotice}
+            {post.veto_reason ? ` · ${post.veto_reason}` : ""}
           </p>
         )}
         {post.type === "examen" && !removed && (
