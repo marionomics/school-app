@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import Avatar from "@/components/Avatar";
 import {
+  RiAttachment2,
   RiCheckLine,
   RiChat3Line,
   RiFileTextLine,
@@ -122,13 +123,16 @@ export default function PostCard({
                 <button
                   key={a.id}
                   onClick={() => onOpenAttachment(a.id)}
-                  className="rounded-md border px-2 py-1 text-xs"
+                  className="inline-flex items-center gap-1 border px-2 py-1 text-xs"
                 >
-                  📎 {a.file_name}
+                  <RiAttachment2 className="size-3" /> {a.file_name}
                 </button>
               ) : (
-                <span key={a.id} className="rounded-md border px-2 py-1 text-xs">
-                  📎 {a.file_name}
+                <span
+                  key={a.id}
+                  className="inline-flex items-center gap-1 border px-2 py-1 text-xs"
+                >
+                  <RiAttachment2 className="size-3" /> {a.file_name}
                 </span>
               ),
             )}

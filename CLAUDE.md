@@ -18,7 +18,7 @@ A classroom platform where **the forum feed is the center of everything**: tarea
 ## Tech Stack
 
 - **Backend:** FastAPI, SQLAlchemy, Alembic (real migrations — no ad-hoc ALTER TABLE), pytest
-- **Frontend:** React + Vite + shadcn (preset `b3SkwD0Ou`), Tailwind, mobile-first
+- **Frontend:** React + Vite + Tailwind, mobile-first. shadcn style **`base-sera`** on `@base-ui/react`, base color zinc, icons from **`@remixicon/react`** — all of it already configured in `frontend/components.json`. Angular, uppercase-labelled, Geist.
 - **DB:** SQLite (quick local) / PostgreSQL (prod and CI tests)
 - **Storage:** Cloudflare R2 (presigned URLs, keys never exposed)
 - **Auth:** Google Identity Services; roles `student`/`teacher` (`TEACHER_EMAIL` env)
@@ -57,6 +57,10 @@ docs/       specs and plans
 ## Development Rules
 
 - **Mobile first.** Design and QA on a phone viewport before desktop.
+- **Use the preset components as they arrive.** Add them with `npx shadcn add`; never restyle a primitive, never edit `--radius` or strip `uppercase` to make something look softer. If a component is wrong for a surface, pick a different one. Reaching for a hand-rolled `<input className="border …">` is how the app ended up with twelve different guesses at what a form field looks like.
+- **One control per line** in any form. The only exception is a list row pairing a person with the one thing you're setting — the examen roster and pasar lista.
+- **Every points value goes through `formatPoints`** (`frontend/src/lib/points.ts`). One point on the 100-scale is one décima; a bare number is how that gets misread by a factor of ten.
+- Icons come from `@remixicon/react`. Emojis are not UI — the only survivors are 👻 ghost and 🥷 polizón, which carry meaning.
 - **Copy:** draft all user-facing text as placeholders in the single strings module; **Mario writes final copy**. Spanish at launch, English-ready structure.
 - **Testing:** the grade engine is pure functions and the most-tested code in the repo. CI runs against PostgreSQL.
 - Skeleton loading + optimistic updates (with visible rollback) are the norm, not polish.
