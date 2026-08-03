@@ -235,3 +235,7 @@ class PostOut(BaseModel):
     created_at: datetime
     last_activity_at: datetime
     parent_id: Optional[int]
+
+
+class BulkReviewIn(BaseModel):
+    post_ids: List[int]
