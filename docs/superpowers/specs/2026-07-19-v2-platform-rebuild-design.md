@@ -56,7 +56,7 @@ The **post is the atomic unit**. Nine core tables:
 
 ### posts
 `id, author_id, type (regular|participacion|tarea|examen), class_id (nullable), parent_id (nullable), is_entrega (bool), content, taps (1–3, participacion only), due_date, max_points, status (active|deleted|vetoed), created_at, edited_at`
-- **The feed is global** — all classes, all semesters, one feed. `class_id` only marks which class a post *counts for* (points, deadlines).
+- **The feed is global for social content** — all classes, all semesters, one feed. `class_id` only marks which class a post *counts for* (points, deadlines). **Assignments are the exception, added 2026-08-03:** `tarea` and `examen` posts appear only to their own class, since a student cannot distinguish another class's homework from work they owe. Threads stay open to anyone with the link — this is about what the feed pushes at you, not secrecy. See `docs/superpowers/specs/2026-08-03-revision-y-feed-design.md` §2.4.
 - Replies are posts with `parent_id`. Max 3 levels: post → comment → comment-on-comment.
 - `tarea`/`examen` types are teacher-only. Default tarea due date: next Sunday. Exámenes carry an entrega window (e.g., 24 h).
 - `is_entrega`: a reply to a tarea/examen flagged by the student as their formal submission (toggle in the reply composer; off = normal comment/question).

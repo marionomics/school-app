@@ -48,7 +48,8 @@ docs/       specs and plans
 ## Core Model Rules
 
 - **The post is the atom.** `posts.type ∈ {regular, participacion, tarea, examen}`; replies are posts (`parent_id`, max 3 levels); an entrega is a reply with `is_entrega = true`.
-- The feed is **global** (all classes, all semesters). `posts.class_id` only marks which class a post counts for.
+- The feed is **global** for social content (all classes, all semesters) — `posts.class_id` only marks which class a post counts for. **Assignments are the exception:** `tarea` and `examen` reach only their own class, because a student cannot tell another class's homework from work they owe, and that confusion outweighs the reach. Threads are unaffected — a direct link still opens for anyone.
+- **`validar` ≠ `vetar`.** `reviewed_at` records that the teacher looked and moves no points; veto cancels. Never collapse them into one control, and never let the destructive one be the only thing that clears a row — that combination cancelled real participaciones on 2026-08-03.
 - **No evidence, no points.** Both `deleted` and `vetoed` revoke what the post earned — the taps *and* the likes it received. A participación is its own evidence: if the post is gone or invalidated, nothing backs the points. Deleting and reposting is not a way to bank points twice. `deleted` ≠ `vetoed` is about *who acted and what stays visible* (author removes it vs teacher invalidates it, with a reason, post still in the thread), never about the ledger.
 - Lateness auto-score: 100 / 90 (<24 h) / 50 (<1 wk) / 20. All entregas accepted, penalty automatic.
 - Enrollment status: `active`, `ghost` 👻 (course over — posts yes, points no), `polizon` 🥷 (guest — points no).

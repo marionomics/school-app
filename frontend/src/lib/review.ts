@@ -48,3 +48,19 @@ export function setVeto(postId: number, vetoed: boolean, reason?: string) {
       : { method: "DELETE" },
   );
 }
+
+export function setReviewed(postId: number, reviewed: boolean) {
+  return api<{ reviewed: boolean }>(`/api/posts/${postId}/reviewed`, {
+    method: reviewed ? "POST" : "DELETE",
+  });
+}
+
+/** Sends exactly the ids on screen. Never "everything pending" — a
+ *  participación published mid-scroll must not be marked as seen by a tap
+ *  made before it existed. */
+export function bulkReviewed(postIds: number[]) {
+  return api<{ reviewed: number }>("/api/review/participaciones/reviewed", {
+    method: "POST",
+    body: JSON.stringify({ post_ids: postIds }),
+  });
+}

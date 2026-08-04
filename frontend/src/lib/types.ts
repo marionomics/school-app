@@ -130,6 +130,7 @@ export interface ParticipacionRow {
   taps: number | null;
   points: number;
   vetoed: boolean;
+  reviewed: boolean;
   veto_reason: string | null;
   created_at: string;
 }
@@ -188,6 +189,9 @@ export type StudentGradeView = GradeSummary;
 
 export interface FeedPage {
   items: Post[];
+  /** Open tareas the viewer has not delivered. Identical on every page — it
+   *  rides outside pagination — so read it from the first page only. */
+  pinned: Post[];
   next_cursor: string | null;
 }
 

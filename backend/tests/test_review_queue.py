@@ -76,7 +76,9 @@ def test_participaciones_list_shows_veto_state(client, db, teacher_headers, auth
                                           "type": "participacion", "taps": "2"},
                       headers=auth_headers).json()["id"]
     client.post(f"/api/posts/{pid}/veto", json={"reason": "no aplica"}, headers=teacher_headers)
-    r = client.get(f"/api/review/participaciones?class_id={klass.id}", headers=teacher_headers)
+    # A vetoed participación is handled, so it has left the pending queue.
+    r = client.get(f"/api/review/participaciones?class_id={klass.id}&status=handled",
+                   headers=teacher_headers)
     row = next(i for i in r.json()["items"] if i["post_id"] == pid)
     assert row["vetoed"] is True
     assert row["veto_reason"] == "no aplica"
@@ -98,3 +100,46 @@ def test_another_teacher_cannot_read_the_queue(client, db, klass, teacher):
 def test_student_cannot_read_the_queue(client, auth_headers, klass, enrolled):
     r = client.get(f"/api/review/entregas?class_id={klass.id}", headers=auth_headers)
     assert r.status_code == 403
+
+
+def _part(client, headers, text="Participé explicando el modelo"):
+    return client.post("/api/posts", data={
+        "content": text, "type": "participacion", "taps": "2",
+    }, headers=headers).json()["id"]
+
+
+def test_pending_excludes_reviewed_and_vetoed(client, db, teacher_headers, auth_headers, klass, enrolled):
+    plain = _part(client, auth_headers)
+    seen = _part(client, auth_headers)
+    killed = _part(client, auth_headers)
+    client.post(f"/api/posts/{seen}/reviewed", headers=teacher_headers)
+    client.post(f"/api/posts/{killed}/veto", headers=teacher_headers)
+
+    r = client.get(f"/api/review/participaciones?class_id={klass.id}&status=pending",
+                   headers=teacher_headers)
+    ids = [i["post_id"] for i in r.json()["items"]]
+    assert plain in ids
+    assert seen not in ids
+    assert killed not in ids
+
+
+def test_handled_holds_both_reviewed_and_vetoed(client, db, teacher_headers, auth_headers, klass, enrolled):
+    seen = _part(client, auth_headers)
+    killed = _part(client, auth_headers)
+    client.post(f"/api/posts/{seen}/reviewed", headers=teacher_headers)
+    client.post(f"/api/posts/{killed}/veto", headers=teacher_headers)
+
+    r = client.get(f"/api/review/participaciones?class_id={klass.id}&status=handled",
+                   headers=teacher_headers)
+    ids = [i["post_id"] for i in r.json()["items"]]
+    assert seen in ids and killed in ids
+
+
+def test_rows_carry_the_reviewed_flag(client, db, teacher_headers, auth_headers, klass, enrolled):
+    seen = _part(client, auth_headers)
+    client.post(f"/api/posts/{seen}/reviewed", headers=teacher_headers)
+    r = client.get(f"/api/review/participaciones?class_id={klass.id}&status=handled",
+                   headers=teacher_headers)
+    row = next(i for i in r.json()["items"] if i["post_id"] == seen)
+    assert row["reviewed"] is True
+    assert row["vetoed"] is False

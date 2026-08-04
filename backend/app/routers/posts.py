@@ -15,6 +15,7 @@ from app.schemas import AttachmentOut, AuthorOut, PostOut, ReviewOut
 from app.services import points
 from app.services.attribution import resolve_default_class
 from app.services.cursor import decode_cursor, encode_cursor
+from app.services.grades import _counting_entrega
 from app.services.dates import next_sunday_due
 from app import storage
 
@@ -117,6 +118,29 @@ def _liked_ids(db: Session, user: User, post_ids: List[int]) -> Set[int]:
     return {pid for (pid,) in rows}
 
 
+def _pinned_tareas(db: Session, user: User, class_ids: List[int]) -> List[Post]:
+    """Open tareas the viewer has not delivered yet.
+
+    Kept out of the paginated query on purpose: pinning inside it would mean
+    ordering by a per-student, time-dependent condition on top of a keyset
+    cursor over a mutable sort key — the same fragility that made likes
+    reorder the feed under the reader's thumb.
+    """
+    if not class_ids:
+        return []
+    tareas = (
+        db.query(Post)
+        .options(selectinload(Post.author), selectinload(Post.klass),
+                 selectinload(Post.attachments))
+        .filter(Post.type == "tarea", Post.status == "active",
+                Post.class_id.in_(class_ids),
+                Post.due_date.isnot(None), Post.due_date > utcnow())
+        .order_by(Post.due_date.asc())
+        .all()
+    )
+    return [t for t in tareas if _counting_entrega(db, user.id, t.id) is None]
+
+
 @feed_router.get("")
 def get_feed(
     cursor: Optional[str] = Query(None),
@@ -135,6 +159,24 @@ def get_feed(
         # posts stay hidden.
         .filter(Post.parent_id.is_(None), Post.status.in_(("active", "vetoed")))
     )
+
+    # Social content is global — all classes, all semesters. Assignments are
+    # not: a student cannot tell another class's tarea from work they owe, and
+    # that confusion is worse than the loss of reach. No status filter on the
+    # enrollment lookup on purpose — ghost and polizón are in the class.
+    my_class_ids = [
+        cid for (cid,) in db.query(Enrollment.class_id)
+        .filter(Enrollment.user_id == user.id).all()
+    ]
+    my_class_ids += [
+        cid for (cid,) in db.query(Class.id)
+        .filter(Class.teacher_id == user.id).all()
+    ]
+    q = q.filter(or_(
+        Post.type.notin_(("tarea", "examen")),
+        Post.class_id.in_(my_class_ids),
+    ))
+
     if cursor:
         try:
             c_dt, c_id = decode_cursor(cursor)
@@ -145,9 +187,12 @@ def get_feed(
     posts = q.order_by(Post.last_activity_at.desc(), Post.id.desc()).limit(limit + 1).all()
     has_more = len(posts) > limit
     posts = posts[:limit]
-    liked = _liked_ids(db, user, [p.id for p in posts])
+    pinned = _pinned_tareas(db, user, my_class_ids)
+    liked = _liked_ids(db, user, [p.id for p in posts] + [p.id for p in pinned])
     next_cursor = encode_cursor(posts[-1].last_activity_at, posts[-1].id) if (has_more and posts) else None
-    return {"items": [serialize_post(p, liked, viewer=user) for p in posts], "next_cursor": next_cursor}
+    return {"items": [serialize_post(p, liked, viewer=user) for p in posts],
+            "pinned": [serialize_post(p, liked, viewer=user) for p in pinned],
+            "next_cursor": next_cursor}
 
 
 @router.get("/{post_id}")
@@ -441,6 +486,37 @@ def unveto(post_id: int, user: User = Depends(get_current_user),
     points.restore_post(db, post=post)
     db.commit()
     return {"status": post.status, "veto_reason": None}
+
+
+def _teacher_participacion(db: Session, post_id: int, user: User) -> Post:
+    post = _teacher_of_post(db, post_id, user)
+    if post.type != "participacion":
+        raise HTTPException(status_code=422,
+                            detail="Sólo las participaciones se revisan")
+    return post
+
+
+@router.post("/{post_id}/reviewed")
+def mark_reviewed(post_id: int, user: User = Depends(get_current_user),
+                  db: Session = Depends(get_db)):
+    """Records that the teacher looked. Moves no points — the student earned
+    them on publish. This is the non-destructive twin of veto, and the two must
+    never be collapsed into one control."""
+    post = _teacher_participacion(db, post_id, user)
+    post.reviewed_at = utcnow()
+    post.reviewed_by = user.id
+    db.commit()
+    return {"reviewed": True}
+
+
+@router.delete("/{post_id}/reviewed")
+def unmark_reviewed(post_id: int, user: User = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    post = _teacher_participacion(db, post_id, user)
+    post.reviewed_at = None
+    post.reviewed_by = None
+    db.commit()
+    return {"reviewed": False}
 
 
 @attachments_router.get("/{attachment_id}/url")

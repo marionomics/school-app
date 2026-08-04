@@ -1,11 +1,13 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_user
 from app.database import get_db
-from app.models import Class, Enrollment, Post, PointsLedger, Review, User
+from app.models import Class, Enrollment, Post, PointsLedger, Review, User, utcnow
+from app.schemas import BulkReviewIn
 from app.services.grades import _counting_entrega, counting_review, lateness_score
 
 router = APIRouter(prefix="/api/review", tags=["review"])
@@ -118,17 +120,21 @@ def examen_roster(examen_id: int, user: User = Depends(get_current_user),
 
 
 @router.get("/participaciones")
-def participaciones(class_id: int, limit: int = Query(50, ge=1, le=200),
+def participaciones(class_id: int, status: str = Query("pending"),
+                    limit: int = Query(50, ge=1, le=200),
                     user: User = Depends(get_current_user),
                     db: Session = Depends(get_db)):
     klass = _owned_class(db, class_id, user)
-    posts = (
-        db.query(Post)
-        .filter(Post.class_id == klass.id, Post.type == "participacion")
-        .order_by(Post.created_at.desc())
-        .limit(limit)
-        .all()
-    )
+    q = db.query(Post).filter(Post.class_id == klass.id,
+                              Post.type == "participacion")
+    # "Pending" means it still needs you: not looked at, and not cancelled.
+    # Without this the queue never drains and the only control that clears a
+    # row is the one that takes the student's points.
+    if status == "pending":
+        q = q.filter(Post.reviewed_at.is_(None), Post.status != "vetoed")
+    else:
+        q = q.filter(or_(Post.reviewed_at.isnot(None), Post.status == "vetoed"))
+    posts = q.order_by(Post.created_at.desc()).limit(limit).all()
     items = []
     for p in posts:
         row = (
@@ -144,7 +150,46 @@ def participaciones(class_id: int, limit: int = Query(50, ge=1, le=200),
             "taps": p.taps,
             "points": float(row.points) if row is not None else 0.0,
             "vetoed": p.status == "vetoed",
+            "reviewed": p.reviewed_at is not None,
             "veto_reason": p.veto_reason,
             "created_at": p.created_at,
         })
     return {"items": items}
+
+
+@router.post("/participaciones/reviewed")
+def bulk_reviewed(body: BulkReviewIn, user: User = Depends(get_current_user),
+                  db: Session = Depends(get_db)):
+    """Marks exactly the ids sent. The client sends what is on screen, never
+    "everything pending" — a participación published mid-scroll must not be
+    marked as seen by a tap made before it existed.
+
+    All-or-nothing: one foreign id rejects the whole batch, because a partial
+    write would leave the teacher unable to tell which taps landed.
+    """
+    if user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Solo el profesor puede revisar")
+    if not body.post_ids:
+        return {"reviewed": 0}
+
+    posts = db.query(Post).filter(Post.id.in_(body.post_ids)).all()
+    if len(posts) != len(set(body.post_ids)):
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+
+    owned = {
+        cid for (cid,) in db.query(Class.id).filter(Class.teacher_id == user.id).all()
+    }
+    for post in posts:
+        if post.type != "participacion":
+            raise HTTPException(status_code=422,
+                                detail="Sólo las participaciones se revisan")
+        if post.class_id not in owned:
+            raise HTTPException(status_code=403,
+                                detail="No eres profesor de esa clase")
+
+    now = utcnow()
+    for post in posts:
+        post.reviewed_at = now
+        post.reviewed_by = user.id
+    db.commit()
+    return {"reviewed": len(posts)}

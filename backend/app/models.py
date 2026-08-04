@@ -90,6 +90,10 @@ class Post(Base):
     examen_mode: Mapped[Optional[str]] = mapped_column(String(10))   # paper|digital, examen only
     graded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     veto_reason: Mapped[Optional[str]] = mapped_column(Text)
+    # "A teacher looked at this." Deliberately separate from `status`, which
+    # says whether it counts. Validating never moves a point; vetoing does.
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    reviewed_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
     status: Mapped[str] = mapped_column(String(20), default="active")  # active|deleted|vetoed
     like_count: Mapped[int] = mapped_column(Integer, default=0)
     reply_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -97,7 +101,9 @@ class Post(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     edited_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
-    author: Mapped[User] = relationship()
+    # foreign_keys is required now that reviewed_by gives posts a second FK
+    # into users — without it SQLAlchemy cannot infer which column joins here.
+    author: Mapped[User] = relationship(foreign_keys=[author_id])
     klass: Mapped[Optional[Class]] = relationship()
     attachments: Mapped[List["Attachment"]] = relationship(back_populates="post")
 
