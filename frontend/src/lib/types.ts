@@ -130,6 +130,7 @@ export interface ParticipacionRow {
   taps: number | null;
   points: number;
   vetoed: boolean;
+  reviewed: boolean;
   veto_reason: string | null;
   created_at: string;
 }

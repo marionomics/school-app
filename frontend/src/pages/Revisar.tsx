@@ -6,8 +6,15 @@ import ReviewSheet from "@/components/ReviewSheet";
 import ExamenRosterPanel from "@/components/ExamenRoster";
 import { FeedSkeleton } from "@/components/Skeletons";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { setVeto } from "@/lib/review";
+import { bulkReviewed, setReviewed, setVeto } from "@/lib/review";
 import { formatPoints } from "@/lib/points";
 import { useToast } from "@/components/Toaster";
 import { es } from "@/strings/es";
@@ -217,17 +224,57 @@ function ExamenesTab({ classId }: { classId: number }) {
 function ParticipacionesTab({ classId }: { classId: number }) {
   const qc = useQueryClient();
   const toast = useToast();
-  const key = ["review-participaciones", classId];
-  // The queue shows what still needs you. A vetoed participación is handled,
-  // so it leaves the list — "Vistas" is how you get back to un-veto one.
+  // The queue shows what still needs you. "Vistas" holds everything handled —
+  // validated or vetoed — so you can go back and undo either.
   const [showHandled, setShowHandled] = useState(false);
+  const [confirmingVeto, setConfirmingVeto] = useState<ParticipacionRow | null>(
+    null,
+  );
+  const key = ["review-participaciones", classId, showHandled];
 
   const q = useQuery({
     queryKey: key,
     queryFn: () =>
       api<{ items: ParticipacionRow[] }>(
-        `/api/review/participaciones?class_id=${classId}`,
+        `/api/review/participaciones?class_id=${classId}&status=${
+          showHandled ? "handled" : "pending"
+        }`,
       ),
+  });
+
+  function patchRow(postId: number, patch: Partial<ParticipacionRow>) {
+    qc.setQueryData<{ items: ParticipacionRow[] }>(key, (old) =>
+      old
+        ? {
+            items: old.items.map((i) =>
+              i.post_id === postId ? { ...i, ...patch } : i,
+            ),
+          }
+        : old,
+    );
+  }
+
+  const review = useMutation({
+    mutationFn: ({ postId, reviewed }: { postId: number; reviewed: boolean }) =>
+      setReviewed(postId, reviewed),
+    onMutate: async ({ postId, reviewed }) => {
+      await qc.cancelQueries({ queryKey: key });
+      const prev = qc.getQueryData<{ items: ParticipacionRow[] }>(key);
+      patchRow(postId, { reviewed });
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(key, ctx.prev);
+      toast.show(es.revisar.saveError);
+    },
+    onSettled: () => void qc.invalidateQueries({ queryKey: key }),
+  });
+
+  const bulk = useMutation({
+    // rows, not "everything pending": exactly what is on screen.
+    mutationFn: (ids: number[]) => bulkReviewed(ids),
+    onError: () => toast.show(es.revisar.saveError),
+    onSettled: () => void qc.invalidateQueries({ queryKey: key }),
   });
 
   const toggle = useMutation({
@@ -236,17 +283,7 @@ function ParticipacionesTab({ classId }: { classId: number }) {
     onMutate: async ({ postId, vetoed }) => {
       await qc.cancelQueries({ queryKey: key });
       const prev = qc.getQueryData<{ items: ParticipacionRow[] }>(key);
-      // Patching the flag is what makes the row leave the current filter —
-      // no separate removal logic needed, and the rollback restores it.
-      qc.setQueryData<{ items: ParticipacionRow[] }>(key, (old) =>
-        old
-          ? {
-              items: old.items.map((i) =>
-                i.post_id === postId ? { ...i, vetoed } : i,
-              ),
-            }
-          : old,
-      );
+      patchRow(postId, { vetoed });
       return { prev };
     },
     onError: (_e, _v, ctx) => {
@@ -263,9 +300,7 @@ function ParticipacionesTab({ classId }: { classId: number }) {
   if (q.isError)
     return <p className="text-muted-foreground">{es.feed.error}</p>;
 
-  const rows = q.data.items.filter((i) =>
-    showHandled ? i.vetoed : !i.vetoed,
-  );
+  const rows = q.data.items;
 
   return (
     <div className="flex flex-col gap-3">
@@ -285,6 +320,16 @@ function ParticipacionesTab({ classId }: { classId: number }) {
           {es.revisar.filterHandled}
         </Button>
       </div>
+
+      {!showHandled && rows.length > 0 && (
+        <Button
+          className="w-full"
+          disabled={bulk.isPending}
+          onClick={() => bulk.mutate(rows.map((r) => r.post_id))}
+        >
+          {es.revisar.validarTodas.replace("{n}", String(rows.length))}
+        </Button>
+      )}
 
       {rows.length === 0 && (
         <p className="py-8 text-center text-muted-foreground">
@@ -308,20 +353,76 @@ function ParticipacionesTab({ classId }: { classId: number }) {
               <p className="truncate text-sm text-muted-foreground">
                 {i.content}
               </p>
+              {i.vetoed && (
+                <p className="text-xs text-destructive">{es.revisar.vetoed}</p>
+              )}
+              {!i.vetoed && i.reviewed && (
+                <p className="text-xs text-muted-foreground">
+                  {es.revisar.validated}
+                </p>
+              )}
             </div>
-            <Button
-              variant={i.vetoed ? "outline" : "destructive"}
-              size="sm"
-              className="shrink-0"
-              onClick={() =>
-                toggle.mutate({ postId: i.post_id, vetoed: !i.vetoed })
-              }
-            >
-              {i.vetoed ? es.revisar.unveto : es.revisar.veto}
-            </Button>
+            <span className="flex shrink-0 gap-1">
+              {/* Validar is quiet and reversible. Vetar takes points, so it
+                  asks first — the two must never look alike. */}
+              {!i.vetoed && (
+                <Button
+                  variant={i.reviewed ? "outline" : "secondary"}
+                  size="sm"
+                  onClick={() =>
+                    review.mutate({ postId: i.post_id, reviewed: !i.reviewed })
+                  }
+                >
+                  {i.reviewed ? es.revisar.unvalidate : es.revisar.validar}
+                </Button>
+              )}
+              <Button
+                variant={i.vetoed ? "outline" : "destructive"}
+                size="sm"
+                onClick={() =>
+                  i.vetoed
+                    ? toggle.mutate({ postId: i.post_id, vetoed: false })
+                    : setConfirmingVeto(i)
+                }
+              >
+                {i.vetoed ? es.revisar.unveto : es.revisar.veto}
+              </Button>
+            </span>
           </li>
         ))}
       </ul>
+
+      <Dialog
+        open={confirmingVeto != null}
+        onOpenChange={() => setConfirmingVeto(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{es.revisar.vetoConfirmTitle}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {es.revisar.vetoConfirmBody}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmingVeto(null)}>
+              {es.configurar.cancel}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (confirmingVeto)
+                  toggle.mutate({
+                    postId: confirmingVeto.post_id,
+                    vetoed: true,
+                  });
+                setConfirmingVeto(null);
+              }}
+            >
+              {es.revisar.vetoConfirmYes}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
