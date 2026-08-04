@@ -56,6 +56,7 @@ export const es = {
     end: "Llegaste al final",
     error: "No se pudo cargar el feed. Desliza para reintentar.",
     deletedPost: "[eliminado]",
+    pinnedHeader: "Por entregar",
     participacionBadge: "Participación",
     tareaBadge: "Tarea",
     entregaBadge: "Entrega",
