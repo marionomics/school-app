@@ -34,6 +34,9 @@ Cada fase se despliega a Railway y se prueba antes de pasar a la siguiente.
 - [x] Polish pass móvil + seed data
 - [ ] Beta con ex-alumnos
 
+## 🔥 Urgente (semestre en curso)
+- [ ] **Entregas con archivos** — R2 en producción (Mario) + selector de archivos en el formulario de respuesta y en tarea/participación. Bug 6. Spec: `docs/superpowers/specs/2026-08-04-entregas-con-archivos-design.md`
+
 ## → Inicio de semestre: v2.0 live
 
 ## Medio semestre
