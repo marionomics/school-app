@@ -146,7 +146,6 @@ export const es = {
     publishing: "Publicando…",
     published: "¡Registrada! +{n} pts",
     publish: "Publicar",
-    attach: "Adjuntar",
     classLabel: "Clase",
     dueLabel: "Entrega",
     dueHint: "Por defecto: el próximo domingo",
