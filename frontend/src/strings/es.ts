@@ -65,6 +65,10 @@ export const es = {
     like: "Me gusta",
     unlike: "Quitar me gusta",
   },
+  attachments: {
+    attach: "Adjuntar",
+    chosen: "{n} archivo(s)",
+  },
   post: {
     replyPlaceholder: "Responde algo…",
     replySubmit: "Responder",
