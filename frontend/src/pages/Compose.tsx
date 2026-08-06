@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useTapWindow } from "@/hooks/useTapWindow";
 import { useToast } from "@/components/Toaster";
@@ -62,9 +62,9 @@ export default function Compose() {
       if (taps) toast.show(es.compose.published.replace("{n}", String(taps)));
       navigate("/", { replace: true });
     },
-    onError: () => {
+    onError: (e) => {
       tapCtl.cancel();
-      toast.show(es.compose.error);
+      toast.show(e instanceof ApiError ? e.message : es.compose.error);
     },
   });
 
@@ -195,10 +195,11 @@ export default function Compose() {
         onChange={(e) => setContent(e.target.value)}
       />
 
-      <div className="flex flex-col gap-2">
-        <FilePicker files={files} onChange={setFiles} />
-        <FileChips files={files} />
-      </div>
+      <FilePicker files={files} onChange={setFiles} />
+      <FileChips
+        files={files}
+        onRemove={(i) => setFiles(files.filter((_, n) => n !== i))}
+      />
 
       {mode === "participacion" && (
         <div className="mt-4 flex flex-col items-center gap-3">

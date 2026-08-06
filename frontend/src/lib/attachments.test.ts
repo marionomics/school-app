@@ -1,27 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { canSubmit, capFiles, MAX_FILES } from "./attachments";
+import { addFiles, canSubmit, MAX_FILES } from "./attachments";
 
 const file = (name: string) => new File(["x"], name, { type: "application/pdf" });
 
-describe("capFiles", () => {
-  it("returns an empty array when nothing was chosen", () => {
-    expect(capFiles(null)).toEqual([]);
-    expect(capFiles(undefined)).toEqual([]);
+describe("addFiles", () => {
+  it("returns the existing list unchanged when nothing was picked", () => {
+    const existing = [file("a.pdf")];
+    expect(addFiles(existing, null)).toEqual(existing);
+    expect(addFiles(existing, undefined)).toEqual(existing);
   });
 
-  it("keeps every file up to the cap", () => {
-    const picked = [file("a.pdf"), file("b.pdf")];
-    expect(capFiles(picked).map((f) => f.name)).toEqual(["a.pdf", "b.pdf"]);
+  it("appends the newly picked files to the existing selection", () => {
+    const existing = [file("a.pdf")];
+    const picked = [file("b.pdf")];
+    expect(addFiles(existing, picked).map((f) => f.name)).toEqual(["a.pdf", "b.pdf"]);
   });
 
-  it("drops everything past the fourth", () => {
-    const picked = ["a", "b", "c", "d", "e"].map((n) => file(`${n}.pdf`));
-    expect(capFiles(picked)).toHaveLength(MAX_FILES);
-    expect(capFiles(picked).map((f) => f.name)).toEqual([
-      "a.pdf",
-      "b.pdf",
-      "c.pdf",
-      "d.pdf",
+  it("drops everything past the cap, keeping the earliest files", () => {
+    const existing = [file("a.pdf"), file("b.pdf"), file("c.pdf")];
+    const picked = [file("d.pdf"), file("e.pdf")];
+    const result = addFiles(existing, picked);
+    expect(result).toHaveLength(MAX_FILES);
+    expect(result.map((f) => f.name)).toEqual(["a.pdf", "b.pdf", "c.pdf", "d.pdf"]);
+  });
+
+  it("preserves order: existing files first, then picked files", () => {
+    const existing = [file("first.pdf")];
+    const picked = [file("second.pdf"), file("third.pdf")];
+    expect(addFiles(existing, picked).map((f) => f.name)).toEqual([
+      "first.pdf",
+      "second.pdf",
+      "third.pdf",
     ]);
   });
 });

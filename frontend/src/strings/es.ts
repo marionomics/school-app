@@ -68,6 +68,7 @@ export const es = {
   attachments: {
     attach: "Adjuntar",
     chosen: "{n} archivo(s)",
+    remove: "Quitar",
   },
   post: {
     replyPlaceholder: "Responde algo…",

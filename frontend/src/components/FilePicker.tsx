@@ -1,8 +1,8 @@
 import { useRef } from "react";
-import { RiAttachment2 } from "@remixicon/react";
+import { RiAttachment2, RiCloseLine } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { capFiles } from "@/lib/attachments";
+import { addFiles } from "@/lib/attachments";
 import { useUploadsEnabled } from "@/lib/config";
 import { es } from "@/strings/es";
 
@@ -30,7 +30,7 @@ export function FilePicker({ files, onChange, compact = false }: PickerProps) {
         multiple
         hidden
         onChange={(e) => {
-          onChange(capFiles(e.target.files));
+          onChange(addFiles(files, e.target.files));
           // Reset so re-picking the same file still fires a change event.
           e.target.value = "";
         }}
@@ -40,15 +40,14 @@ export function FilePicker({ files, onChange, compact = false }: PickerProps) {
         variant="outline"
         size={compact ? "icon-sm" : "sm"}
         onClick={() => input.current?.click()}
-        aria-label={es.attachments.attach}
+        aria-label={
+          compact && files.length > 0
+            ? es.attachments.chosen.replace("{n}", String(files.length))
+            : es.attachments.attach
+        }
       >
         <RiAttachment2 />
         {!compact && es.attachments.attach}
-        {compact && files.length > 0 && (
-          <span className="sr-only">
-            {es.attachments.chosen.replace("{n}", String(files.length))}
-          </span>
-        )}
       </Button>
     </>
   );
@@ -57,19 +56,32 @@ export function FilePicker({ files, onChange, compact = false }: PickerProps) {
 export function FileChips({
   files,
   className,
+  onRemove,
 }: {
   files: File[];
   className?: string;
+  onRemove?: (index: number) => void;
 }) {
   if (files.length === 0) return null;
   return (
     <div className={cn("flex flex-wrap gap-2", className)}>
-      {files.map((f) => (
+      {files.map((f, i) => (
         <span
-          key={f.name}
+          key={`${f.name}-${i}`}
           className="inline-flex items-center gap-1 border px-2 py-1 text-xs text-muted-foreground"
         >
           <RiAttachment2 className="size-3" /> {f.name}
+          {onRemove && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => onRemove(i)}
+              aria-label={es.attachments.remove}
+            >
+              <RiCloseLine />
+            </Button>
+          )}
         </span>
       ))}
     </div>

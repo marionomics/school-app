@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useLikeMutation, openAttachment } from "@/lib/likes";
 import { latenessTier } from "@/lib/lateness";
@@ -50,7 +50,7 @@ export default function Thread() {
       void qc.invalidateQueries({ queryKey: ["thread", id] });
       void qc.invalidateQueries({ queryKey: ["feed"] });
     },
-    onError: () => toast.show(es.post.replyError),
+    onError: (e) => toast.show(e instanceof ApiError ? e.message : es.post.replyError),
   });
 
   const remove = useMutation({
@@ -116,7 +116,10 @@ export default function Thread() {
   );
 
   return (
-    <div className="pb-28">
+    // The reply bar is fixed to the bottom and grows with the attached-file
+    // chips (entrega toggle + a wrapped chip row can pass 200 px), so the
+    // list needs to reserve more room whenever files are attached.
+    <div className={files.length > 0 ? "pb-52" : "pb-28"}>
       {card(post, 0)}
       <div className="divide-y border-t">
         {level2.map((r) => (
@@ -155,7 +158,11 @@ export default function Thread() {
             )}
           </div>
         )}
-        <FileChips files={files} className="mb-2" />
+        <FileChips
+          files={files}
+          className="mb-2"
+          onRemove={(i) => setFiles(files.filter((_, n) => n !== i))}
+        />
         <div className="flex items-center gap-2">
           <FilePicker files={files} onChange={setFiles} compact />
           <input

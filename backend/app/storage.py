@@ -7,6 +7,7 @@ from app.config import settings
 ALLOWED_EXTENSIONS = {
     "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv",
     "zip", "rar", "7z", "png", "jpg", "jpeg", "gif", "webp", "svg",
+    "heic", "heif",
 }
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 

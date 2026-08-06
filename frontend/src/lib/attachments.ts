@@ -2,9 +2,16 @@
 // this exists so the UI never offers to send a fifth file it knows is refused.
 export const MAX_FILES = 4;
 
-/** The picker replaces the whole selection, so anything past the cap is dropped. */
-export function capFiles(picked: FileList | File[] | null | undefined): File[] {
-  return Array.from(picked ?? []).slice(0, MAX_FILES);
+/**
+ * Each pick ADDS to the selection. A handwritten tarea is often several photos
+ * taken one at a time, and replacing the list would silently drop the earlier
+ * pages. Anything past the cap is dropped.
+ */
+export function addFiles(
+  existing: File[],
+  picked: FileList | File[] | null | undefined,
+): File[] {
+  return [...existing, ...Array.from(picked ?? [])].slice(0, MAX_FILES);
 }
 
 /**
