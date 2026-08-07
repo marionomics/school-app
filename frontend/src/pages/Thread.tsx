@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useLikeMutation, openAttachment } from "@/lib/likes";
 import { latenessTier } from "@/lib/lateness";
 import PostCard from "@/components/PostCard";
+import { FileChips, FilePicker } from "@/components/FilePicker";
 import ReviewSheet from "@/components/ReviewSheet";
 import { FeedSkeleton } from "@/components/Skeletons";
 import { useToast } from "@/components/Toaster";
+import { canSubmit } from "@/lib/attachments";
 import { es } from "@/strings/es";
 import type { Post, ThreadResponse } from "@/lib/types";
 
@@ -20,6 +22,7 @@ export default function Thread() {
   const navigate = useNavigate();
   const like = useLikeMutation();
   const [reply, setReply] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
   const [replyTo, setReplyTo] = useState<Post | null>(null);
   const [confirming, setConfirming] = useState<Post | null>(null);
   const [isEntrega, setIsEntrega] = useState(false);
@@ -36,16 +39,18 @@ export default function Thread() {
       fd.set("content", reply);
       fd.set("parent_id", String(replyTo ? replyTo.id : id));
       if (isEntrega) fd.set("is_entrega", "true");
+      for (const f of files) fd.append("files", f);
       return api<Post>("/api/posts", { method: "POST", body: fd });
     },
     onSuccess: () => {
       setReply("");
+      setFiles([]);
       setReplyTo(null);
       setIsEntrega(false);
       void qc.invalidateQueries({ queryKey: ["thread", id] });
       void qc.invalidateQueries({ queryKey: ["feed"] });
     },
-    onError: () => toast.show(es.post.replyError),
+    onError: (e) => toast.show(e instanceof ApiError ? e.message : es.post.replyError),
   });
 
   const remove = useMutation({
@@ -111,7 +116,10 @@ export default function Thread() {
   );
 
   return (
-    <div className="pb-28">
+    // The reply bar is fixed to the bottom and grows with the attached-file
+    // chips (entrega toggle + a wrapped chip row can pass 200 px), so the
+    // list needs to reserve more room whenever files are attached.
+    <div className={files.length > 0 ? "pb-52" : "pb-28"}>
       {card(post, 0)}
       <div className="divide-y border-t">
         {level2.map((r) => (
@@ -125,7 +133,7 @@ export default function Thread() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (reply.trim()) send.mutate();
+          if (canSubmit(reply, files)) send.mutate();
         }}
         className="fixed inset-x-0 bottom-14 border-t bg-background p-3"
       >
@@ -150,14 +158,23 @@ export default function Thread() {
             )}
           </div>
         )}
-        <div className="flex gap-2">
+        <FileChips
+          files={files}
+          className="mb-2"
+          onRemove={(i) => setFiles(files.filter((_, n) => n !== i))}
+        />
+        <div className="flex items-center gap-2">
+          <FilePicker files={files} onChange={setFiles} compact />
           <input
-            className="flex-1 rounded-full border px-4 py-2"
+            className="min-w-0 flex-1 rounded-full border px-4 py-2"
             placeholder={es.post.replyPlaceholder}
             value={reply}
             onChange={(e) => setReply(e.target.value)}
           />
-          <button disabled={!reply.trim() || send.isPending} className="rounded-full bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50">
+          <button
+            disabled={!canSubmit(reply, files) || send.isPending}
+            className="rounded-full bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50"
+          >
             {es.post.replySubmit}
           </button>
         </div>

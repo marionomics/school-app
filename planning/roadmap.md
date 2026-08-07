@@ -34,6 +34,9 @@ Cada fase se despliega a Railway y se prueba antes de pasar a la siguiente.
 - [x] Polish pass móvil + seed data
 - [ ] Beta con ex-alumnos
 
+## 🔥 Urgente (semestre en curso)
+- [ ] **Entregas con archivos** — el código está listo y desplegado: el formulario de respuesta ya tiene selector de archivos y los adjuntos ya no dependen del modo del composer (tarea, examen y participación los aceptan). **Falta lo único que no es código: las cuatro variables de R2 en Railway (Mario)** — hasta entonces `/api/config` devuelve `file_uploads_enabled: false` y el selector no se dibuja en producción. Bug 6. Spec: `docs/superpowers/specs/2026-08-04-entregas-con-archivos-design.md` · Plan: `docs/superpowers/plans/2026-08-04-entregas-con-archivos.md`
+
 ## → Inicio de semestre: v2.0 live
 
 ## Medio semestre

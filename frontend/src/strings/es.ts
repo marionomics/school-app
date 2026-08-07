@@ -65,6 +65,11 @@ export const es = {
     like: "Me gusta",
     unlike: "Quitar me gusta",
   },
+  attachments: {
+    attach: "Adjuntar",
+    chosen: "{n} archivo(s)",
+    remove: "Quitar",
+  },
   post: {
     replyPlaceholder: "Responde algo…",
     replySubmit: "Responder",
@@ -142,7 +147,6 @@ export const es = {
     publishing: "Publicando…",
     published: "¡Registrada! +{n} pts",
     publish: "Publicar",
-    attach: "Adjuntar",
     classLabel: "Clase",
     dueLabel: "Entrega",
     dueHint: "Por defecto: el próximo domingo",

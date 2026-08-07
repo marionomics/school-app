@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useTapWindow } from "@/hooks/useTapWindow";
 import { useToast } from "@/components/Toaster";
-import { RiAttachment2 } from "@remixicon/react";
+import { FileChips, FilePicker } from "@/components/FilePicker";
+import { canSubmit } from "@/lib/attachments";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { es } from "@/strings/es";
@@ -24,12 +25,7 @@ export default function Compose() {
   const [content, setContent] = useState("");
   const [classId, setClassId] = useState<number | null>(null);
   const [files, setFiles] = useState<File[]>([]);
-  const fileInput = useRef<HTMLInputElement>(null);
 
-  const config = useQuery({
-    queryKey: ["config"],
-    queryFn: () => api<{ file_uploads_enabled: boolean }>("/api/config"),
-  });
   const mine = useQuery({
     queryKey: ["classes-mine"],
     queryFn: () => api<MyClasses>("/api/classes/mine"),
@@ -66,9 +62,9 @@ export default function Compose() {
       if (taps) toast.show(es.compose.published.replace("{n}", String(taps)));
       navigate("/", { replace: true });
     },
-    onError: () => {
+    onError: (e) => {
       tapCtl.cancel();
-      toast.show(es.compose.error);
+      toast.show(e instanceof ApiError ? e.message : es.compose.error);
     },
   });
 
@@ -90,7 +86,7 @@ export default function Compose() {
         <h1 className="font-bold">{es.compose.title}</h1>
         {mode !== "participacion" ? (
           <button
-            disabled={(!content.trim() && files.length === 0) || needsClass || publish.isPending}
+            disabled={!canSubmit(content, files) || needsClass || publish.isPending}
             onClick={() => publish.mutate(null)}
             className="rounded-full bg-primary px-4 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
           >
@@ -106,10 +102,7 @@ export default function Compose() {
           {(["regular", "participacion"] as const).map((m) => (
             <button
               key={m}
-              onClick={() => {
-                setMode(m);
-                if (m === "participacion") setFiles([]);
-              }}
+              onClick={() => setMode(m)}
               className={`rounded-full px-3 py-1 text-sm ${mode === m ? "bg-primary text-primary-foreground" : "border"}`}
             >
               {m === "regular" ? es.compose.modeRegular : es.compose.modeParticipacion}
@@ -202,23 +195,11 @@ export default function Compose() {
         onChange={(e) => setContent(e.target.value)}
       />
 
-      {config.data?.file_uploads_enabled && mode === "regular" && (
-        <div>
-          <input
-            ref={fileInput}
-            type="file"
-            multiple
-            hidden
-            onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, 4))}
-          />
-          <button onClick={() => fileInput.current?.click()} className="rounded-md border px-3 py-1.5 text-sm">
-            <RiAttachment2 className="size-4" /> {es.compose.attach}
-          </button>
-          {files.map((f) => (
-            <span key={f.name} className="ml-2 text-xs text-muted-foreground">{f.name}</span>
-          ))}
-        </div>
-      )}
+      <FilePicker files={files} onChange={setFiles} />
+      <FileChips
+        files={files}
+        onRemove={(i) => setFiles(files.filter((_, n) => n !== i))}
+      />
 
       {mode === "participacion" && (
         <div className="mt-4 flex flex-col items-center gap-3">
