@@ -52,7 +52,7 @@ export default function Compose() {
         fd.set("due_date", new Date(dueDate).toISOString());
       }
       if (mode === "examen") fd.set("examen_mode", examenMode);
-      if (classId != null) fd.set("class_id", String(classId));
+      if (classId != null && mode !== "regular") fd.set("class_id", String(classId));
       for (const f of files) fd.append("files", f);
       return api<Post>("/api/posts", { method: "POST", body: fd });
     },
@@ -162,7 +162,7 @@ export default function Compose() {
         </div>
       )}
 
-      {(pickable.length > 1 || needsClass) && pickable.length > 0 && (
+      {mode !== "regular" && (pickable.length > 1 || needsClass) && pickable.length > 0 && (
         <div>
           <Label htmlFor="class-picker">{es.compose.classLabel}</Label>
           <select

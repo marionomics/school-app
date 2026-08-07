@@ -12,6 +12,7 @@ Bugs conocidos de la v2. Formato: estado, descripción, cómo reproducir, notas.
 
 | # | Descripción | Resuelto |
 |---|-------------|----------|
+| R9 | **El composer mostraba el selector de clase para posts regulares.** El filtro que evita que los alumnos vean tareas ajenas se copió al composer: la condición `pickable.length > 1` no tenía guarda de modo, así que en cuanto el usuario tenía más de una clase aparecía el dropdown incluso al redactar un post regular. `class_id` tampoco se enviaba al backend en modo `regular`. Los posts regulares son globales; sólo `tarea`, `examen` y `participacion` necesitan clase. | 2026-08-07 |
 | R8 | **Vetar era destructivo, se disparaba con un solo tap y no pedía confirmación** — y desde el design pass la fila además desaparecía al vetar, así que la interfaz reforzaba justo la lectura equivocada. El 2026-08-03 canceló participaciones reales que Mario creía estar validando (se restauraron con "Quitar veto"). Ahora `Validar` es una acción aparte y no destructiva, y vetar pasa por un diálogo que nombra las dos. | 2026-08-04 · `7d5123b` |
 | R7 | Las tareas y exámenes de clases ajenas aparecían en el feed de cualquier alumno, indistinguibles del trabajo que sí debía — el feed no tenía **ningún** filtro por clase. Reportado por Mario. | 2026-08-04 · `742938d` |
 | R6 | Una tarea se hundía en el feed en cuanto alguien publicaba algo: el post que el alumno más necesita ver era el que peor se mostraba. Reportado por Mario. Ahora se fija arriba bajo "Por entregar" hasta que la entregas. | 2026-08-04 · `948ad08`, `b0a435e` |
@@ -20,3 +21,5 @@ Bugs conocidos de la v2. Formato: estado, descripción, cómo reproducir, notas.
 | R3 | CI llevaba rojo en `main` desde que cerró 2b-1, por dos errores de `rules-of-hooks` en `Configurar.tsx` (un `return <Navigate>` arriba de los hooks). No era cosmético: React considera fatal que cambie el orden de los hooks. | 2026-08-01 · `609b392` |
 | R2 | `CLAUDE.md` y el spec de v2 decían que borrar un post **conserva** los puntos; es al revés y el código siempre estuvo bien. Con la regla escrita al revés, publicar → borrar → republicar habría sido una fábrica de puntos. | 2026-07-31 · `b0367a1` |
 | R1 | El profesor no podía crear una tarea desde la UI: el composer nunca mandaba `class_id` y `resolve_default_class` sólo miraba inscripciones, que un profesor nunca tiene. 422 en todos los intentos. | 2026-07-31 · `ece74e7` |
+
+
