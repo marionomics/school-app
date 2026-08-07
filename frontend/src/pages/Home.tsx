@@ -38,6 +38,7 @@ export default function Home() {
   const posts = mergePages(q.data.pages);
   // Every page carries the same pinned list; merging them would repeat it.
   const pinned = q.data.pages[0]?.pinned ?? [];
+  const pinnedIds = new Set(pinned.map((p) => p.id));
 
   return (
     <div className="divide-y">
@@ -48,8 +49,6 @@ export default function Home() {
           </p>
           <div className="divide-y">
             {pinned.map((p) => (
-              // The same post can also appear below in `items`; the key prefix
-              // keeps the two instances distinct for React.
               <PostCard
                 key={`pinned-${p.id}`}
                 post={p}
@@ -62,7 +61,7 @@ export default function Home() {
       {posts.length === 0 && (
         <p className="p-10 text-center text-muted-foreground">{es.feed.empty}</p>
       )}
-      {posts.map((p) => (
+      {posts.filter((p) => !pinnedIds.has(p.id)).map((p) => (
         <PostCard key={p.id} post={p} onLike={(post) => like.mutate(post)} />
       ))}
       <div ref={sentinel} />
