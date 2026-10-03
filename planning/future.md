@@ -10,6 +10,9 @@ Cosas deliberadamente pospuestas. Nada aquí bloquea el MVP.
 4. **DMs.** "Maybe we don't really need those" vs "probablemente valga la pena para engagement". Decidir después de que existan notificaciones.
 5. **Exención.** Licenciatura: ≥ 8.5 exenta ordinario; si no, ordinario se promedia. Posgrado: distinto. Definir mecánica exacta como settings de clase.
 
+6. ~~**Quitar el aura a una participación ya validada.**~~ **RESUELTA 2026-10-09.** Sí: quitar el aura des-valida (`reviewed_at` vuelve a nulo y la participación regresa a la cola). Es el mismo hecho. Ver roadmap Bloque 2.
+7. **¿Qué baja en el feed: lo que tocaste o también lo que viste?** El Bloque 4 arranca con interacciones (aura, respuesta, validación) porque ya están registradas. "Visto" necesita registrar impresiones — decidir si vale la pena después de medir la primera vuelta.
+
 ## Huecos conocidos (pequeños, con dueño claro)
 
 - **Editar nombre, fechas y horario de la clase.** Hoy sólo se pueden fijar al crearla: `ClassSettingsUpdate` acepta pesos, valores de puntos y el mínimo de asistencia, nada más. La página `/configurar/clase` los muestra en solo lectura. Falta un endpoint; se dejó fuera del design pass a propósito porque era scope de backend que esa fase no tenía. (2026-08-02)
@@ -17,7 +20,7 @@ Cosas deliberadamente pospuestas. Nada aquí bloquea el MVP.
 ## Ideas de largo plazo
 
 - **Wiki** con tagging `[[artículo]]` desde el foro (estilo Obsidian) y menciones `@compañero`
-- **Algoritmo del feed:** prioridad a posts no vistos; afinidad (interactuar con alguien sube sus posts en tu feed)
+- **Algoritmo del feed, segunda vuelta:** prioridad a posts *no vistos* (requiere registrar impresiones, no sólo interacciones) y afinidad (interactuar con alguien sube sus posts en tu feed). La primera vuelta —bajar lo que ya tocaste— está en el roadmap, Bloque 4.
 - **Asistencia criptográfica:** QR sensible al tiempo estilo 2FA, o "diseminación" de asistencia entre compañeros de al lado (autentica presencia física)
 - **Tareas por nota de voz** (el profe graba la asignación)
 - **Encuestas** en posts; subir directo desde la cámara

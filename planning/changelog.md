@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-09 (Bloque 0 — higiene)
+- **`main` local ya tiene lo que producción.** La rama `entregas-con-archivos` se había mergeado en `origin/main` el 2026-08-07, junto con dos fixes (selector de clase en posts normales, tarea fijada duplicada), pero el `main` local nunca los jaló y la replaneación se escribió creyendo que faltaba el merge. Se rebaseó encima y se quitaron la rama y su worktree.
+- **El bug 7 ya estaba arreglado** (R10) pero sin desplegar cuando Mario lo reportó. Queda un hueco chico en Bloque 1: con varias clases y ninguna en horario, el post normal no cuenta para ninguna clase.
+- **Quitar el aura des-valida** — pregunta 6 de `future.md` cerrada por Mario.
+
+## 2026-09-28 (Planeación — reporte de Mario a mitad de semestre)
+- **Roadmap reescrito para el semestre en curso.** Fases 0–3 archivadas en `planning/archive/roadmap-v2.0.md`. El nuevo orden: Bloque 0 higiene (mergear `entregas-con-archivos`, que producción corre y `main` no tiene) → 1 lo que hoy cuesta puntos o trabajo → 2 aura → 3 perfil → 4 algoritmo del feed → 5 actividad.
+- **Decisiones de Mario.** Todo like se llama *aura*. El aura del profesor sobre una participación la valida (sin puntos) y el veto se puede hacer desde el feed. Publicaciones normales sin selector de clase: el `class_id` se resuelve en silencio. En el perfil, la calificación sólo la ven el dueño y el profesor.
+- **Bugs nuevos:** 7 (selector de clase en publicaciones normales) y 8 (el roster de exámenes no muestra lo que el alumno subió). Bug 6 cerrado como R9. Justificar faltas sube de "medio semestre" al Bloque 1: cada falta vale −10 y no había forma de justificar ninguna, aunque el esquema y el motor ya lo soportaban.
+
 ## 2026-08-04 (Entregas con archivos)
 - **El alumno ya puede adjuntar su trabajo.** Una entrega *es* una respuesta, y el formulario de respuesta en `Thread.tsx` no tenía selector de archivos — ni uno. El backend aceptaba `files` en cualquier post desde la Fase 1 (validación, tope de 4, 10 MB, URLs prefirmadas): faltaba únicamente el control. Con foto y sin texto también se publica, porque la foto *es* la entrega y pedir un pie de foto es trabajo inventado; el servidor ya lo aceptaba, era el `disabled={!reply.trim()}` del formulario lo que lo impedía.
 - **Los adjuntos dejaron de ser cosa del modo `regular`.** `Compose.tsx` sólo dibujaba el botón en ese modo, así que el profesor no podía adjuntarle el PDF a una tarea ni el alumno nada a una participación. No era una decisión de ningún spec; era un descuido. Ahora la única condición es que las subidas estén habilitadas.
