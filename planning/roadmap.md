@@ -9,7 +9,7 @@ Origen de los bloques 1–5: nota de Mario del 2026-09-28 ("Bug report y modific
 ## ▶ Empieza aquí (sesión nueva)
 
 0. **`git fetch` primero.** El 2026-10-09 el `main` local llevaba dos meses atrás de `origin/main` y se replaneó sobre información vieja. **Pendiente de Mario:** confirmar en el dashboard de Railway que el servicio despliega `main` (todo indica que seguía en `entregas-con-archivos`: el fix del bug 7 de agosto no estaba en producción en septiembre). Cuando esté confirmado, borrar `origin/entregas-con-archivos`.
-1. **Bloque 1**, en el orden listado. Bug 8 y bug 2 son fixes acotados (TDD, sin spec propio). Justificar faltas sí lleva spec corto: el esquema ya existe, falta definir endpoints y dónde vive el control en el panel de clase.
+1. **Bloque 1**, en este orden (Mario, 2026-10-17): bug 2 → justificar faltas → publicaciones largas. Bug 8 y bug 2 son fixes acotados (TDD, sin spec propio). Justificar faltas sí lleva spec corto: el esquema ya existe, falta definir endpoints y dónde vive el control en el panel de clase.
 2. Los bloques 2–5 empiezan cada uno con brainstorming → spec → plan. Las decisiones ya tomadas por Mario están escritas en cada bloque; no volver a preguntarlas. La pregunta aún abierta está en `future.md` (7).
 
 ## Bloque 0 — Higiene ✅ (2026-10-09)
@@ -19,10 +19,10 @@ Origen de los bloques 1–5: nota de Mario del 2026-09-28 ("Bug report y modific
 Pequeños, independientes entre sí, cada uno desplegable solo.
 - [x] **Revisar exámenes sin importar la modalidad** (bug 8 → R12). La fila del alumno en el roster muestra lo que subió al hilo del examen — su entrega si la marcó, y si no, su respuesta más reciente con archivos — y la calificación se pone ahí mismo. Si no subió nada, sólo se califica. Presencial vs en línea deja de decidir qué ves. *"El software sirve al flujo de trabajo, no al revés."*
 - [x] **Publicaciones normales sin selector de clase** (bug 7 → R10, `a93e60b`).
-- [ ] **…pero que su aura cuente para alguna clase.** Con más de una clase y ninguna en horario, `resolve_default_class` devuelve `None` y el aura que reciba ese post no cuenta para nadie. Agregar el último paso: la clase más reciente. Test en `attribution`.
-- [ ] **Justificar faltas.** Cada falta injustificada vale −10, y hoy no hay forma de justificar ninguna. El esquema ya existe (`attendance_records.justification_*`) y el motor ya respeta `justification_status = approved`; faltan endpoints y UI. Primero lo mínimo: el profesor marca una falta como justificada desde el panel de clase. Después: el alumno sube su comprobante (R2) y el profesor aprueba/rechaza.
+- [x] **…pero que su aura cuente para alguna clase.** ✅ 2026-10-17: fuera de horario, una publicación normal cuenta para la clase que tuviste más recientemente según el horario. Tareas, exámenes y el selector siguen preguntando. Con más de una clase y ninguna en horario, `resolve_default_class` devuelve `None` y el aura que reciba ese post no cuenta para nadie. Agregar el último paso: la clase más reciente. Test en `attribution`.
+- [ ] **Justificar faltas.** Cada falta injustificada vale −10, y hoy no hay forma de justificar ninguna. El esquema ya existe (`attendance_records.justification_*`) y el motor ya respeta `justification_status = approved`; faltan endpoints y UI. Primero lo mínimo: el profesor marca una falta como justificada desde el panel de clase; la falta sigue visible, tachada y con etiqueta "justificada" (Mario, 2026-10-17). Después: el alumno sube su comprobante (R2) y el profesor aprueba/rechaza.
 - [ ] **Bug 2** — borrar tu entrega más reciente pierde la tarea. Con archivos en producción, borrar y reentregar ya es cosa de todos los días.
-- [ ] **Publicaciones largas colapsadas.** En el feed, un post largo se corta a N líneas con "ver más" que lo expande en su lugar. El hilo siempre lo muestra completo.
+- [ ] **Publicaciones largas colapsadas.** En el feed, un post largo se corta a 6 líneas (Mario, 2026-10-17) con "ver más" que lo expande en su lugar. El hilo siempre lo muestra completo.
 
 ## Bloque 2 — Aura: validar desde el feed
 El like se llama **aura** en toda la app (copy final de Mario). Nada cambia en el motor: sigue siendo la curva cóncava, y el aura del profesor sigue sin dar puntos.

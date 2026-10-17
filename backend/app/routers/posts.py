@@ -85,7 +85,8 @@ def serialize_post(post: Post, liked_ids: Set[int], *, viewer: Optional[User] = 
     )
 
 
-def _resolve_class_for_student(db: Session, user: User, sent: Optional[int]) -> int:
+def _resolve_class_for_student(db: Session, user: User, sent: Optional[int],
+                               post_type: str) -> int:
     if sent is not None:
         enr = (
             db.query(Enrollment)
@@ -96,7 +97,8 @@ def _resolve_class_for_student(db: Session, user: User, sent: Optional[int]) -> 
         if enr is None:
             raise HTTPException(status_code=403, detail="No estás inscrito en esa clase")
         return sent
-    default = resolve_default_class(db, user)
+    default = resolve_default_class(db, user,
+                                    fallback_to_recent=post_type == "regular")
     if default is None:
         raise HTTPException(status_code=422, detail="Selecciona la clase para tu publicación")
     return default
@@ -302,7 +304,7 @@ def create_post(
 
     resolved_class: Optional[int] = None
     if user.role != "teacher":
-        resolved_class = _resolve_class_for_student(db, user, class_id)
+        resolved_class = _resolve_class_for_student(db, user, class_id, type)
     elif class_id is not None:
         klass = db.get(Class, class_id)
         if klass is None or klass.teacher_id != user.id:
@@ -312,7 +314,8 @@ def create_post(
         # A teacher is never *enrolled*, so attribution falls back to the class
         # they teach — otherwise a tarea composed without an explicit class_id
         # has nothing to attach to.
-        resolved_class = resolve_default_class(db, user)
+        resolved_class = resolve_default_class(db, user,
+                                               fallback_to_recent=type == "regular")
 
     if type in ("tarea", "examen") and resolved_class is None:
         raise HTTPException(status_code=422, detail="Una tarea necesita una clase")
