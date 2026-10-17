@@ -8,6 +8,7 @@ Origen de los bloques 1–5: nota de Mario del 2026-09-28 ("Bug report y modific
 
 ## ▶ Empieza aquí (sesión nueva)
 
+0. **`git fetch` primero.** El 2026-10-09 el `main` local llevaba dos meses atrás de `origin/main` y se replaneó sobre información vieja. **Pendiente de Mario:** confirmar en el dashboard de Railway que el servicio despliega `main` (todo indica que seguía en `entregas-con-archivos`: el fix del bug 7 de agosto no estaba en producción en septiembre). Cuando esté confirmado, borrar `origin/entregas-con-archivos`.
 1. **Bloque 1**, en el orden listado. Bug 8 y bug 2 son fixes acotados (TDD, sin spec propio). Justificar faltas sí lleva spec corto: el esquema ya existe, falta definir endpoints y dónde vive el control en el panel de clase.
 2. Los bloques 2–5 empiezan cada uno con brainstorming → spec → plan. Las decisiones ya tomadas por Mario están escritas en cada bloque; no volver a preguntarlas. La pregunta aún abierta está en `future.md` (7).
 
