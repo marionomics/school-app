@@ -50,7 +50,8 @@ def get_root(db: Session, post: Post) -> Post:
 
 
 def serialize_post(post: Post, liked_ids: Set[int], *, viewer: Optional[User] = None,
-                   review_by_post: Optional[dict] = None) -> PostOut:
+                   review_by_post: Optional[dict] = None,
+                   superseded: Optional[Set[int]] = None) -> PostOut:
     # Only a DELETED post loses its text. A veto removes the points, not the
     # student's words — blanking them would leave an unexplained empty card in
     # the feed, and the veto reason it carries would have nothing to attach to.
@@ -69,7 +70,7 @@ def serialize_post(post: Post, liked_ids: Set[int], *, viewer: Optional[User] = 
         content="" if removed else post.content,
         taps=post.taps,
         due_date=post.due_date,
-        is_entrega=post.is_entrega,
+        is_entrega=post.is_entrega and post.id not in (superseded or set()),
         examen_mode=post.examen_mode,
         graded_at=post.graded_at,
         my_review=ReviewOut.model_validate(review) if review is not None else None,
@@ -197,6 +198,17 @@ def get_feed(
             "next_cursor": next_cursor}
 
 
+def _superseded_entregas(db: Session, posts: list) -> Set[int]:
+    """Flagged entregas that are not the one counting for their tarea."""
+    out = set()
+    for p in posts:
+        if p.is_entrega and p.parent_id is not None:
+            counting = _counting_entrega(db, p.author_id, p.parent_id)
+            if counting is None or counting.id != p.id:
+                out.add(p.id)
+    return out
+
+
 @router.get("/{post_id}")
 def get_thread(post_id: int, user: User = Depends(get_current_user),
                db: Session = Depends(get_db)):
@@ -224,14 +236,17 @@ def get_thread(post_id: int, user: User = Depends(get_current_user),
         )
     replies = sorted(level2 + level3, key=lambda p: p.created_at)
     liked = _liked_ids(db, user, [post.id] + [r.id for r in replies])
-    entrega_ids = [r.id for r in replies if r.is_entrega]
+    # Only the entrega that counts shows as one — an older one kept its flag
+    # (see create_post) but grading it would be grading replaced work.
+    superseded = _superseded_entregas(db, [post] + replies)
+    entrega_ids = [r.id for r in replies if r.is_entrega and r.id not in superseded]
     review_by_post = {}
     if entrega_ids:
         for rv in db.query(Review).filter(Review.entrega_post_id.in_(entrega_ids)).all():
             review_by_post[rv.entrega_post_id] = rv
-    return {"post": serialize_post(post, liked, viewer=user),
-            "replies": [serialize_post(r, liked, viewer=user,
-                                       review_by_post=review_by_post) for r in replies]}
+    return {"post": serialize_post(post, liked, viewer=user, superseded=superseded),
+            "replies": [serialize_post(r, liked, viewer=user, review_by_post=review_by_post,
+                                       superseded=superseded) for r in replies]}
 
 
 @router.post("", response_model=PostOut, status_code=201)
@@ -286,12 +301,10 @@ def create_post(
             raise HTTPException(
                 status_code=403,
                 detail="Necesitas estar inscrito en la clase para entregar")
-        # Latest wins: clear any previous entrega by this student on this tarea.
-        (db.query(Post)
-           .filter(Post.author_id == user.id,
-                   Post.parent_id == parent.id,
-                   Post.is_entrega.is_(True))
-           .update({"is_entrega": False}, synchronize_session=False))
+        # Latest wins, but earlier entregas keep their flag: _counting_entrega
+        # picks the newest active one, so deleting it brings the previous one
+        # back instead of leaving the tarea at 0 (bug 2). Clearing the flag
+        # here made a superseded entrega indistinguishable from a plain reply.
         entrega = True
 
     if type == "participacion":

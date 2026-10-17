@@ -21,7 +21,7 @@ Pequeños, independientes entre sí, cada uno desplegable solo.
 - [x] **Publicaciones normales sin selector de clase** (bug 7 → R10, `a93e60b`).
 - [x] **…pero que su aura cuente para alguna clase.** ✅ 2026-10-17: fuera de horario, una publicación normal cuenta para la clase que tuviste más recientemente según el horario. Tareas, exámenes y el selector siguen preguntando. Con más de una clase y ninguna en horario, `resolve_default_class` devuelve `None` y el aura que reciba ese post no cuenta para nadie. Agregar el último paso: la clase más reciente. Test en `attribution`.
 - [ ] **Justificar faltas.** Cada falta injustificada vale −10, y hoy no hay forma de justificar ninguna. El esquema ya existe (`attendance_records.justification_*`) y el motor ya respeta `justification_status = approved`; faltan endpoints y UI. Primero lo mínimo: el profesor marca una falta como justificada desde el panel de clase; la falta sigue visible, tachada y con etiqueta "justificada" (Mario, 2026-10-17). Después: el alumno sube su comprobante (R2) y el profesor aprueba/rechaza.
-- [ ] **Bug 2** — borrar tu entrega más reciente pierde la tarea. Con archivos en producción, borrar y reentregar ya es cosa de todos los días.
+- [x] **Bug 2** (→ R13) — borrar tu entrega más reciente pierde la tarea. Con archivos en producción, borrar y reentregar ya es cosa de todos los días.
 - [ ] **Publicaciones largas colapsadas.** En el feed, un post largo se corta a 6 líneas (Mario, 2026-10-17) con "ver más" que lo expande en su lugar. El hilo siempre lo muestra completo.
 
 ## Bloque 2 — Aura: validar desde el feed
