@@ -27,6 +27,7 @@ Pequeños, independientes entre sí, cada uno desplegable solo.
 ## Bloque 2 — Aura: validar desde el feed
 El like se llama **aura** en toda la app (copy final de Mario). Nada cambia en el motor: sigue siendo la curva cóncava, y el aura del profesor sigue sin dar puntos.
 - [ ] **Renombrar like → aura** en el módulo de strings.
+- [ ] **El aura del profesor se ve** (Mario, 2026-10-17): todos ven que el profesor le dio aura a un post. Sigue sin dar puntos.
 - [ ] **El aura del profesor sobre una participación la valida.** Dar aura = `reviewed_at`; son el mismo hecho, así que "Validar" en `/revisar` también enciende el aura y viceversa. No mueve puntos — `test_reviewing_moves_no_points` sigue siendo el guardián.
 - [ ] **Quitar el aura des-valida** (decisión de Mario, 2026-10-09): `reviewed_at` vuelve a nulo y la participación regresa a la cola de `/revisar`. Tampoco mueve puntos.
 - [ ] **Vetar desde el feed.** En la tarjeta de una participación, el profesor tiene "Vetar" con el mismo diálogo de confirmación de `/revisar`. Aura (validar) y vetar siguen siendo dos controles distintos; nunca uno solo.
@@ -43,6 +44,9 @@ Principio de Mario: si aparece un username, se le puede dar click y llegar al pe
 Problema (Mario): la interacción sube posts y algunos se quedan arriba sin ser relevantes. Lo que se quiere: una vez que interactuaste con un post, baja **para ti** y deja lugar a lo nuevo.
 - [ ] **Spec primero.** Puntaje por post y por espectador: frescura + actividad reciente − penalización si ya interactuaste (aura, respuesta, validación). Implica dejar la paginación keyset sobre `last_activity_at` — la razón por la que hoy no se hizo. Retoma la idea de `future.md` (prioridad a no vistos, afinidad).
 - [ ] Implementación + tests del ranking como funciones puras, igual que el motor de calificación.
+- [ ] **Promover los comentarios** (Mario, 2026-10-17). Dos cosas que el spec del Bloque 4 debe cubrir:
+  - **Un comentario en el feed principal.** Debajo de un post, mostrar al menos una respuesta — la que sea más relevante (criterio a definir en el spec: más aura, más reciente, de alguien a quien sigues…).
+  - **Una respuesta te lo regresa.** Si alguien responde a tu post o a tu comentario, ese hilo vuelve a subir **para ti**, aunque ya lo hubieras tocado. Es la excepción a "lo que ya tocaste baja". Se cruza con el Bloque 5: es la misma señal que dispara la notificación.
 
 ## Bloque 5 — Actividad (notificaciones)
 Como "Actividad" en Threads o "Notificaciones" en X.
