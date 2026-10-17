@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Avatar from "@/components/Avatar";
 import {
@@ -41,10 +42,33 @@ export default function PostCard({
   // author "[eliminado]" over a post that is still theirs and still visible.
   const removed = post.status === "deleted";
   const vetoed = post.status === "vetoed";
+  // In the feed a long post stops at 6 lines (Mario, 2026-10-17); the thread
+  // always shows it whole. "Ver más" only appears when the text really
+  // overflows, measured rather than guessed from its length.
+  const clamp = linkToThread && !removed;
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const bodyRef = useRef<HTMLParagraphElement>(null);
+  useLayoutEffect(() => {
+    const el = bodyRef.current;
+    if (!clamp || expanded || !el) return;
+    const measure = () => setOverflows(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [clamp, expanded, post.content]);
   const body = removed ? (
     <p className="italic text-muted-foreground">{es.feed.deletedPost}</p>
   ) : (
-    <p className="whitespace-pre-wrap break-words">{post.content}</p>
+    <p
+      ref={bodyRef}
+      className={`whitespace-pre-wrap break-words${
+        clamp && !expanded ? " line-clamp-6" : ""
+      }`}
+    >
+      {post.content}
+    </p>
   );
   return (
     <article className="flex gap-3 p-4">
@@ -115,6 +139,14 @@ export default function PostCard({
           </Link>
         ) : (
           <div className="mt-1">{body}</div>
+        )}
+        {clamp && overflows && !expanded && (
+          <button
+            onClick={() => setExpanded(true)}
+            className="mt-1 text-sm text-muted-foreground"
+          >
+            {es.feed.seeMore}
+          </button>
         )}
         {!removed && post.attachments.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">

@@ -5,6 +5,7 @@
 - **Toda publicación normal cuenta para una clase.** Con varias clases y ninguna en horario, el post (y el aura que reciba) no contaba para nadie. Ahora va a la clase que tuviste más recientemente según el horario; una clase ya terminada o sin horario queda atrás. Tareas y exámenes nunca adivinan: si es ambiguo, se pregunta.
 - **Borrar tu última entrega ya no pierde la tarea** (bug 2 → R13): vuelve a contar la entrega anterior. En el hilo sólo la entrega que cuenta lleva la insignia.
 - **Justificar faltas, paso 1.** En el panel de clase, la hoja de cada alumno lista sus faltas por fecha con "Justificar". Una falta justificada se queda visible, tachada y con la etiqueta "Justificada", y deja de costar −10. De paso: volver a guardar pasar lista borraba y reinsertaba todos los registros del día; ahora actualiza cada alumno y conserva la justificación.
+- **Publicaciones largas colapsadas.** En el feed, un post se corta a 6 líneas con "ver más", que lo abre en su lugar. El hilo siempre lo muestra completo.
 
 ## 2026-10-09 (Bloque 0 — higiene)
 - **`main` local ya tiene lo que producción.** La rama `entregas-con-archivos` se había mergeado en `origin/main` el 2026-08-07, junto con dos fixes (selector de clase en posts normales, tarea fijada duplicada), pero el `main` local nunca los jaló y la replaneación se escribió creyendo que faltaba el merge. Se rebaseó encima y se quitaron la rama y su worktree.
