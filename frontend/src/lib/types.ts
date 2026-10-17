@@ -120,7 +120,21 @@ export interface ExamenListItem {
 export interface ExamenRoster {
   examen: { id: number; content: string; examen_mode: "paper" | "digital";
             graded_at: string | null };
-  rows: { student: QueueStudent; entrega_post_id: number | null; score: number | null }[];
+  rows: {
+    student: QueueStudent;
+    entrega_post_id: number | null;
+    /** Their marked entrega, else their latest reply with files (bug 8). */
+    submission: ExamenSubmission | null;
+    score: number | null;
+  }[];
+}
+
+export interface ExamenSubmission {
+  post_id: number;
+  content: string;
+  created_at: string;
+  is_entrega: boolean;
+  attachments: Attachment[];
 }
 
 export interface ParticipacionRow {

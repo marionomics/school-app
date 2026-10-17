@@ -143,3 +143,74 @@ def test_rows_carry_the_reviewed_flag(client, db, teacher_headers, auth_headers,
     row = next(i for i in r.json()["items"] if i["post_id"] == seen)
     assert row["reviewed"] is True
     assert row["vetoed"] is False
+
+
+def _examen(db, teacher, klass, mode="paper"):
+    x = Post(author_id=teacher.id, class_id=klass.id, type="examen", content="P1",
+             examen_mode=mode)
+    db.add(x)
+    db.commit()
+    return x
+
+
+def _reply(db, student, parent, content, at, is_entrega=False, files=(), status="active"):
+    from app.models import Attachment
+
+    p = Post(author_id=student.id, class_id=parent.class_id, type="regular",
+             parent_id=parent.id, content=content, is_entrega=is_entrega,
+             created_at=at, status=status)
+    db.add(p)
+    db.flush()
+    for name in files:
+        db.add(Attachment(post_id=p.id, file_key=f"k/{name}", file_name=name,
+                          file_size=10, mime_type="application/pdf"))
+    db.commit()
+    return p
+
+
+def _roster_row(client, headers, examen, student):
+    r = client.get(f"/api/review/examenes/{examen.id}", headers=headers)
+    assert r.status_code == 200, r.text
+    return next(row for row in r.json()["rows"] if row["student"]["id"] == student.id)
+
+
+def test_roster_shows_an_examen_reply_with_files_even_without_the_entrega_toggle(
+        client, db, teacher_headers, teacher, student, klass, enrolled):
+    # Bug 8: students answered the examen thread with files and the roster only
+    # showed a score box. Nobody told them to flip is_entrega, and they should
+    # not have to.
+    for mode in ("paper", "digital"):
+        x = _examen(db, teacher, klass, mode)
+        reply = _reply(db, student, x, "mis respuestas", DUE, files=["examen.pdf"])
+        sub = _roster_row(client, teacher_headers, x, student)["submission"]
+        assert sub["post_id"] == reply.id
+        assert sub["content"] == "mis respuestas"
+        assert [a["file_name"] for a in sub["attachments"]] == ["examen.pdf"]
+
+
+def test_roster_prefers_the_marked_entrega_over_a_later_reply_with_files(
+        client, db, teacher_headers, teacher, student, klass, enrolled):
+    x = _examen(db, teacher, klass)
+    entrega = _reply(db, student, x, "entrega", DUE, is_entrega=True)
+    _reply(db, student, x, "otra cosa", DUE + timedelta(hours=1), files=["foto.jpg"])
+    assert _roster_row(client, teacher_headers, x, student)["submission"]["post_id"] == entrega.id
+
+
+def test_roster_falls_to_the_latest_reply_with_files(
+        client, db, teacher_headers, teacher, student, klass, enrolled):
+    x = _examen(db, teacher, klass)
+    _reply(db, student, x, "v1", DUE, files=["v1.pdf"])
+    _reply(db, student, x, "sólo texto", DUE + timedelta(hours=2))
+    _reply(db, student, x, "borrada", DUE + timedelta(hours=3), files=["b.pdf"],
+           status="deleted")
+    v2 = _reply(db, student, x, "v2", DUE + timedelta(hours=1), files=["v2.pdf"])
+    assert _roster_row(client, teacher_headers, x, student)["submission"]["post_id"] == v2.id
+
+
+def test_roster_row_without_anything_uploaded_is_still_gradable(
+        client, db, teacher_headers, teacher, student, klass, enrolled):
+    x = _examen(db, teacher, klass, "digital")
+    _reply(db, student, x, "¿es para hoy?", DUE)   # a question, not an answer
+    row = _roster_row(client, teacher_headers, x, student)
+    assert row["submission"] is None
+    assert row["score"] is None

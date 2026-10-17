@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import { RiAttachment2 } from "@remixicon/react";
 import { api } from "@/lib/api";
+import { openAttachment } from "@/lib/likes";
 import { isScoreValid, markGraded, saveReview } from "@/lib/review";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,17 +63,50 @@ export default function ExamenRosterPanel({ examenId }: { examenId: number }) {
         {rows.map((r) => (
           <li
             key={r.student.id}
-            className="flex items-center justify-between py-2"
+            className="flex items-start justify-between gap-3 py-2"
           >
-            <span className="text-sm">
-              @{r.student.username ?? r.student.name}
-            </span>
+            {/* Whatever they uploaded, in either modality — the software
+                serves the workflow, not the other way round (bug 8). */}
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="text-sm">
+                @{r.student.username ?? r.student.name}
+              </span>
+              {r.submission && (
+                <>
+                  {r.submission.content && (
+                    <p className="line-clamp-2 text-xs text-muted-foreground">
+                      {r.submission.content}
+                    </p>
+                  )}
+                  {r.submission.attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {r.submission.attachments.map((a) => (
+                        <button
+                          key={a.id}
+                          onClick={() => void openAttachment(a.id, toast.show)}
+                          className="inline-flex max-w-full items-center gap-1 border px-2 py-1 text-xs"
+                        >
+                          <RiAttachment2 className="size-3 shrink-0" />
+                          <span className="truncate">{a.file_name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <Link
+                    to={`/post/${r.submission.post_id}`}
+                    className="text-xs text-muted-foreground underline"
+                  >
+                    {es.revisar.openSubmission}
+                  </Link>
+                </>
+              )}
+            </div>
             <Input
               type="number"
               inputMode="numeric"
               min={1}
               max={10}
-              className="w-20 text-right tabular-nums"
+              className="w-20 shrink-0 text-right tabular-nums"
               value={
                 draft[r.student.id] ??
                 (r.score != null ? String(r.score) : "")

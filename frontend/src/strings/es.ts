@@ -108,6 +108,7 @@ export const es = {
     markGraded: "Marcar como calificado",
     unmarkGraded: "Quitar calificado",
     markGradedWarning: "{n} alumnos sin calificación contarán como 0.",
+    openSubmission: "Ver en el hilo",
     graded: "Calificado",
     veto: "Vetar",
     unveto: "Quitar veto",

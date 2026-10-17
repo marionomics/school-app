@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-17 (Bloque 1)
+- **Revisar → Exámenes muestra lo que el alumno subió** (bug 8 → R12). Cada fila del roster enseña su entrega, o si no la marcó, su respuesta más reciente con archivos: texto, archivos que se abren y enlace al hilo. Presencial o en línea da igual. Sin nada subido, sólo se califica.
+
 ## 2026-10-09 (Bloque 0 — higiene)
 - **`main` local ya tiene lo que producción.** La rama `entregas-con-archivos` se había mergeado en `origin/main` el 2026-08-07, junto con dos fixes (selector de clase en posts normales, tarea fijada duplicada), pero el `main` local nunca los jaló y la replaneación se escribió creyendo que faltaba el merge. Se rebaseó encima y se quitaron la rama y su worktree.
 - **El bug 7 ya estaba arreglado** (R10) pero sin desplegar cuando Mario lo reportó. Queda un hueco chico en Bloque 1: con varias clases y ninguna en horario, el post normal no cuenta para ninguna clase.

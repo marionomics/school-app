@@ -17,7 +17,7 @@ Origen de los bloques 1–5: nota de Mario del 2026-09-28 ("Bug report y modific
 
 ## Bloque 1 — Lo que hoy cuesta puntos o trabajo
 Pequeños, independientes entre sí, cada uno desplegable solo.
-- [ ] **Revisar exámenes sin importar la modalidad** (bug 8). La fila del alumno en el roster muestra lo que subió al hilo del examen — su entrega si la marcó, y si no, su respuesta más reciente con archivos — y la calificación se pone ahí mismo. Si no subió nada, sólo se califica. Presencial vs en línea deja de decidir qué ves. *"El software sirve al flujo de trabajo, no al revés."*
+- [x] **Revisar exámenes sin importar la modalidad** (bug 8 → R12). La fila del alumno en el roster muestra lo que subió al hilo del examen — su entrega si la marcó, y si no, su respuesta más reciente con archivos — y la calificación se pone ahí mismo. Si no subió nada, sólo se califica. Presencial vs en línea deja de decidir qué ves. *"El software sirve al flujo de trabajo, no al revés."*
 - [x] **Publicaciones normales sin selector de clase** (bug 7 → R10, `a93e60b`).
 - [ ] **…pero que su aura cuente para alguna clase.** Con más de una clase y ninguna en horario, `resolve_default_class` devuelve `None` y el aura que reciba ese post no cuenta para nadie. Agregar el último paso: la clase más reciente. Test en `attribution`.
 - [ ] **Justificar faltas.** Cada falta injustificada vale −10, y hoy no hay forma de justificar ninguna. El esquema ya existe (`attendance_records.justification_*`) y el motor ya respeta `justification_status = approved`; faltan endpoints y UI. Primero lo mínimo: el profesor marca una falta como justificada desde el panel de clase. Después: el alumno sube su comprobante (R2) y el profesor aprueba/rechaza.
