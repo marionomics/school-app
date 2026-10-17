@@ -246,3 +246,10 @@ export interface GradeSummary {
   faltas: { count: number; points: number };
   events: GradeEvent[];
 }
+
+export interface FaltaRow {
+  record_id: number;
+  /** A calendar date, "YYYY-MM-DD" — no time, no zone. */
+  date: string;
+  justified: boolean;
+}

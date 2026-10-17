@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_teacher
 from app.database import get_db
-from app.models import AttendanceRecord, Class, ClassSession, User, utcnow
-from app.schemas import AttendancePut, SessionOut
+from app.models import AttendanceRecord, Class, ClassSession, Enrollment, User, utcnow
+from app.schemas import AttendancePut, JustificationIn, SessionOut
 
 router = APIRouter(tags=["attendance"])
 
@@ -135,15 +135,79 @@ def put_attendance(
         raise HTTPException(status_code=404, detail="Sesión no encontrada")
     _owned_class(db, session.class_id, teacher)
 
-    db.query(AttendanceRecord).filter(
-        AttendanceRecord.session_id == session_id
-    ).delete()
-
+    # Upsert per student, never delete-and-reinsert: a justification lives on
+    # the record, and re-saving the day's list must not wipe it and bring the
+    # −10 back. Only students no longer on the list lose their record.
+    existing = {
+        r.user_id: r
+        for r in db.query(AttendanceRecord)
+        .filter(AttendanceRecord.session_id == session_id).all()
+    }
+    listed = set()
     for rec in body.records:
-        db.add(AttendanceRecord(
-            session_id=session_id,
-            user_id=rec.user_id,
-            status=rec.status,
-        ))
+        listed.add(rec.user_id)
+        row = existing.get(rec.user_id)
+        if row is None:
+            db.add(AttendanceRecord(session_id=session_id, user_id=rec.user_id,
+                                    status=rec.status))
+        else:
+            row.status = rec.status
+    for user_id, row in existing.items():
+        if user_id not in listed:
+            db.delete(row)
     db.commit()
     return {"saved": len(body.records)}
+
+
+@router.get("/api/classes/{class_id}/students/{student_id}/faltas")
+def student_faltas(
+    class_id: int,
+    student_id: int,
+    teacher: User = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Every absence, justified or not — a justified one stays visible,
+    crossed out, rather than disappearing (Mario, 2026-10-17)."""
+    _owned_class(db, class_id, teacher)
+    enrolled = (
+        db.query(Enrollment)
+        .filter(Enrollment.user_id == student_id, Enrollment.class_id == class_id)
+        .first()
+    )
+    if enrolled is None:
+        raise HTTPException(status_code=404, detail="Ese alumno no está en esta clase")
+    rows = (
+        db.query(AttendanceRecord, ClassSession.date)
+        .join(ClassSession, AttendanceRecord.session_id == ClassSession.id)
+        .filter(ClassSession.class_id == class_id,
+                AttendanceRecord.user_id == student_id,
+                AttendanceRecord.status == "absent")
+        .order_by(ClassSession.date.desc(), AttendanceRecord.id.desc())
+        .all()
+    )
+    return {"faltas": [{"record_id": rec.id, "date": day,
+                        "justified": rec.justification_status == "approved"}
+                       for rec, day in rows]}
+
+
+@router.put("/api/attendance/{record_id}/justification")
+def set_justification(
+    record_id: int,
+    body: JustificationIn,
+    teacher: User = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """Approved means the engine stops charging it (faltas_breakdown). No
+    ledger row: faltas are computed from attendance, never from the ledger."""
+    rec = db.get(AttendanceRecord, record_id)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="Registro no encontrado")
+    session = db.get(ClassSession, rec.session_id)
+    _owned_class(db, session.class_id, teacher)
+    if rec.status != "absent":
+        raise HTTPException(status_code=422, detail="Sólo una falta se puede justificar")
+    rec.justification_status = "approved" if body.justified else None
+    rec.reviewed_by = teacher.id
+    rec.reviewed_at = utcnow()
+    db.commit()
+    return {"record_id": rec.id, "justified": body.justified}

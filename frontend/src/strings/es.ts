@@ -250,6 +250,13 @@ export const es = {
     closeSessionError: "No se pudo cerrar la sesión",
     tomarLista: "Tomar lista",
   },
+  faltas: {
+    title: "Faltas",
+    justify: "Justificar",
+    unjustify: "Quitar justificación",
+    justified: "Justificada",
+    saveError: "No se pudo guardar la justificación",
+  },
   asistencia: {
     title: "Pasar lista",
     saveButton: "Guardar",

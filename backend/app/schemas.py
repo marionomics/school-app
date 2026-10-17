@@ -203,6 +203,10 @@ class AttendancePut(BaseModel):
     records: List[AttendanceRecordIn]
 
 
+class JustificationIn(BaseModel):
+    justified: bool
+
+
 class RosterStudent(BaseModel):
     id: int
     name: str

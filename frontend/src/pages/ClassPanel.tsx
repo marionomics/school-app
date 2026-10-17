@@ -11,6 +11,7 @@ import {
   RiPushpinLine,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
+import FaltasList from "@/components/FaltasList";
 import { es } from "@/strings/es";
 import type {
   ClassDetailWithMembers,
@@ -276,6 +277,7 @@ export default function ClassPanel() {
                     </div>
                   )}
                 </dl>
+                <FaltasList classId={classId} studentId={selectedStudentId} />
               </>
             )}
             <Button
