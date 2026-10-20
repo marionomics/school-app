@@ -9,7 +9,7 @@ Origen de los bloques 1–5: nota de Mario del 2026-09-28 ("Bug report y modific
 ## ▶ Empieza aquí (sesión nueva)
 
 0. **`git fetch` primero.** El 2026-10-09 el `main` local llevaba dos meses atrás de `origin/main` y se replaneó sobre información vieja. Railway despliega `main` (confirmado por Mario, 2026-10-17). Queda por borrar `origin/entregas-con-archivos` (ya mergeada, sin commits propios).
-1. **Bloque 1** cerrado salvo justificar faltas paso 2 (comprobante del alumno). Sigue Bloque 2. Bug 8 y bug 2 son fixes acotados (TDD, sin spec propio). Justificar faltas sí lleva spec corto: el esquema ya existe, falta definir endpoints y dónde vive el control en el panel de clase.
+1. **Bloques 1 y 2** cerrados (salvo justificar faltas paso 2). Sigue **Bloque 3, empezando por las fotos** (spec con brainstorming). Bug 8 y bug 2 son fixes acotados (TDD, sin spec propio). Justificar faltas sí lleva spec corto: el esquema ya existe, falta definir endpoints y dónde vive el control en el panel de clase.
 2. Los bloques 2–5 empiezan cada uno con brainstorming → spec → plan. Las decisiones ya tomadas por Mario están escritas en cada bloque; no volver a preguntarlas. La pregunta aún abierta está en `future.md` (7).
 
 ## Bloque 0 — Higiene ✅ (2026-10-09)
@@ -33,11 +33,22 @@ El like se llama **aura** en toda la app (copy final de Mario). Nada cambia en e
 - [x] **Vetar desde el feed.** En la tarjeta de una participación, el profesor tiene "Vetar" con el mismo diálogo de confirmación de `/revisar`. Aura (validar) y vetar siguen siendo dos controles distintos; nunca uno solo. ✅ 2026-10-19
 - [x] **El aura del profesor no reordena el feed.** Hoy cada like sube `last_activity_at`: validar 30 participaciones las manda todas arriba. Primer paso barato del Bloque 4 — los likes dejan de subir posts; sólo las respuestas lo hacen. ✅ 2026-10-19
 
-## Bloque 3 — Perfil
+## Bloque 3 — Fotos y perfil
 Principio de Mario: si aparece un username, se le puede dar click y llegar al perfil.
+
+**Fotos primero** (Mario, 2026-10-19): a veces un alumno se expresa mejor con una foto, y hoy una imagen adjunta aparece como un enlace para abrirla. Las fotos en línea y la foto de perfil comparten el mismo camino (subir → reducir → servir desde R2), así que se diseñan en un solo spec y se construyen primero.
+- [ ] **Imágenes en línea en el feed y el hilo,** como en una red social: la foto se ve en la tarjeta, no un enlace. Tocarla la abre completa. Varias fotos → cuadrícula. Los demás archivos (PDF, etc.) siguen siendo chips.
+- [ ] **Foto de perfil propia** (subida a R2; hoy `avatar_url` es la de Google). Recorte cuadrado.
+- Decisiones para el spec (no tomadas aún):
+  - **Cómo llega la imagen al `<img>`.** La API autentica con `Authorization: Bearer`, y un `<img src>` no manda ese header, así que `/api/attachments/{id}/url` no sirve directo. Probable: el serializador incluye una URL prefirmada de vida corta para cada adjunto `image/*` (firmar es local, sin llamada a R2) y el cliente la refresca cuando caduca.
+  - **Peso en datos móviles.** Una foto de celular pesa 3–10 MB; cuarenta en el feed no caben en el plan de datos de un alumno. Reducir antes de subir (en el navegador, p. ej. a ~1600 px de lado y JPEG/WebP) o generar miniatura en el servidor.
+  - **Texto alternativo** opcional al subir (accesibilidad), y qué pasa con las fotos ya subidas (se verán en línea en cuanto exista el cambio — no hace falta migrar datos).
+  - **Moderación:** una foto vetada o borrada deja de verse igual que el texto (sin evidencia no hay puntos; el veto no borra, el borrado sí oculta).
+
+Después, el perfil:
 - [ ] **`/u/:username`** — todo username y avatar en la app enlaza aquí.
 - [ ] **Contenido:** foto, bio, aura recibida (el conteo). Sus publicaciones debajo.
-- [ ] **Tu propio perfil:** editas la bio ahí mismo y cambias tu foto (subida a R2; hoy `avatar_url` es la de Google).
+- [ ] **Tu propio perfil:** editas la bio ahí mismo y cambias tu foto (la del punto de arriba).
 - [ ] **Calificación en el perfil:** sólo la ve el dueño y el profesor. El profesor ve el desglose completo (el mismo del panel de clase).
 
 ## Bloque 4 — Algoritmo del feed
