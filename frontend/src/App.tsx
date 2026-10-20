@@ -19,6 +19,7 @@ import Salvando from "@/pages/configurar/Salvando";
 import Clase from "@/pages/configurar/Clase";
 import ClassPanel from "@/pages/ClassPanel";
 import PasarLista from "@/pages/PasarLista";
+import Perfil from "@/pages/Perfil";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -186,6 +187,16 @@ export default function App() {
               element={
                 <RequireAuth>
                   <PasarLista />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/perfil"
+              element={
+                <RequireAuth>
+                  <Shell>
+                    <Perfil />
+                  </Shell>
                 </RequireAuth>
               }
             />

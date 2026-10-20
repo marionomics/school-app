@@ -37,8 +37,9 @@ El like se llama **aura** en toda la app (copy final de Mario). Nada cambia en e
 Principio de Mario: si aparece un username, se le puede dar click y llegar al perfil.
 
 **Fotos primero** (Mario, 2026-10-19): a veces un alumno se expresa mejor con una foto, y hoy una imagen adjunta aparece como un enlace para abrirla. Las fotos en línea y la foto de perfil comparten el mismo camino (subir → reducir → servir desde R2), así que se diseñan en un solo spec y se construyen primero.
-- [ ] **Imágenes en línea en el feed y el hilo,** como en una red social: la foto se ve en la tarjeta, no un enlace. Tocarla la abre completa. Varias fotos → cuadrícula. Los demás archivos (PDF, etc.) siguen siendo chips.
-- [ ] **Foto de perfil propia** (subida a R2; hoy `avatar_url` es la de Google). Recorte cuadrado.
+- [x] **Imágenes en línea en el feed y el hilo,** como en una red social: la foto se ve en la tarjeta, no un enlace. Tocarla la abre completa. Varias fotos → cuadrícula. Los demás archivos (PDF, etc.) siguen siendo chips. ✅ 2026-10-20
+- [x] **Foto de perfil propia** (subida a R2; hoy `avatar_url` es la de Google). Recorte cuadrado. ✅ 2026-10-20
+- [x] **`/perfil`** — cambiar foto y bio (antes no había dónde: `/onboarding` redirige a quien ya tiene username). Lo absorbe `/u/:username`.
 - Decisiones para el spec (no tomadas aún):
   - **Cómo llega la imagen al `<img>`.** La API autentica con `Authorization: Bearer`, y un `<img src>` no manda ese header, así que `/api/attachments/{id}/url` no sirve directo. Probable: el serializador incluye una URL prefirmada de vida corta para cada adjunto `image/*` (firmar es local, sin llamada a R2) y el cliente la refresca cuando caduca.
   - **Peso en datos móviles.** Una foto de celular pesa 3–10 MB; cuarenta en el feed no caben en el plan de datos de un alumno. Reducir antes de subir (en el navegador, p. ej. a ~1600 px de lado y JPEG/WebP) o generar miniatura en el servidor.

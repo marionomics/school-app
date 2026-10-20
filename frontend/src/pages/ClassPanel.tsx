@@ -12,6 +12,7 @@ import {
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import FaltasList from "@/components/FaltasList";
+import { useToast } from "@/components/Toaster";
 import { es } from "@/strings/es";
 import type {
   ClassDetailWithMembers,
@@ -30,6 +31,7 @@ export default function ClassPanel() {
   const [tab, setTab] = useState<Tab>("roster");
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
   const qc = useQueryClient();
+  const toast = useToast();
   const navigate = useNavigate();
 
   const detail = useQuery({
@@ -278,6 +280,22 @@ export default function ClassPanel() {
                   )}
                 </dl>
                 <FaltasList classId={classId} studentId={selectedStudentId} />
+                <Button
+                  variant="outline"
+                  className="mt-3 w-full"
+                  onClick={async () => {
+                    try {
+                      await api(`/api/users/${selectedStudentId}/avatar`, { method: "DELETE" });
+                      void qc.invalidateQueries({ queryKey: ["roster", classId] });
+                      void qc.invalidateQueries({ queryKey: ["feed"] });
+                      toast.show(es.perfil.saved);
+                    } catch {
+                      toast.show(es.perfil.error);
+                    }
+                  }}
+                >
+                  {es.perfil.teacherRemovePhoto}
+                </Button>
               </>
             )}
             <Button

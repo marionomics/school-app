@@ -64,7 +64,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         <Link to="/componer" aria-label={es.nav.create} className="p-2">
           <RiAddLine className="size-5" />
         </Link>
-        <Link to="/onboarding" aria-label={es.nav.profile} className="p-2">
+        <Link to="/perfil" aria-label={es.nav.profile} className="p-2">
           <RiUserLine className="size-5" />
         </Link>
       </nav>

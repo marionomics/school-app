@@ -5,6 +5,7 @@ export interface User {
   username: string | null;
   bio: string;
   avatar_url: string | null;
+  has_own_avatar: boolean;
   role: "student" | "teacher";
   grade_is_private: boolean;
 }

@@ -277,4 +277,17 @@ export const es = {
     emptyStudents: "Sin alumnos inscritos.",
     back: "Volver",
   },
+  perfil: {
+    title: "Tu perfil",
+    photoLabel: "Foto",
+    changePhoto: "Cambiar foto",
+    removePhoto: "Quitar foto",
+    savePhoto: "Guardar foto",
+    cancel: "Cancelar",
+    bioLabel: "Bio",
+    saveBio: "Guardar bio",
+    saved: "Guardado",
+    error: "No se pudo guardar",
+    teacherRemovePhoto: "Quitar foto de perfil",
+  },
 } as const;
