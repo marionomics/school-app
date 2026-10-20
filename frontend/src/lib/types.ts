@@ -187,6 +187,7 @@ export interface RosterStudent {
   name: string;
   username: string | null;
   avatar_url: string | null;
+  has_own_avatar: boolean;
   status: "active" | "ghost" | "polizon";
   grade: number;
   faltas: number;

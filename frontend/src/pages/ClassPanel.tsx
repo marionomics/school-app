@@ -11,6 +11,13 @@ import {
   RiPushpinLine,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import FaltasList from "@/components/FaltasList";
 import { useToast } from "@/components/Toaster";
 import { es } from "@/strings/es";
@@ -30,6 +37,7 @@ export default function ClassPanel() {
   const isTeacher = user?.role === "teacher";
   const [tab, setTab] = useState<Tab>("roster");
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
+  const [confirmRemovePhoto, setConfirmRemovePhoto] = useState(false);
   const qc = useQueryClient();
   const toast = useToast();
   const navigate = useNavigate();
@@ -81,6 +89,17 @@ export default function ClassPanel() {
       void qc.invalidateQueries({ queryKey: ["session-active", classId] });
     },
     onError: () => alert(es.panel.closeSessionError),
+  });
+
+  const removePhoto = useMutation({
+    mutationFn: (studentId: number) =>
+      api<void>(`/api/users/${studentId}/avatar`, { method: "DELETE" }),
+    onSuccess: () => {
+      for (const queryKey of [["roster", classId], ["class-detail", classId], ["feed"], ["thread"]])
+        void qc.invalidateQueries({ queryKey });
+      toast.show(es.perfil.photoRemoved);
+    },
+    onError: () => toast.show(es.perfil.error),
   });
 
   const klass = detail.data;
@@ -280,22 +299,44 @@ export default function ClassPanel() {
                   )}
                 </dl>
                 <FaltasList classId={classId} studentId={selectedStudentId} />
-                <Button
-                  variant="outline"
-                  className="mt-3 w-full"
-                  onClick={async () => {
-                    try {
-                      await api(`/api/users/${selectedStudentId}/avatar`, { method: "DELETE" });
-                      void qc.invalidateQueries({ queryKey: ["roster", classId] });
-                      void qc.invalidateQueries({ queryKey: ["feed"] });
-                      toast.show(es.perfil.saved);
-                    } catch {
-                      toast.show(es.perfil.error);
-                    }
-                  }}
+                {roster.data?.find((s) => s.id === selectedStudentId)?.has_own_avatar && (
+                  <Button
+                    variant="outline"
+                    className="mt-3 w-full"
+                    disabled={removePhoto.isPending}
+                    onClick={() => setConfirmRemovePhoto(true)}
+                  >
+                    {es.perfil.teacherRemovePhoto}
+                  </Button>
+                )}
+                <Dialog
+                  open={confirmRemovePhoto}
+                  onOpenChange={(o) => !o && setConfirmRemovePhoto(false)}
                 >
-                  {es.perfil.teacherRemovePhoto}
-                </Button>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{es.perfil.teacherRemoveConfirmTitle}</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                      {es.perfil.teacherRemoveConfirmBody}
+                    </p>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setConfirmRemovePhoto(false)}>
+                        {es.perfil.cancel}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        disabled={removePhoto.isPending}
+                        onClick={() => {
+                          setConfirmRemovePhoto(false);
+                          removePhoto.mutate(selectedStudentId);
+                        }}
+                      >
+                        {es.perfil.teacherRemovePhoto}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </>
             )}
             <Button

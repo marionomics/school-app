@@ -289,5 +289,9 @@ export const es = {
     saved: "Guardado",
     error: "No se pudo guardar",
     teacherRemovePhoto: "Quitar foto de perfil",
+    teacherRemoveConfirmTitle: "¿Quitar su foto de perfil?",
+    teacherRemoveConfirmBody: "Volverá a su foto de Google. Puede subir otra.",
+    photoRemoved: "Foto quitada",
+    photoUnreadable: "No pudimos leer esa foto. Prueba con otra (JPG o PNG).",
   },
 } as const;
