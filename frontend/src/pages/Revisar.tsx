@@ -267,14 +267,24 @@ function ParticipacionesTab({ classId }: { classId: number }) {
       if (ctx?.prev) qc.setQueryData(key, ctx.prev);
       toast.show(es.revisar.saveError);
     },
-    onSettled: () => void qc.invalidateQueries({ queryKey: key }),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: key });
+      // Validating gives the teacher's aura, which the feed shows.
+      void qc.invalidateQueries({ queryKey: ["feed"] });
+      void qc.invalidateQueries({ queryKey: ["thread"] });
+    },
   });
 
   const bulk = useMutation({
     // rows, not "everything pending": exactly what is on screen.
     mutationFn: (ids: number[]) => bulkReviewed(ids),
     onError: () => toast.show(es.revisar.saveError),
-    onSettled: () => void qc.invalidateQueries({ queryKey: key }),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: key });
+      // Validating gives the teacher's aura, which the feed shows.
+      void qc.invalidateQueries({ queryKey: ["feed"] });
+      void qc.invalidateQueries({ queryKey: ["thread"] });
+    },
   });
 
   const toggle = useMutation({

@@ -65,6 +65,8 @@ export interface Post {
   like_count: number;
   reply_count: number;
   liked_by_me: boolean;
+  /** A teacher gave this post aura. Everyone sees it. */
+  teacher_aura: boolean;
   attachments: Attachment[];
   created_at: string;
   last_activity_at: string;

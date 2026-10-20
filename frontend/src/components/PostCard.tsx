@@ -6,8 +6,8 @@ import {
   RiCheckLine,
   RiChat3Line,
   RiFileTextLine,
-  RiHeart3Fill,
-  RiHeart3Line,
+  RiSparkling2Fill,
+  RiSparkling2Line,
   RiPushpinLine,
 } from "@remixicon/react";
 import { es } from "@/strings/es";
@@ -176,14 +176,20 @@ export default function PostCard({
             disabled={!onLike || removed}
             aria-label={post.liked_by_me ? es.feed.unlike : es.feed.like}
             aria-pressed={post.liked_by_me}
-            className={post.liked_by_me ? "text-destructive" : ""}
+            className={`inline-flex items-center gap-1${post.liked_by_me ? " text-primary" : ""}`}
           >
             {post.liked_by_me ? (
-              <RiHeart3Fill className="size-4" />
+              <RiSparkling2Fill className="size-4" />
             ) : (
-              <RiHeart3Line className="size-4" />
+              <RiSparkling2Line className="size-4" />
             )}
             {post.like_count > 0 ? post.like_count : ""}
+            {/* Everyone sees the teacher's aura (Mario, 2026-10-17). For the
+                teacher, a lit aura on a participación IS the validation —
+                there is no separate "Validada" label. */}
+            {post.teacher_aura && (
+              <span className="text-xs">· {es.feed.teacherAura}</span>
+            )}
           </button>
           <span>
             💬 {post.reply_count > 0 ? post.reply_count : ""}

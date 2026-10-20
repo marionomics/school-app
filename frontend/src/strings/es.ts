@@ -65,6 +65,7 @@ export const es = {
     replies: "respuestas",
     like: "Me gusta",
     unlike: "Quitar me gusta",
+    teacherAura: "profe",
   },
   attachments: {
     attach: "Adjuntar",

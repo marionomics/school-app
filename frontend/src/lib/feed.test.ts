@@ -15,6 +15,7 @@ const post = (id: number): Post =>
     like_count: 0,
     reply_count: 0,
     liked_by_me: false,
+    teacher_aura: false,
     attachments: [],
     created_at: "2026-07-22T00:00:00Z",
     last_activity_at: "2026-07-22T00:00:00Z",
