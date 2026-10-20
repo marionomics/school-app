@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RiAttachment2, RiCloseLine } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -15,12 +15,20 @@ type PickerProps = {
   /** True while picked photos are being shrunk. Parents disable publishing
    *  until it is false again, or the post would go out without the photo. */
   onPreparing?: (busy: boolean) => void;
+  /** Locks the picker from outside, e.g. while a tap window may auto-publish. */
+  disabled?: boolean;
 };
 
-export function FilePicker({ files, onChange, compact = false, onPreparing }: PickerProps) {
+export function FilePicker({ files, onChange, compact = false, onPreparing, disabled = false }: PickerProps) {
   const enabled = useUploadsEnabled();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  // The photo is prepared asynchronously; by then the parent may have removed
+  // or added files, so merge into the latest list, not the one at pick time.
+  const latest = useRef(files);
+  useEffect(() => {
+    latest.current = files;
+  }, [files]);
 
   // Spec §5.2: when uploads are off the affordance does not exist at all. A
   // disabled button inviting a student to attach work the server will refuse
@@ -41,7 +49,7 @@ export function FilePicker({ files, onChange, compact = false, onPreparing }: Pi
           setBusy(true);
           onPreparing?.(true);
           try {
-            onChange(addFiles(files, await prepareFiles(picked)));
+            onChange(addFiles(latest.current, await prepareFiles(picked)));
           } finally {
             setBusy(false);
             onPreparing?.(false);
@@ -53,7 +61,7 @@ export function FilePicker({ files, onChange, compact = false, onPreparing }: Pi
         variant="outline"
         size={compact ? "icon-sm" : "sm"}
         onClick={() => input.current?.click()}
-        disabled={busy}
+        disabled={busy || disabled}
         aria-label={
           busy
             ? es.attachments.preparing

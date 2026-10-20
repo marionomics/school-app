@@ -196,7 +196,12 @@ export default function Compose() {
         onChange={(e) => setContent(e.target.value)}
       />
 
-      <FilePicker files={files} onChange={setFiles} onPreparing={setPreparing} />
+      <FilePicker
+        files={files}
+        onChange={setFiles}
+        onPreparing={setPreparing}
+        disabled={tapCtl.active}
+      />
       <FileChips
         files={files}
         onRemove={(i) => setFiles(files.filter((_, n) => n !== i))}
