@@ -197,3 +197,30 @@ def test_a_students_aura_is_not_the_teachers(
     client.post(f"/api/posts/{pid}/like", headers=student2_headers)
     feed = client.get("/api/feed", headers=auth_headers).json()
     assert next(p for p in feed["items"] if p["id"] == pid)["teacher_aura"] is False
+
+
+def test_the_teachers_own_participacion_is_neither_aura_nor_validated(
+        client, db, teacher, teacher_headers, klass):
+    # A self-like is forbidden, so validating it would split the one fact
+    # into two: reviewed_at with no aura.
+    p = Post(author_id=teacher.id, class_id=klass.id, type="participacion",
+             content="Ejemplo en clase", taps=1)
+    db.add(p)
+    db.commit()
+    r = client.post(f"/api/posts/{p.id}/reviewed", headers=teacher_headers)
+    assert r.status_code == 200, r.text
+    assert _state(db, p.id, teacher) == (False, False)
+
+
+def test_teacher_aura_on_an_entrega_is_plain_aura(
+        client, db, teacher, teacher_headers, student, klass, enrolled):
+    tarea = Post(author_id=teacher.id, class_id=klass.id, type="tarea", content="Cap 3")
+    db.add(tarea)
+    db.commit()
+    entrega = Post(author_id=student.id, class_id=klass.id, type="regular",
+                   parent_id=tarea.id, content="mi entrega", is_entrega=True)
+    db.add(entrega)
+    db.commit()
+    r = client.post(f"/api/posts/{entrega.id}/like", headers=teacher_headers)
+    assert r.json()["liked"] is True
+    assert _state(db, entrega.id, teacher) == (True, False)

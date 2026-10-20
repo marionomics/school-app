@@ -5,8 +5,13 @@ from app.models import Class, Like, Post, User, utcnow
 
 def _validates(db: Session, post: Post, teacher: User) -> bool:
     """Only a participación in a class this teacher owns is validated by
-    their aura. Anywhere else the aura is just aura."""
+    their aura. Anywhere else the aura is just aura.
+
+    Never their own: a self-like is forbidden, so validating it would leave
+    reviewed_at with no aura and split the one fact into two."""
     if post.type != "participacion" or post.class_id is None:
+        return False
+    if post.author_id == teacher.id:
         return False
     klass = db.get(Class, post.class_id)
     return klass is not None and klass.teacher_id == teacher.id
