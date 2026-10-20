@@ -88,3 +88,19 @@ def test_the_exam_roster_carries_the_url(client, db, teacher, teacher_headers, s
     rows = client.get(f"/api/review/examenes/{x.id}", headers=teacher_headers).json()["rows"]
     row = next(r for r in rows if r["student"]["id"] == student.id)
     assert row["submission"]["attachments"][0]["url"] == "https://r2.test/posts/x?exp=3600"
+
+
+def test_presigned_url_error_degrades_gracefully(client, db, auth_headers, student, klass,
+                                                  enrolled, monkeypatch):
+    """If presigned URL generation fails, the photo degrades to a chip (url: None)
+    and the feed still returns 200."""
+    monkeypatch.setattr(storage, "is_r2_configured", lambda: True)
+    def raise_error(key, expires=3600):
+        raise Exception("R2 connection failed")
+    monkeypatch.setattr(storage, "generate_presigned_url", raise_error)
+    p = _post_with(db, student, klass, ("foto.jpg", "image/jpeg"))
+    response = client.get("/api/feed", headers=auth_headers)
+    assert response.status_code == 200
+    atts = _feed_post(client, auth_headers, p.id)["attachments"]
+    assert atts[0]["url"] is None
+    assert atts[0]["file_name"] == "foto.jpg"

@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import Optional
 
 import boto3
@@ -19,6 +20,7 @@ def is_r2_configured() -> bool:
     )
 
 
+@lru_cache(maxsize=1)
 def _client():
     return boto3.client(
         "s3",
