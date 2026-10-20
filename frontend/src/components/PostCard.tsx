@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Avatar from "@/components/Avatar";
+import { Button } from "@/components/ui/button";
 import {
   RiAttachment2,
   RiCheckLine,
@@ -28,6 +29,7 @@ export default function PostCard({
   onDelete,
   canDelete,
   onOpenAttachment,
+  onVeto,
 }: {
   post: Post;
   onLike?: (post: Post) => void;
@@ -35,6 +37,7 @@ export default function PostCard({
   onDelete?: (post: Post) => void;
   canDelete?: boolean;
   onOpenAttachment?: (id: number) => void;
+  onVeto?: (post: Post) => void;
 }) {
   // Only a DELETED post loses its body. A veto takes the points, not the
   // student's words — mirrors serialize_post on the backend, which stopped
@@ -194,6 +197,18 @@ export default function PostCard({
           <span>
             💬 {post.reply_count > 0 ? post.reply_count : ""}
           </span>
+          {/* Apart from the aura, with ml-auto, so a mis-tap on one never
+              lands on the other: aura validates, veto cancels (R8). */}
+          {onVeto && post.type === "participacion" && !removed && (
+            <Button
+              size="xs"
+              variant={vetoed ? "outline" : "destructive"}
+              className="ml-auto"
+              onClick={() => onVeto(post)}
+            >
+              {vetoed ? es.revisar.unveto : es.revisar.veto}
+            </Button>
+          )}
         </div>
       </div>
     </article>

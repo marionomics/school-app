@@ -6,6 +6,8 @@ import PostCard from "@/components/PostCard";
 import { FeedSkeleton } from "@/components/Skeletons";
 import { es } from "@/strings/es";
 import { useLikeMutation } from "@/lib/likes";
+import { useAuth } from "@/lib/auth";
+import { useVetoFlow } from "@/lib/useVetoFlow";
 import type { FeedPage } from "@/lib/types";
 
 export default function Home() {
@@ -17,6 +19,9 @@ export default function Home() {
     getNextPageParam: (last) => last.next_cursor,
   });
   const like = useLikeMutation();
+  const { user } = useAuth();
+  const veto = useVetoFlow();
+  const onVeto = user?.role === "teacher" ? veto.request : undefined;
   const sentinel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,6 +47,7 @@ export default function Home() {
 
   return (
     <div className="divide-y">
+      {veto.dialog}
       {pinned.length > 0 && (
         <section className="border-b bg-muted/40">
           <p className="px-4 pt-3 text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">
@@ -53,6 +59,7 @@ export default function Home() {
                 key={`pinned-${p.id}`}
                 post={p}
                 onLike={(post) => like.mutate(post)}
+                onVeto={onVeto}
               />
             ))}
           </div>
@@ -62,7 +69,12 @@ export default function Home() {
         <p className="p-10 text-center text-muted-foreground">{es.feed.empty}</p>
       )}
       {posts.filter((p) => !pinnedIds.has(p.id)).map((p) => (
-        <PostCard key={p.id} post={p} onLike={(post) => like.mutate(post)} />
+        <PostCard
+          key={p.id}
+          post={p}
+          onLike={(post) => like.mutate(post)}
+          onVeto={onVeto}
+        />
       ))}
       <div ref={sentinel} />
       {!q.hasNextPage && posts.length > 0 && (

@@ -10,6 +10,7 @@ import { FileChips, FilePicker } from "@/components/FilePicker";
 import ReviewSheet from "@/components/ReviewSheet";
 import { FeedSkeleton } from "@/components/Skeletons";
 import { useToast } from "@/components/Toaster";
+import { useVetoFlow } from "@/lib/useVetoFlow";
 import { canSubmit } from "@/lib/attachments";
 import { es } from "@/strings/es";
 import type { Post, ThreadResponse } from "@/lib/types";
@@ -21,6 +22,7 @@ export default function Thread() {
   const toast = useToast();
   const navigate = useNavigate();
   const like = useLikeMutation();
+  const veto = useVetoFlow();
   const [reply, setReply] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [replyTo, setReplyTo] = useState<Post | null>(null);
@@ -91,6 +93,7 @@ export default function Thread() {
         onLike={(x) => like.mutate(x)}
         canDelete={canDelete(p)}
         onDelete={setConfirming}
+        onVeto={user?.role === "teacher" ? veto.request : undefined}
         onOpenAttachment={(aid) => void openAttachment(aid, toast.show)}
       />
       {p.id !== post.id && p.parent_id === post.id && (
@@ -120,6 +123,7 @@ export default function Thread() {
     // chips (entrega toggle + a wrapped chip row can pass 200 px), so the
     // list needs to reserve more room whenever files are attached.
     <div className={files.length > 0 ? "pb-52" : "pb-28"}>
+      {veto.dialog}
       {card(post, 0)}
       <div className="divide-y border-t">
         {level2.map((r) => (

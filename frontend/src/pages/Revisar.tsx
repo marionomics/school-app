@@ -6,13 +6,7 @@ import ReviewSheet from "@/components/ReviewSheet";
 import ExamenRosterPanel from "@/components/ExamenRoster";
 import { FeedSkeleton } from "@/components/Skeletons";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import VetoDialog from "@/components/VetoDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { bulkReviewed, setReviewed, setVeto } from "@/lib/review";
 import { formatPoints } from "@/lib/points";
@@ -303,6 +297,8 @@ function ParticipacionesTab({ classId }: { classId: number }) {
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: key });
       void qc.invalidateQueries({ queryKey: ["grade"] });
+      void qc.invalidateQueries({ queryKey: ["feed"] });
+      void qc.invalidateQueries({ queryKey: ["thread"] });
     },
   });
 
@@ -402,37 +398,15 @@ function ParticipacionesTab({ classId }: { classId: number }) {
         ))}
       </ul>
 
-      <Dialog
+      <VetoDialog
         open={confirmingVeto != null}
-        onOpenChange={() => setConfirmingVeto(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{es.revisar.vetoConfirmTitle}</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            {es.revisar.vetoConfirmBody}
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmingVeto(null)}>
-              {es.configurar.cancel}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (confirmingVeto)
-                  toggle.mutate({
-                    postId: confirmingVeto.post_id,
-                    vetoed: true,
-                  });
-                setConfirmingVeto(null);
-              }}
-            >
-              {es.revisar.vetoConfirmYes}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onCancel={() => setConfirmingVeto(null)}
+        onConfirm={() => {
+          if (confirmingVeto)
+            toggle.mutate({ postId: confirmingVeto.post_id, vetoed: true });
+          setConfirmingVeto(null);
+        }}
+      />
     </div>
   );
 }
