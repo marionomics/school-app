@@ -135,6 +135,22 @@ def test_handled_holds_both_reviewed_and_vetoed(client, db, teacher_headers, aut
     assert seen in ids and killed in ids
 
 
+def test_a_deleted_participacion_is_in_neither_list(client, db, teacher_headers, auth_headers, klass, enrolled):
+    # No evidence, nothing to review: the feed never shows it, so it could
+    # never be cleared and /revisar would never empty.
+    gone = _part(client, auth_headers)
+    seen_then_gone = _part(client, auth_headers)
+    client.post(f"/api/posts/{seen_then_gone}/reviewed", headers=teacher_headers)
+    for pid in (gone, seen_then_gone):
+        assert client.delete(f"/api/posts/{pid}", headers=auth_headers).status_code == 204
+
+    for status in ("pending", "handled"):
+        r = client.get(f"/api/review/participaciones?class_id={klass.id}&status={status}",
+                       headers=teacher_headers)
+        ids = [i["post_id"] for i in r.json()["items"]]
+        assert gone not in ids and seen_then_gone not in ids, status
+
+
 def test_rows_carry_the_reviewed_flag(client, db, teacher_headers, auth_headers, klass, enrolled):
     seen = _part(client, auth_headers)
     client.post(f"/api/posts/{seen}/reviewed", headers=teacher_headers)

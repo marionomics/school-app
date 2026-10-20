@@ -159,8 +159,11 @@ def participaciones(class_id: int, status: str = Query("pending"),
                     user: User = Depends(get_current_user),
                     db: Session = Depends(get_db)):
     klass = _owned_class(db, class_id, user)
+    # A deleted participación is in neither list: no evidence, nothing to
+    # review, and the feed never shows it, so it could never be cleared.
     q = db.query(Post).filter(Post.class_id == klass.id,
-                              Post.type == "participacion")
+                              Post.type == "participacion",
+                              Post.status != "deleted")
     # "Pending" means it still needs you: not looked at, and not cancelled.
     # Without this the queue never drains and the only control that clears a
     # row is the one that takes the student's points.
