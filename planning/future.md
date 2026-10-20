@@ -19,6 +19,7 @@ Cosas deliberadamente pospuestas. Nada aquí bloquea el MVP.
 
 ## Ideas de largo plazo
 
+- **Buscador de GIFs en el compositor** (Mario, 2026-10-20). Subir un GIF propio ya funciona (se muestra animado, sin reducir). Para buscar GIFs: Tenor cerró su API el 2026-06-30; GIPHY es gratis sólo con llave beta (100 llamadas/hora, 1,000/día) y la llave de producción tiene precio a negociar desde marzo de 2025; KLIPY (ex-Tenor, la que usan Discord y WhatsApp) tiene plan gratis. Para ~40 alumnos por clase, la llave beta de GIPHY o KLIPY alcanzan si el buscador llama a la API sólo al escribir (con debounce) y el backend hace de proxy para no exponer la llave. Requiere atribución ("Powered by GIPHY"/KLIPY).
 - **Wiki** con tagging `[[artículo]]` desde el foro (estilo Obsidian) y menciones `@compañero`
 - **Algoritmo del feed, segunda vuelta:** prioridad a posts *no vistos* (requiere registrar impresiones, no sólo interacciones) y afinidad (interactuar con alguien sube sus posts en tu feed). La primera vuelta —bajar lo que ya tocaste— está en el roadmap, Bloque 4.
 - **Asistencia criptográfica:** QR sensible al tiempo estilo 2FA, o "diseminación" de asistencia entre compañeros de al lado (autentica presencia física)
