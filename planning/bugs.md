@@ -5,6 +5,9 @@ Las cosas que faltan (features) van en `roadmap.md`, no aquí.
 
 | # | Estado | Descripción | Fase |
 |---|--------|-------------|------|
+| 11 | Abierto | **Emojis como UI fuera de la tarjeta.** `CLAUDE.md` dice que sólo 👻 y 🥷 sobreviven; quedan 🚧 (`frontend/src/strings/es.ts:23`), 👏 (`frontend/src/pages/Compose.tsx:221`) y ✎ (`frontend/src/pages/Thread.tsx:115`). La tarjeta ya se limpió en el Bloque 2. | 2 |
+| 10 | Abierto | **La participación propia del profesor se queda pendiente para siempre en `/revisar`.** Desde el Bloque 2 validar = dar aura, y nadie puede darse aura a sí mismo, así que `_validates` (`services/aura.py`) nunca valida una participación del profesor — pero la cola pendiente sí la lista. Raro (el profesor casi no publica participaciones; tampoco le dan puntos). Fix propuesto: excluir `author_id == profesor` de la cola de participaciones. | 2 |
+| 9 | Abierto | **"Vetar" aparece en el feed para cualquier profesor**, no sólo el de la clase: otro profesor recibiría un 403 y un toast. Inofensivo mientras Mario sea el único profesor. Fix: mostrar el control sólo en participaciones de `classes-mine`. | 2 |
 | 1 | Abierto (solo dev) | En SQLite los `DateTime(timezone=True)` se guardan sin offset, así que la API devuelve `"2026-07-29T21:00:00"` en vez de `...+00:00`. El navegador lo interpreta como hora local, por lo que en dev local todo post de las últimas ~6 h dice "ahora" y las fechas del desglose de calificación pueden correrse un día. En PostgreSQL (prod y CI) el offset sí viaja y todo se ve bien. Repro: `npm run dev` contra SQLite, publicar algo, esperar una hora → sigue diciendo "ahora". Fix propuesto: helper `parseApiDate` en `frontend/src/lib/feed.ts` que le agregue `Z` a los timestamps sin offset, usado por `PostCard` y `GradeChip`. | 1 |
 
 ## Resueltos

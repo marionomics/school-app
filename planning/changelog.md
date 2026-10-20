@@ -6,6 +6,7 @@
 - **Vetar desde el feed.** En la tarjeta de una participación, el profesor tiene "Vetar" con el mismo diálogo de confirmación que en `/revisar`. Aura (validar) y vetar siguen siendo controles separados.
 - **Todo "like" se llama "aura".** Copy actualizado en strings, emojis reemplazados con iconos remixicon. La API mantiene los nombres `like` en rutas y fields.
 
+- **Revisión final del bloque.** Dar aura o vetar ya no recarga el feed (en clase las tarjetas se movían bajo el dedo y el siguiente toque podía caer en otra publicación); si falla, se deshace sólo esa publicación. Una participación borrada por su autor sale de `/revisar`. El botón de aura es más grande en el teléfono y está apagado en una publicación vetada; "· profe" ya no es parte del botón.
 ## 2026-10-17 (Bloque 1)
 - **Revisar → Exámenes muestra lo que el alumno subió** (bug 8 → R12). Cada fila del roster enseña su entrega, o si no la marcó, su respuesta más reciente con archivos: texto, archivos que se abren y enlace al hilo. Presencial o en línea da igual. Sin nada subido, sólo se califica.
 - **Toda publicación normal cuenta para una clase.** Con varias clases y ninguna en horario, el post (y el aura que reciba) no contaba para nadie. Ahora va a la clase que tuviste más recientemente según el horario; una clase ya terminada o sin horario queda atrás. Tareas y exámenes nunca adivinan: si es ambiguo, se pregunta.
