@@ -178,3 +178,22 @@ def test_a_reply_still_bumps_the_feed(client, db, auth_headers, student2_headers
     client.post("/api/posts", data={"content": "respuesta", "parent_id": str(pid)},
                 headers=student2_headers)
     assert _activity(db, pid) > OLD
+
+
+def test_everyone_sees_the_teachers_aura(
+        client, db, teacher_headers, auth_headers, student2_headers, enrolled, student2):
+    pid = _participacion(client, auth_headers)
+    client.post(f"/api/posts/{pid}/like", headers=teacher_headers)
+    for headers in (auth_headers, student2_headers, teacher_headers):
+        feed = client.get("/api/feed", headers=headers).json()
+        assert next(p for p in feed["items"] if p["id"] == pid)["teacher_aura"] is True
+        thread = client.get(f"/api/posts/{pid}", headers=headers).json()
+        assert thread["post"]["teacher_aura"] is True
+
+
+def test_a_students_aura_is_not_the_teachers(
+        client, db, auth_headers, student2_headers, enrolled, student2):
+    pid = _participacion(client, auth_headers)
+    client.post(f"/api/posts/{pid}/like", headers=student2_headers)
+    feed = client.get("/api/feed", headers=auth_headers).json()
+    assert next(p for p in feed["items"] if p["id"] == pid)["teacher_aura"] is False

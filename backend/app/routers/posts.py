@@ -52,7 +52,8 @@ def get_root(db: Session, post: Post) -> Post:
 
 def serialize_post(post: Post, liked_ids: Set[int], *, viewer: Optional[User] = None,
                    review_by_post: Optional[dict] = None,
-                   superseded: Optional[Set[int]] = None) -> PostOut:
+                   superseded: Optional[Set[int]] = None,
+                   teacher_aura_ids: Optional[Set[int]] = None) -> PostOut:
     # Only a DELETED post loses its text. A veto removes the points, not the
     # student's words — blanking them would leave an unexplained empty card in
     # the feed, and the veto reason it carries would have nothing to attach to.
@@ -80,6 +81,7 @@ def serialize_post(post: Post, liked_ids: Set[int], *, viewer: Optional[User] = 
         like_count=post.like_count,
         reply_count=post.reply_count,
         liked_by_me=post.id in liked_ids,
+        teacher_aura=post.id in (teacher_aura_ids or set()),
         attachments=[] if removed else [AttachmentOut.model_validate(a) for a in post.attachments],
         created_at=post.created_at,
         last_activity_at=post.last_activity_at,
@@ -119,6 +121,20 @@ def _liked_ids(db: Session, user: User, post_ids: List[int]) -> Set[int]:
         return set()
     rows = db.query(Like.post_id).filter(Like.user_id == user.id,
                                          Like.post_id.in_(post_ids)).all()
+    return {pid for (pid,) in rows}
+
+
+def _teacher_aura_ids(db: Session, post_ids: List[int]) -> Set[int]:
+    """Posts a teacher gave aura to. Visible to everyone (Mario, 2026-10-17)."""
+    if not post_ids:
+        return set()
+    rows = (
+        db.query(Like.post_id)
+        .join(User, User.id == Like.user_id)
+        .filter(User.role == "teacher", Like.post_id.in_(post_ids))
+        .distinct()
+        .all()
+    )
     return {pid for (pid,) in rows}
 
 
@@ -193,9 +209,10 @@ def get_feed(
     posts = posts[:limit]
     pinned = _pinned_tareas(db, user, my_class_ids)
     liked = _liked_ids(db, user, [p.id for p in posts] + [p.id for p in pinned])
+    aura = _teacher_aura_ids(db, [p.id for p in posts] + [p.id for p in pinned])
     next_cursor = encode_cursor(posts[-1].last_activity_at, posts[-1].id) if (has_more and posts) else None
-    return {"items": [serialize_post(p, liked, viewer=user) for p in posts],
-            "pinned": [serialize_post(p, liked, viewer=user) for p in pinned],
+    return {"items": [serialize_post(p, liked, viewer=user, teacher_aura_ids=aura) for p in posts],
+            "pinned": [serialize_post(p, liked, viewer=user, teacher_aura_ids=aura) for p in pinned],
             "next_cursor": next_cursor}
 
 
@@ -237,6 +254,7 @@ def get_thread(post_id: int, user: User = Depends(get_current_user),
         )
     replies = sorted(level2 + level3, key=lambda p: p.created_at)
     liked = _liked_ids(db, user, [post.id] + [r.id for r in replies])
+    aura = _teacher_aura_ids(db, [post.id] + [r.id for r in replies])
     # Only the entrega that counts shows as one — an older one kept its flag
     # (see create_post) but grading it would be grading replaced work.
     superseded = _superseded_entregas(db, [post] + replies)
@@ -245,9 +263,9 @@ def get_thread(post_id: int, user: User = Depends(get_current_user),
     if entrega_ids:
         for rv in db.query(Review).filter(Review.entrega_post_id.in_(entrega_ids)).all():
             review_by_post[rv.entrega_post_id] = rv
-    return {"post": serialize_post(post, liked, viewer=user, superseded=superseded),
+    return {"post": serialize_post(post, liked, viewer=user, superseded=superseded, teacher_aura_ids=aura),
             "replies": [serialize_post(r, liked, viewer=user, review_by_post=review_by_post,
-                                       superseded=superseded) for r in replies]}
+                                       superseded=superseded, teacher_aura_ids=aura) for r in replies]}
 
 
 @router.post("", response_model=PostOut, status_code=201)

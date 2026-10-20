@@ -235,6 +235,7 @@ class PostOut(BaseModel):
     like_count: int
     reply_count: int
     liked_by_me: bool
+    teacher_aura: bool = False
     attachments: List[AttachmentOut]
     created_at: datetime
     last_activity_at: datetime
