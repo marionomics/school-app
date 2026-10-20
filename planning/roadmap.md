@@ -26,12 +26,12 @@ Pequeños, independientes entre sí, cada uno desplegable solo.
 
 ## Bloque 2 — Aura: validar desde el feed
 El like se llama **aura** en toda la app (copy final de Mario). Nada cambia en el motor: sigue siendo la curva cóncava, y el aura del profesor sigue sin dar puntos.
-- [ ] **Renombrar like → aura** en el módulo de strings.
-- [ ] **El aura del profesor se ve** (Mario, 2026-10-17): todos ven que el profesor le dio aura a un post. Sigue sin dar puntos.
-- [ ] **El aura del profesor sobre una participación la valida.** Dar aura = `reviewed_at`; son el mismo hecho, así que "Validar" en `/revisar` también enciende el aura y viceversa. No mueve puntos — `test_reviewing_moves_no_points` sigue siendo el guardián.
-- [ ] **Quitar el aura des-valida** (decisión de Mario, 2026-10-09): `reviewed_at` vuelve a nulo y la participación regresa a la cola de `/revisar`. Tampoco mueve puntos.
-- [ ] **Vetar desde el feed.** En la tarjeta de una participación, el profesor tiene "Vetar" con el mismo diálogo de confirmación de `/revisar`. Aura (validar) y vetar siguen siendo dos controles distintos; nunca uno solo.
-- [ ] **El aura del profesor no reordena el feed.** Hoy cada like sube `last_activity_at`: validar 30 participaciones las manda todas arriba. Primer paso barato del Bloque 4 — los likes dejan de subir posts; sólo las respuestas lo hacen.
+- [x] **Renombrar like → aura** en el módulo de strings. ✅ 2026-10-19
+- [x] **El aura del profesor se ve** (Mario, 2026-10-17): todos ven que el profesor le dio aura a un post. Sigue sin dar puntos. ✅ 2026-10-19
+- [x] **El aura del profesor sobre una participación la valida.** Dar aura = `reviewed_at`; son el mismo hecho, así que "Validar" en `/revisar` también enciende el aura y viceversa. No mueve puntos — `test_reviewing_moves_no_points` sigue siendo el guardián. ✅ 2026-10-19
+- [x] **Quitar el aura des-valida** (decisión de Mario, 2026-10-09): `reviewed_at` vuelve a nulo y la participación regresa a la cola de `/revisar`. Tampoco mueve puntos. ✅ 2026-10-19
+- [x] **Vetar desde el feed.** En la tarjeta de una participación, el profesor tiene "Vetar" con el mismo diálogo de confirmación de `/revisar`. Aura (validar) y vetar siguen siendo dos controles distintos; nunca uno solo. ✅ 2026-10-19
+- [x] **El aura del profesor no reordena el feed.** Hoy cada like sube `last_activity_at`: validar 30 participaciones las manda todas arriba. Primer paso barato del Bloque 4 — los likes dejan de subir posts; sólo las respuestas lo hacen. ✅ 2026-10-19
 
 ## Bloque 3 — Perfil
 Principio de Mario: si aparece un username, se le puede dar click y llegar al perfil.

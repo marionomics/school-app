@@ -6,6 +6,7 @@ import {
   RiAttachment2,
   RiCheckLine,
   RiChat3Line,
+  RiDeleteBinLine,
   RiFileTextLine,
   RiSparkling2Fill,
   RiSparkling2Line,
@@ -79,7 +80,7 @@ export default function PostCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 text-sm">
           <span className="font-semibold">@{post.author.username ?? post.author.name}</span>
-          {post.author.role === "teacher" && <span aria-hidden>👨‍🏫</span>}
+          {post.author.role === "teacher" && <span className="text-xs text-muted-foreground">{es.feed.teacherTag}</span>}
           <span className="text-muted-foreground">{timeAgo(post.created_at)}</span>
           {canDelete && (
             <button
@@ -87,7 +88,7 @@ export default function PostCard({
               aria-label={es.post.deleteConfirm}
               className="ml-auto text-muted-foreground"
             >
-              🗑
+              <RiDeleteBinLine className="size-4" />
             </button>
           )}
         </div>
@@ -194,8 +195,8 @@ export default function PostCard({
               <span className="text-xs">· {es.feed.teacherAura}</span>
             )}
           </button>
-          <span>
-            💬 {post.reply_count > 0 ? post.reply_count : ""}
+          <span className="inline-flex items-center gap-1">
+            <RiChat3Line className="size-4" /> {post.reply_count > 0 ? post.reply_count : ""}
           </span>
           {/* Apart from the aura, with ml-auto, so a mis-tap on one never
               lands on the other: aura validates, veto cancels (R8). */}

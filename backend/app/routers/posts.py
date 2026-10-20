@@ -414,7 +414,7 @@ def toggle_like(post_id: int, user: User = Depends(get_current_user),
     if post is None or post.status != "active":
         raise HTTPException(status_code=404, detail="Publicación no encontrada")
     if post.author_id == user.id:
-        raise HTTPException(status_code=400, detail="No puedes dar like a tu propia publicación")
+        raise HTTPException(status_code=400, detail="No puedes darle aura a tu propia publicación")
     existing = db.query(Like).filter(Like.user_id == user.id,
                                      Like.post_id == post.id).first()
     if user.role == "teacher":

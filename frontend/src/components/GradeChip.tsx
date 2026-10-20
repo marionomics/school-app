@@ -5,7 +5,7 @@ import {
   RiChat3Line,
   RiCloseCircleLine,
   RiFileTextLine,
-  RiHeart3Line,
+  RiSparkling2Line,
   RiPushpinLine,
 } from "@remixicon/react";
 import { formatPoints } from "@/lib/points";
@@ -72,7 +72,7 @@ export default function GradeChip() {
                     <dd>{g.ledger.participaciones}</dd>
                   </div>
                   <div className="flex justify-between gap-2">
-                    <dt className="flex items-center gap-1"><RiHeart3Line className="size-3.5" /> {es.grade.likes}</dt>
+                    <dt className="flex items-center gap-1"><RiSparkling2Line className="size-3.5" /> {es.grade.likes}</dt>
                     <dd className="text-right">
                       {g.ledger.likes} · {es.grade.likesWithCount.replace("{n}", String(g.ledger.likes_count))}
                     </dd>
@@ -99,7 +99,7 @@ export default function GradeChip() {
                         {ev.source_type === "participacion" ? (
                           <RiChat3Line className="size-3" />
                         ) : (
-                          <RiHeart3Line className="size-3" />
+                          <RiSparkling2Line className="size-3" />
                         )}
                         {new Date(ev.created_at).toLocaleDateString("es-MX")}
                       </span>

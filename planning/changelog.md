@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-19 (Bloque 2 — aura)
+- **El aura del profesor valida y es visible.** Dar aura a una participación la marca como validada sin tocar puntos, todos ven "profe" al lado del post, y quitar el aura des-valida. Es el mismo hecho: validar en `/revisar` enciende la aura y viceversa.
+- **El aura del profesor no reordena el feed.** Antes cada like subía `last_activity_at` y validar 30 participaciones las mandaba todas arriba. Ahora sólo las respuestas reordenan.
+- **Vetar desde el feed.** En la tarjeta de una participación, el profesor tiene "Vetar" con el mismo diálogo de confirmación que en `/revisar`. Aura (validar) y vetar siguen siendo controles separados.
+- **Todo "like" se llama "aura".** Copy actualizado en strings, emojis reemplazados con iconos remixicon. La API mantiene los nombres `like` en rutas y fields.
+
 ## 2026-10-17 (Bloque 1)
 - **Revisar → Exámenes muestra lo que el alumno subió** (bug 8 → R12). Cada fila del roster enseña su entrega, o si no la marcó, su respuesta más reciente con archivos: texto, archivos que se abren y enlace al hilo. Presencial o en línea da igual. Sin nada subido, sólo se califica.
 - **Toda publicación normal cuenta para una clase.** Con varias clases y ninguna en horario, el post (y el aura que reciba) no contaba para nadie. Ahora va a la clase que tuviste más recientemente según el horario; una clase ya terminada o sin horario queda atrás. Tareas y exámenes nunca adivinan: si es ambiguo, se pregunta.
