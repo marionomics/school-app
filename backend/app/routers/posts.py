@@ -565,8 +565,9 @@ def attachment_url(attachment_id: int, user: User = Depends(get_current_user),
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
     post = db.get(Post, att.post_id)
     # A vetoed post keeps its photos (only deletion removes them), so its
-    # expired links must stay refreshable.
-    if post is None or post.status == "deleted":
+    # expired links must stay refreshable. An allowlist, so any future status
+    # is closed by default.
+    if post is None or post.status not in ("active", "vetoed"):
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
     if not storage.is_r2_configured():
         raise HTTPException(status_code=400, detail="La descarga de archivos no está habilitada")
