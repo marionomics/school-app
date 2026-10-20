@@ -72,6 +72,10 @@ export const es = {
     attach: "Adjuntar",
     chosen: "{n} archivo(s)",
     remove: "Quitar",
+    photoAlt: "Foto de @{user}",
+    previous: "Anterior",
+    next: "Siguiente",
+    closeViewer: "Cerrar",
   },
   post: {
     replyPlaceholder: "Responde algo…",

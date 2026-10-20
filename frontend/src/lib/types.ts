@@ -51,6 +51,8 @@ export interface Attachment {
   id: number;
   file_name: string;
   mime_type: string;
+  /** Signed link, valid an hour, for images any phone can show. null → chip. */
+  url: string | null;
 }
 
 export interface Post {

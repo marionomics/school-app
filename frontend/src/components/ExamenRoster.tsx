@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { RiAttachment2 } from "@remixicon/react";
 import { api } from "@/lib/api";
 import { openAttachment } from "@/lib/likes";
 import { isScoreValid, markGraded, saveReview } from "@/lib/review";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import PostPhotos from "@/components/PostPhotos";
 import { useToast } from "@/components/Toaster";
 import { es } from "@/strings/es";
-import type { ExamenRoster } from "@/lib/types";
+import type { Author, ExamenRoster } from "@/lib/types";
 
 export default function ExamenRosterPanel({ examenId }: { examenId: number }) {
   const qc = useQueryClient();
@@ -79,18 +79,11 @@ export default function ExamenRosterPanel({ examenId }: { examenId: number }) {
                     </p>
                   )}
                   {r.submission.attachments.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {r.submission.attachments.map((a) => (
-                        <button
-                          key={a.id}
-                          onClick={() => void openAttachment(a.id, toast.show)}
-                          className="inline-flex max-w-full items-center gap-1 border px-2 py-1 text-xs"
-                        >
-                          <RiAttachment2 className="size-3 shrink-0" />
-                          <span className="truncate">{a.file_name}</span>
-                        </button>
-                      ))}
-                    </div>
+                    <PostPhotos
+                      attachments={r.submission.attachments}
+                      author={{ ...r.student, avatar_url: null, role: "student" } satisfies Author}
+                      onOpenFile={(id) => void openAttachment(id, toast.show)}
+                    />
                   )}
                   <Link
                     to={`/post/${r.submission.post_id}`}

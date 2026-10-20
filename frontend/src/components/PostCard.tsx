@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import Avatar from "@/components/Avatar";
 import { Button } from "@/components/ui/button";
 import {
-  RiAttachment2,
   RiCheckLine,
   RiChat3Line,
   RiDeleteBinLine,
@@ -12,6 +11,7 @@ import {
   RiSparkling2Line,
   RiPushpinLine,
 } from "@remixicon/react";
+import PostPhotos from "@/components/PostPhotos";
 import { es } from "@/strings/es";
 import type { Post } from "@/lib/types";
 
@@ -153,26 +153,11 @@ export default function PostCard({
           </button>
         )}
         {!removed && post.attachments.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {post.attachments.map((a) =>
-              onOpenAttachment ? (
-                <button
-                  key={a.id}
-                  onClick={() => onOpenAttachment(a.id)}
-                  className="inline-flex items-center gap-1 border px-2 py-1 text-xs"
-                >
-                  <RiAttachment2 className="size-3" /> {a.file_name}
-                </button>
-              ) : (
-                <span
-                  key={a.id}
-                  className="inline-flex items-center gap-1 border px-2 py-1 text-xs"
-                >
-                  <RiAttachment2 className="size-3" /> {a.file_name}
-                </span>
-              ),
-            )}
-          </div>
+          <PostPhotos
+            attachments={post.attachments}
+            author={post.author}
+            onOpenFile={onOpenAttachment}
+          />
         )}
         <div className="mt-2 flex items-center gap-5 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
