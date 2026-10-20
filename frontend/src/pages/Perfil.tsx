@@ -87,6 +87,12 @@ export default function Perfil() {
             e.target.value = "";
             if (!picked) return;
             const file = await squareAvatar(picked);
+            // Not a JPEG means it couldn't be decoded here (HEIC on Android or
+            // desktop): a preview would be a broken image and the save a 422.
+            if (file.type !== "image/jpeg") {
+              toast.show(es.perfil.photoUnreadable);
+              return;
+            }
             setPreview({ file, url: URL.createObjectURL(file) });
           }}
         />
