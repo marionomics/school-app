@@ -1,93 +1,93 @@
-# Bloque 3a — Fotos: imágenes en línea y foto de perfil
+# Bloque 3a — Photos: inline images and profile photo
 
-**Estado:** diseño aprobado por Mario el 2026-10-19, sección por sección. Roadmap Bloque 3 ("Fotos primero").
+**Status:** design approved by Mario on 2026-10-19, section by section; written spec approved 2026-10-20. Roadmap Bloque 3 ("Fotos primero").
 
-## Objetivo
+## Goal
 
-A veces un alumno se expresa mejor con una foto. Hoy una imagen adjunta aparece como un enlace que hay que abrir; debe verse en la publicación, como en una red social. Éxito: un alumno publica una foto desde su teléfono y todos la ven en el feed al instante, en cualquier teléfono, sin acabarse sus datos móviles. Y cada quien puede poner su propia foto de perfil.
+Sometimes a student says something better with a photo. Today an attached image shows as a link you have to open; it should show in the post, like on a social network. Success: a student posts a photo from their phone and everyone sees it in the feed right away, on any phone, without burning through their mobile data. And everyone can set their own profile photo.
 
-## Decisiones (Mario)
+## Decisions (Mario)
 
-1. **Se reduce una vez y no se guarda el original** (opción B). Para que la letra a mano siga legible al calificar, el tamaño es generoso: **2048 px de lado mayor**, JPEG calidad 0.85 (≈ 400–700 KB). Nunca se agranda.
-2. **Se reduce en el teléfono, antes de subir** (opción A). Sube menos datos, y el iPhone convierte su HEIC a JPEG en el camino — el HEIC que Android no puede mostrar desaparece en el origen.
-3. **El profesor puede quitar la foto de perfil de cualquier alumno** (opción A): excepción, no cola de aprobación. El alumno regresa a su foto de Google y puede subir otra.
-4. **Las fotos ya subidas también se ven en línea**, sin migrar nada en R2 (son pocas, aunque pesen el original).
-5. **La bio ya existe** (se edita en `/onboarding`); mostrarla a otros es la página de perfil `/u/:username`, spec aparte inmediatamente después de éste.
+1. **Shrink once, keep no original** (option B). So handwriting stays legible when grading, the size is generous: **2048 px on the long side**, JPEG quality 0.85 (≈ 400–700 KB). Never enlarge.
+2. **Shrink on the phone, before upload** (option A). Less data uploaded, and the iPhone converts its HEIC to JPEG on the way — the HEIC that Android can't display disappears at the source.
+3. **The teacher can remove any student's profile photo** (option A): an exception, not an approval queue. The student goes back to their Google photo and can upload another.
+4. **Photos already uploaded also show inline**, with nothing migrated on R2 (there are few, even though they are full-size originals).
+5. **The bio already exists** (edited on `/onboarding`); showing it to others is the profile page `/u/:username`, a separate spec right after this one.
 
-## 1. Subida
+## 1. Upload
 
-### `frontend/src/lib/images.ts` (imports relativos — tiene test)
-- `fitWithin(w, h, max): { width, height }` — reduce proporcionalmente si el lado mayor pasa de `max`; si no, devuelve lo mismo. Pura.
-- `centerSquare(w, h): { sx, sy, size }` — el recorte cuadrado central. Pura.
-- `shouldShrink(file): boolean` — `true` para `image/jpeg`, `image/png`, `image/webp`, `image/heic`, `image/heif` (o extensión `.heic/.heif` con `type` vacío); `false` para GIF (perdería la animación), SVG y todo lo que no sea imagen. Pura.
-- `shrinkImage(file, max = 2048): Promise<File>` — si `shouldShrink`, decodifica con `createImageBitmap(file, { imageOrientation: "from-image" })`, pinta el canvas de blanco (un PNG con transparencia saldría con fondo negro en JPEG), dibuja a `fitWithin(...)` y codifica `image/jpeg` a 0.85, con nombre `<base>.jpg`. Devuelve el **original** si: no aplica, el navegador no puede decodificar (HEIC en Chrome de escritorio), falla cualquier paso, o el resultado pesa más que el original **y el original es JPEG, PNG o WebP** — un HEIC siempre se entrega convertido, aunque el JPEG pese más, porque un HEIC no se ve en Android.
-- `squareAvatar(file, size = 512): Promise<File>` — igual, recortando con `centerSquare` y escalando a `size`×`size`.
+### `frontend/src/lib/images.ts` (relative imports — it has a test file)
+- `fitWithin(w, h, max): { width, height }` — scales down proportionally if the long side exceeds `max`; otherwise returns the input. Pure.
+- `centerSquare(w, h): { sx, sy, size }` — the centred square crop. Pure.
+- `shouldShrink(file): boolean` — `true` for `image/jpeg`, `image/png`, `image/webp`, `image/heic`, `image/heif` (or a `.heic/.heif` extension with an empty `type`); `false` for GIF (it would lose its animation), SVG, and anything that isn't an image. Pure.
+- `shrinkImage(file, max = 2048): Promise<File>` — if `shouldShrink`, decodes with `createImageBitmap(file, { imageOrientation: "from-image" })`, fills the canvas white (a transparent PNG would otherwise turn black in JPEG), draws at `fitWithin(...)` and encodes `image/jpeg` at 0.85, named `<base>.jpg`. Returns the **original** if: it doesn't apply, the browser can't decode it (HEIC on desktop Chrome), any step fails, or the result is larger than the original **and the original is JPEG, PNG or WebP** — a HEIC is always delivered converted, even if the JPEG is larger, because HEIC doesn't display on Android.
+- `squareAvatar(file, size = 512): Promise<File>` — the same, cropping with `centerSquare` and scaling to `size`×`size`.
 
-**Efectos:** volver a codificar borra los metadatos — incluida la **ubicación GPS** de la foto (una foto tomada en casa ya no dice dónde vive el alumno) — y aplica la orientación (las fotos de lado salen derechas).
+**Side effects:** re-encoding drops all metadata — including the photo's **GPS location** (a photo taken at home no longer tells classmates where the student lives) — and applies orientation (sideways photos come out upright).
 
-### Dónde corre
-Todo selector de archivos — compositor, formulario de respuesta, entregas — pasa por un helper `prepareFiles(files: File[]): Promise<File[]>` (en `images.ts`) antes de `addFiles`. Mientras trabaja, el selector muestra "Preparando foto…" y el botón de publicar espera. Un fallo cae al original en silencio.
-
-### Backend
-Sin cambios en la subida de publicaciones: mismo tope de 10 MB, mismas extensiones, mismo `create_post`. El servidor nunca confía en que el cliente redujo nada. Sin migración para fotos de publicaciones (no se guardan dimensiones; el diseño de la sección 2 no las necesita).
-
-## 2. Cómo se ven
+### Where it runs
+Every file picker — composer, reply form, entregas — goes through a helper `prepareFiles(files: File[]): Promise<File[]>` (in `images.ts`) before `addFiles`. While it works, the picker shows "Preparando foto…" and the publish button waits. A failure silently falls back to the original.
 
 ### Backend
-- `AttachmentOut` gana `url: Optional[str]`: un enlace firmado de R2 **válido una hora** (`storage.generate_presigned_url`, firma local sin llamada de red) para adjuntos mostrables — `mime_type` en `image/jpeg`, `image/png`, `image/webp`, `image/gif`. HEIC, SVG y no-imágenes: `url = None` (siguen como chip). Sin R2 configurado: `url = None`.
-- Un helper `attachment_out(att) -> AttachmentOut` en un solo lugar; lo usan `serialize_post` y el roster de exámenes.
-- Publicación borrada: sigue sin adjuntos. Vetada: conserva sus fotos, como su texto.
-- El roster de `/revisar → Exámenes` (`submission.attachments`) incluye el mismo `url`.
+No change to post uploads: same 10 MB cap, same extensions, same `create_post`. The server never trusts the client to have shrunk anything. No migration for post photos (dimensions aren't stored; section 2's layout doesn't need them).
+
+## 2. How photos look
+
+### Backend
+- `AttachmentOut` gains `url: Optional[str]`: an R2 signed link **valid for one hour** (`storage.generate_presigned_url`, local signing with no network call) for displayable attachments — `mime_type` in `image/jpeg`, `image/png`, `image/webp`, `image/gif`. HEIC, SVG and non-images: `url = None` (they stay chips). R2 not configured: `url = None`.
+- One helper `attachment_out(att) -> AttachmentOut` in one place; used by `serialize_post` and the exam roster.
+- Deleted post: still no attachments. Vetoed: keeps its photos, like its text.
+- The `/revisar → Exámenes` roster (`submission.attachments`) includes the same `url`.
 
 ### Frontend: `components/PostPhotos.tsx`
-Usado por `PostCard` y por `ExamenRoster`.
-- **1 foto:** ancho completo, caja fija **4:5**, foto entera visible (`object-contain`) sobre fondo gris claro. Fija para que el feed no salte al cargar; sin recorte para no partir una página de tarea.
-- **2–4 fotos:** cuadrícula de 2 columnas con mosaicos cuadrados recortados (`object-cover`).
-- **Tocar** abre la foto entera a pantalla completa en el `Dialog` preset, con anterior/siguiente si hay varias. Cerrar regresa al mismo lugar del feed.
-- Marcador gris mientras carga; `loading="lazy"` y `decoding="async"`.
-- **Enlace caducado** (pestaña abierta más de una hora): en `onError`, una sola vez, pide `/api/attachments/{id}/url` y reintenta con el nuevo.
-- `alt` desde el módulo de strings: "Foto de @{user}" (provisional). Sin pies de foto.
-- La lógica de qué diseño corresponde a N fotos es una función pura (`photoLayout(n)`) en `src/lib`.
-- Los adjuntos que no son imagen siguen como chips debajo de las fotos.
+Used by `PostCard` and `ExamenRoster`.
+- **1 photo:** full width, fixed **4:5** box, whole photo visible (`object-contain`) on a light grey background. Fixed so the feed doesn't jump while loading; uncropped so a page of homework is never cut.
+- **2–4 photos:** a 2-column grid of cropped square tiles (`object-cover`).
+- **Tap** opens the whole photo full screen in the preset `Dialog`, with previous/next when there are several. Closing returns to the same spot in the feed.
+- Grey placeholder while loading; `loading="lazy"` and `decoding="async"`.
+- **Expired link** (tab open longer than an hour): on `onError`, once, it asks `/api/attachments/{id}/url` and retries with the new one.
+- `alt` from the strings module: "Foto de @{user}" (placeholder). No per-photo captions.
+- Which layout N photos get is a pure function (`photoLayout(n)`) in `src/lib`.
+- Non-image attachments stay as chips below the photos.
 
-## 3. Foto de perfil
+## 3. Profile photo
 
 ### Backend
-- **Migración:** `users.avatar_key` (`String(500)`, nullable). `users.avatar_url` (la de Google, fijada al crear la cuenta) se queda como respaldo.
-- **Un helper `avatar_for(user) -> Optional[str]`**: enlace firmado de una hora a `avatar_key` si existe y R2 está configurado; si no, `avatar_url`. Todo esquema que expone `avatar_url` de un usuario (`AuthorOut`, `UserOut`, filas de roster en `classes.py` y `grades.py`) lo obtiene de este helper — el frontend no cambia de campo.
-- `PUT /api/users/me/avatar` (multipart, un archivo `file`): sólo `image/jpeg`, `image/png`, `image/webp`; máximo 10 MB; si no, 422. Sin R2: 400. Sube a `avatars/{user_id}_{timestamp}.jpg`, fija `avatar_key`, devuelve `UserOut`.
-- `DELETE /api/users/me/avatar`: `avatar_key = NULL`; devuelve `UserOut`.
-- `DELETE /api/users/{user_id}/avatar`: sólo un profesor, y sólo si ese usuario tiene una inscripción en alguna clase que él imparte; si no, 403. Mismo efecto.
-- Las fotos reemplazadas no se borran de R2 (pesan poco).
+- **Migration:** `users.avatar_key` (`String(500)`, nullable). `users.avatar_url` (Google's, set when the account is created) stays as the fallback.
+- **One helper `avatar_for(user) -> Optional[str]`**: a one-hour signed link to `avatar_key` if set and R2 is configured; otherwise `avatar_url`. Every schema that exposes a user's `avatar_url` (`AuthorOut`, `UserOut`, roster rows in `classes.py` and `grades.py`) gets it from this helper — the frontend keeps the same field.
+- `PUT /api/users/me/avatar` (multipart, one `file`): only `image/jpeg`, `image/png`, `image/webp`; at most 10 MB; otherwise 422. No R2: 400. Uploads to `avatars/{user_id}_{timestamp}.jpg`, sets `avatar_key`, returns `UserOut`.
+- `DELETE /api/users/me/avatar`: `avatar_key = NULL`; returns `UserOut`.
+- `DELETE /api/users/{user_id}/avatar`: teacher only, and only if that user has an enrollment in a class the teacher teaches; otherwise 403. Same effect.
+- Replaced photos are not deleted from R2 (they're small).
 
 ### Frontend
-- En `/onboarding` (donde ya se editan username y bio; el ícono "perfil" de la barra lleva ahí): la foto actual con **Cambiar foto** y, si subió una propia, **Quitar foto**. Elegir una foto la recorta al cuadrado central y la reduce a 512 px (`squareAvatar`), muestra la vista previa y se guarda con **Guardar**. Optimista con rollback visible.
-- El **Quitar foto** del profesor vive por ahora en la hoja del alumno del panel de clase (la misma que lista sus faltas); se muda al perfil cuando exista `/u/:username`.
-- `Avatar`: si la imagen falla (enlace caducado), cae a la inicial en lugar de mostrar una imagen rota.
+- On `/onboarding` (where username and bio are already edited; the bottom-nav "perfil" icon leads there): the current photo with **Cambiar foto** and, if they uploaded their own, **Quitar foto**. Picking a photo crops it to the centre square and shrinks it to 512 px (`squareAvatar`), shows a preview and saves with **Guardar**. Optimistic with visible rollback.
+- The teacher's **Quitar foto** lives for now in the student sheet of the class panel (the one that lists their faltas); it moves to the profile page once `/u/:username` exists.
+- `Avatar`: if the image fails (expired link), it falls back to the initial instead of a broken image.
 
 ## 4. Tests
 
-**Backend** (primero; R2 sustituido por un stub que registra subidas y devuelve enlaces firmados predecibles — los tests nunca hablan con Cloudflare):
-- Un adjunto imagen trae `url`; un PDF no; HEIC y SVG no.
-- Publicación borrada: sin adjuntos; vetada: los conserva con `url`.
-- El roster de exámenes trae `url` en `submission.attachments`.
-- Subir foto fija `avatar_key` y el `avatar_url` de ese usuario es el enlace firmado en `/me`, en el feed (`author`) y en el roster de clase.
-- Quitar foto regresa a la de Google.
-- PDF o archivo de más de 10 MB → 422.
-- Un alumno no puede quitar la foto de otro (403); el profesor sí, sólo la de alumnos de su clase (otro → 403).
-- Migración: agregar la columna conserva el `avatar_url` de Google de los usuarios existentes.
+**Backend** (first; R2 replaced by a stub that records uploads and returns predictable signed links — tests never talk to Cloudflare):
+- An image attachment carries `url`; a PDF doesn't; HEIC and SVG don't.
+- Deleted post: no attachments; vetoed: keeps them with `url`.
+- The exam roster carries `url` in `submission.attachments`.
+- Uploading a photo sets `avatar_key`, and that user's `avatar_url` is the signed link in `/me`, in the feed (`author`) and in the class roster.
+- Removing the photo goes back to Google's.
+- PDF or a file over 10 MB → 422.
+- A student can't remove another student's photo (403); the teacher can, only for students in their class (anyone else → 403).
+- Migration: adding the column keeps existing users' Google `avatar_url`.
 
-**Frontend:** `fitWithin` (sólo reduce, conserva proporción, vertical y horizontal), `centerSquare`, `shouldShrink` (GIF, SVG, no-imagen → false; HEIC sin `type` → true), `photoLayout(n)`. Tipos, lint, build. QA en el teléfono tras desplegar: foto HEIC de iPhone visible en Android, página escrita a mano legible al tocarla, cambio de foto de perfil visible en todos lados.
+**Frontend:** `fitWithin` (only shrinks, keeps proportions, portrait and landscape), `centerSquare`, `shouldShrink` (GIF, SVG, non-image → false; HEIC with no `type` → true), `photoLayout(n)`. Types, lint, build. Phone QA after deploy: an iPhone HEIC photo visible on Android, a handwritten page legible when tapped, a profile photo change visible everywhere.
 
-## Orden de commits (cada uno desplegable)
+## Commit order (each deployable)
 
-1. Backend: `url` en adjuntos imagen (`attachment_out`) + roster.
-2. Frontend: `PostPhotos` + visor a pantalla completa — las fotos ya subidas se ven en línea desde aquí.
-3. Frontend: `images.ts` reduciendo en todo selector de archivos.
-4. Backend: `avatar_key` + migración + `avatar_for` + los tres endpoints.
-5. Frontend: cambiar/quitar foto en `/onboarding`, el botón del profesor en el panel, el respaldo de `Avatar`.
+1. Backend: `url` on image attachments (`attachment_out`) + roster.
+2. Frontend: `PostPhotos` + full-screen viewer — already-uploaded photos show inline from here on.
+3. Frontend: `images.ts` shrinking on every file picker.
+4. Backend: `avatar_key` + migration + `avatar_for` + the three endpoints.
+5. Frontend: change/remove photo on `/onboarding`, the teacher's button in the panel, the `Avatar` fallback.
 
-## Fuera de alcance
+## Out of scope
 
-- La página de perfil `/u/:username` (bio visible, aura recibida, publicaciones) — spec siguiente.
-- Editor de recorte arrastrable; pies de foto por imagen; reducir las fotos ya subidas en R2; borrar de R2 las fotos de perfil reemplazadas.
+- The profile page `/u/:username` (visible bio, aura received, posts) — next spec.
+- A draggable crop editor; per-photo captions; shrinking already-uploaded photos on R2; deleting replaced profile photos from R2.
