@@ -30,8 +30,8 @@ export default function Perfil() {
       const fd = new FormData();
       fd.append("file", preview.file);
       await api<User>("/api/users/me/avatar", { method: "PUT", body: fd });
-      setPreview(null);
       await refresh();
+      setPreview(null);
       toast.show(es.perfil.saved);
     } catch {
       toast.show(es.perfil.error);   // the old photo is still the one shown
@@ -70,13 +70,14 @@ export default function Perfil() {
       <h1 className="text-xl font-bold">{es.perfil.title}</h1>
 
       <section className="flex flex-col gap-3">
-        <Label>{es.perfil.photoLabel}</Label>
+        <Label htmlFor="photo">{es.perfil.photoLabel}</Label>
         {preview ? (
           <img src={preview.url} alt="" className="size-24 rounded-full object-cover" />
         ) : (
           <Avatar author={user} size={96} />
         )}
         <input
+          id="photo"
           ref={input}
           type="file"
           accept="image/*"
