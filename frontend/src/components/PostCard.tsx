@@ -175,26 +175,34 @@ export default function PostCard({
           </div>
         )}
         <div className="mt-2 flex items-center gap-5 text-sm text-muted-foreground">
-          <button
-            onClick={() => onLike?.(post)}
-            disabled={!onLike || removed}
-            aria-label={post.liked_by_me ? es.feed.unlike : es.feed.like}
-            aria-pressed={post.liked_by_me}
-            className={`inline-flex items-center gap-1${post.liked_by_me ? " text-primary" : ""}`}
-          >
-            {post.liked_by_me ? (
-              <RiSparkling2Fill className="size-4" />
-            ) : (
-              <RiSparkling2Line className="size-4" />
-            )}
-            {post.like_count > 0 ? post.like_count : ""}
+          <div className="flex items-center gap-1">
+            {/* The teacher's main validation control on a phone, so it is a
+                full-size tap target. No aria-label: the hidden label plus the
+                visible count are the name ("Dar aura 3"), aria-pressed says
+                whether it is on. A vetoed post 404s on /like, so it is off. */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onLike?.(post)}
+              disabled={!onLike || removed || vetoed}
+              aria-pressed={post.liked_by_me}
+            >
+              {post.liked_by_me ? (
+                <RiSparkling2Fill data-icon="inline-start" className="size-4 text-primary" />
+              ) : (
+                <RiSparkling2Line data-icon="inline-start" className="size-4" />
+              )}
+              <span className="sr-only">{es.feed.like}</span>
+              {post.like_count > 0 ? post.like_count : ""}
+            </Button>
             {/* Everyone sees the teacher's aura (Mario, 2026-10-17). For the
                 teacher, a lit aura on a participación IS the validation —
-                there is no separate "Validada" label. */}
+                there is no separate "Validada" label. Outside the button, so
+                tapping the mark never toggles the viewer's own aura. */}
             {post.teacher_aura && (
               <span className="text-xs">· {es.feed.teacherAura}</span>
             )}
-          </button>
+          </div>
           <span className="inline-flex items-center gap-1">
             <RiChat3Line className="size-4" /> {post.reply_count > 0 ? post.reply_count : ""}
           </span>
