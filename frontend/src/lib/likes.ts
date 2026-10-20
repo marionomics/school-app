@@ -16,18 +16,20 @@ export function useLikeMutation() {
       api<{ liked: boolean; like_count: number }>(`/api/posts/${post.id}/like`, {
         method: "POST",
       }),
-    onMutate: async (post) => ({
-      rollback: await patchPostInCaches(qc, post, (p) => toggleAura(p, isTeacher)),
-    }),
+    // Toggling is its own inverse, so the rollback toggles back.
+    onMutate: async (post) => {
+      const toggle = (p: Post) => toggleAura(p, isTeacher);
+      return { rollback: await patchPostInCaches(qc, post, toggle, toggle) };
+    },
     onError: (_e, _post, ctx) => {
       ctx?.rollback();
       toast.show(es.post.likeError);
     },
     onSettled: () => {
-      // Aura no longer bumps last_activity_at, so refetching the feed cannot
-      // re-sort it under the reader. The teacher's aura is also a validation,
-      // so the /revisar queue changes with it.
-      void qc.invalidateQueries({ queryKey: ["feed"] });
+      // Never refetch the feed: a refetch re-sorts it whenever someone has
+      // posted meanwhile, and the teacher's next tap lands on the wrong card.
+      // The optimistic patch is the truth until the user refreshes. The
+      // teacher's aura is also a validation, so /revisar changes with it.
       void qc.invalidateQueries({ queryKey: ["thread"] });
       if (isTeacher) void qc.invalidateQueries({ queryKey: ["review-participaciones"] });
     },

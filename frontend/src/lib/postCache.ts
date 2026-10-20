@@ -42,21 +42,23 @@ export function mapThread(
   return { post: patch(id, fn)(t.post), replies: t.replies.map(patch(id, fn)) };
 }
 
-/** Applies fn to this post wherever it is cached and returns the rollback. */
+/** Applies fn to this post wherever it is cached and returns the rollback.
+ *  The rollback applies undo to this one post in the caches as they are
+ *  then, never a snapshot: restoring a snapshot would also wipe any other
+ *  optimistic patch that landed meanwhile on another post. */
 export async function patchPostInCaches(
   qc: QueryClient,
   post: Post,
   fn: (p: Post) => Post,
+  undo: (p: Post) => Post,
 ): Promise<() => void> {
   const feedKey = ["feed"];
   const threadKey = ["thread", String(post.parent_id ?? post.id)];
   await qc.cancelQueries({ queryKey: feedKey });
-  const prevFeed = qc.getQueryData<InfiniteData<FeedPage>>(feedKey);
-  const prevThread = qc.getQueryData<ThreadResponse>(threadKey);
-  qc.setQueryData<InfiniteData<FeedPage>>(feedKey, (d) => mapFeed(d, post.id, fn));
-  qc.setQueryData<ThreadResponse>(threadKey, (t) => mapThread(t, post.id, fn));
-  return () => {
-    if (prevFeed) qc.setQueryData(feedKey, prevFeed);
-    if (prevThread) qc.setQueryData(threadKey, prevThread);
+  const apply = (f: (p: Post) => Post) => {
+    qc.setQueryData<InfiniteData<FeedPage>>(feedKey, (d) => mapFeed(d, post.id, f));
+    qc.setQueryData<ThreadResponse>(threadKey, (t) => mapThread(t, post.id, f));
   };
+  apply(fn);
+  return () => apply(undo);
 }

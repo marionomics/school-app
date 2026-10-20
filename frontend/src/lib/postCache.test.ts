@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { InfiniteData } from "@tanstack/react-query";
-import { mapFeed, mapThread, toggleAura } from "./postCache";
+import { QueryClient, type InfiniteData } from "@tanstack/react-query";
+import { mapFeed, mapThread, patchPostInCaches, toggleAura } from "./postCache";
 import type { FeedPage, Post } from "./types";
 
 const post = (id: number, over: Partial<Post> = {}): Post =>
@@ -76,5 +76,45 @@ describe("mapThread", () => {
     const t = { post: post(1), replies: [post(2, { parent_id: 1 })] };
     expect(mapThread(t, 1, (p) => ({ ...p, status: "vetoed" }))!.post.status).toBe("vetoed");
     expect(mapThread(t, 2, (p) => ({ ...p, status: "vetoed" }))!.replies[0].status).toBe("vetoed");
+  });
+});
+
+describe("patchPostInCaches", () => {
+  const seed = () => {
+    const qc = new QueryClient();
+    const reply = post(2, { parent_id: 1 });
+    qc.setQueryData<InfiniteData<FeedPage>>(["feed"], {
+      pageParams: [null],
+      pages: [{ items: [post(1), reply], pinned: [post(3, { type: "tarea" })], next_cursor: null }],
+    });
+    qc.setQueryData(["thread", "1"], { post: post(1), replies: [reply] });
+    qc.setQueryData(["thread", "3"], { post: post(3, { type: "tarea" }), replies: [] });
+    return { qc, reply };
+  };
+  const feedOf = (qc: QueryClient) => qc.getQueryData<InfiniteData<FeedPage>>(["feed"])!.pages[0];
+  const aura = (p: Post) => toggleAura(p, true);
+
+  it("patches the post in feed items, feed pinned and its thread", async () => {
+    const { qc, reply } = seed();
+    await patchPostInCaches(qc, reply, aura, aura);
+    expect(feedOf(qc).items[1].liked_by_me).toBe(true);
+    expect(qc.getQueryData<{ replies: Post[] }>(["thread", "1"])!.replies[0].liked_by_me).toBe(true);
+
+    await patchPostInCaches(qc, post(3, { type: "tarea" }), aura, aura);
+    expect(feedOf(qc).pinned[0].liked_by_me).toBe(true);
+    expect(qc.getQueryData<{ post: Post }>(["thread", "3"])!.post.liked_by_me).toBe(true);
+  });
+
+  it("rolling back one post leaves a later patch on another post in place", async () => {
+    const { qc, reply } = seed();
+    const rollback1 = await patchPostInCaches(qc, post(1), aura, aura);
+    const veto = (p: Post) => ({ ...p, status: "vetoed" as const });
+    await patchPostInCaches(qc, reply, veto, (p) => ({ ...p, status: "active" }));
+    rollback1();
+    expect(feedOf(qc).items[0].liked_by_me).toBe(false);
+    expect(feedOf(qc).items[1].status).toBe("vetoed");
+    const t = qc.getQueryData<{ post: Post; replies: Post[] }>(["thread", "1"])!;
+    expect(t.post.liked_by_me).toBe(false);
+    expect(t.replies[0].status).toBe("vetoed");
   });
 });

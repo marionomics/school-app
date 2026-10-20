@@ -18,17 +18,21 @@ export function useVetoFlow() {
     mutationFn: ({ post, vetoed }: { post: Post; vetoed: boolean }) =>
       setVeto(post.id, vetoed),
     onMutate: async ({ post, vetoed }) => ({
-      rollback: await patchPostInCaches(qc, post, (p) => ({
-        ...p,
-        status: vetoed ? "vetoed" : "active",
-      })),
+      rollback: await patchPostInCaches(
+        qc,
+        post,
+        (p) => ({ ...p, status: vetoed ? "vetoed" : "active" }),
+        (p) => ({ ...p, status: post.status }),
+      ),
     }),
     onError: (_e, _v, ctx) => {
       ctx?.rollback();
       toast.show(es.revisar.saveError);
     },
+    // Not the feed: a refetch re-sorts it under the teacher's thumb. The
+    // optimistic patch stands until the user refreshes.
     onSettled: () => {
-      for (const k of ["feed", "thread", "review-participaciones", "grade"])
+      for (const k of ["thread", "review-participaciones", "grade"])
         void qc.invalidateQueries({ queryKey: [k] });
     },
   });
