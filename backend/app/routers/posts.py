@@ -11,9 +11,10 @@ from app.auth.deps import get_current_user
 from app.config import settings
 from app.database import get_db
 from app.models import Attachment, Class, Enrollment, Like, Post, Review, User, utcnow
-from app.schemas import AttachmentOut, AuthorOut, PostOut, ReviewOut
+from app.schemas import AuthorOut, PostOut, ReviewOut
 from app.services import points
 from app.services.aura import set_teacher_aura
+from app.services.media import attachment_out
 from app.services.attribution import resolve_default_class
 from app.services.cursor import decode_cursor, encode_cursor
 from app.services.grades import _counting_entrega
@@ -82,7 +83,7 @@ def serialize_post(post: Post, liked_ids: Set[int], *, viewer: Optional[User] = 
         reply_count=post.reply_count,
         liked_by_me=post.id in liked_ids,
         teacher_aura=post.id in (teacher_aura_ids or set()),
-        attachments=[] if removed else [AttachmentOut.model_validate(a) for a in post.attachments],
+        attachments=[] if removed else [attachment_out(a) for a in post.attachments],
         created_at=post.created_at,
         last_activity_at=post.last_activity_at,
         parent_id=post.parent_id,

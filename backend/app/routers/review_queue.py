@@ -9,6 +9,7 @@ from app.database import get_db
 from app.models import Class, Enrollment, Post, PointsLedger, Review, User
 from app.schemas import BulkReviewIn
 from app.services.aura import set_teacher_aura
+from app.services.media import attachment_out
 from app.services.grades import _counting_entrega, counting_review, lateness_score
 
 router = APIRouter(prefix="/api/review", tags=["review"])
@@ -122,8 +123,7 @@ def _submission_json(p: Optional[Post]) -> Optional[dict]:
         return None
     return {"post_id": p.id, "content": p.content, "created_at": p.created_at,
             "is_entrega": p.is_entrega,
-            "attachments": [{"id": a.id, "file_name": a.file_name,
-                             "mime_type": a.mime_type} for a in p.attachments]}
+            "attachments": [attachment_out(a).model_dump() for a in p.attachments]}
 
 
 @router.get("/examenes/{examen_id}")

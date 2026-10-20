@@ -105,6 +105,7 @@ class AttachmentOut(BaseModel):
     id: int
     file_name: str
     mime_type: str
+    url: Optional[str] = None
 
 
 class ReviewIn(BaseModel):
