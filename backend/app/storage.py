@@ -43,8 +43,11 @@ def validate_file(filename: str, size: int) -> Optional[str]:
 
 
 def upload_bytes(data: bytes, key: str, content_type: str) -> None:
+    # Keys are unique per upload, so a stored object never changes: let the
+    # browser keep it for good instead of re-downloading on mobile data.
     _client().put_object(Bucket=settings.r2_bucket_name, Key=key, Body=data,
-                         ContentType=content_type)
+                         ContentType=content_type,
+                         CacheControl="private, max-age=31536000, immutable")
 
 
 def generate_presigned_url(key: str, expires: int = 3600) -> str:

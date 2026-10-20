@@ -108,6 +108,7 @@ def class_roster(
             name=e.user.name,
             username=e.user.username,
             avatar_url=avatar_for(e.user),
+            has_own_avatar=e.user.has_own_avatar,
             status=e.status,
             grade=float(round_grade(g.total)),
             faltas=faltas_count,

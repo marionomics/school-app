@@ -32,12 +32,12 @@ def _feed_post(client, headers, pid):
     return next(p for p in items if p["id"] == pid)
 
 
-def test_an_image_attachment_carries_a_one_hour_url_and_a_pdf_does_not(
+def test_an_image_attachment_carries_a_signed_url_and_a_pdf_does_not(
         client, db, auth_headers, student, klass, enrolled, r2):
     p = _post_with(db, student, klass, ("foto.jpg", "image/jpeg"), ("tarea.pdf", "application/pdf"))
     atts = _feed_post(client, auth_headers, p.id)["attachments"]
     by_name = {a["file_name"]: a for a in atts}
-    assert by_name["foto.jpg"]["url"] == f"https://r2.test/posts/{p.id}_0?exp=3600"
+    assert by_name["foto.jpg"]["url"] == f"https://r2.test/posts/{p.id}_0?exp=7200"
     assert by_name["tarea.pdf"]["url"] is None
 
 
@@ -87,7 +87,7 @@ def test_the_exam_roster_carries_the_url(client, db, teacher, teacher_headers, s
     db.commit()
     rows = client.get(f"/api/review/examenes/{x.id}", headers=teacher_headers).json()["rows"]
     row = next(r for r in rows if r["student"]["id"] == student.id)
-    assert row["submission"]["attachments"][0]["url"] == "https://r2.test/posts/x?exp=3600"
+    assert row["submission"]["attachments"][0]["url"] == "https://r2.test/posts/x?exp=7200"
 
 
 def test_presigned_url_error_degrades_gracefully(client, db, auth_headers, student, klass,
@@ -119,7 +119,7 @@ def test_uploading_a_photo_shows_it_everywhere(client, db, auth_headers, teacher
     assert r.status_code == 200, r.text
     assert r.json()["has_own_avatar"] is True
     signed = r.json()["avatar_url"]
-    assert signed.startswith("https://r2.test/avatars/") and "exp=3600" in signed
+    assert signed.startswith("https://r2.test/avatars/") and "exp=7200" in signed
     assert r2[-1][1] == "image/jpeg"
 
     assert client.get("/api/auth/me", headers=auth_headers).json()["avatar_url"] == signed
@@ -194,3 +194,106 @@ def test_a_storage_error_falls_back_to_the_google_photo(client, db, auth_headers
     r = client.get("/api/auth/me", headers=auth_headers)
     assert r.status_code == 200
     assert r.json()["avatar_url"] == "https://google.test/me.jpg"
+
+
+# --- F1: stable signed URLs -------------------------------------------------
+
+@pytest.fixture()
+def r2_counting(monkeypatch, r2):
+    """Like r2, but every signature is a different string — so two equal URLs
+    can only come from the cache."""
+    calls = []
+
+    def sign(key, expires=3600):
+        calls.append(key)
+        return f"https://r2.test/{key}?exp={expires}&sig={len(calls)}"
+
+    monkeypatch.setattr(storage, "generate_presigned_url", sign)
+    return calls
+
+
+def test_two_feed_loads_hand_out_the_same_url(client, db, auth_headers, student, klass,
+                                             enrolled, r2_counting):
+    p = _post_with(db, student, klass, ("foto.jpg", "image/jpeg"))
+    first = _feed_post(client, auth_headers, p.id)["attachments"][0]["url"]
+    second = _feed_post(client, auth_headers, p.id)["attachments"][0]["url"]
+    assert first == second
+    assert "exp=7200" in first
+    assert r2_counting.count(f"posts/{p.id}_0") == 1
+
+
+def test_the_avatar_url_is_stable_across_requests(client, db, auth_headers, student,
+                                                  r2_counting):
+    student.avatar_key = "avatars/1_1.jpg"
+    db.commit()
+    a = client.get("/api/auth/me", headers=auth_headers).json()["avatar_url"]
+    b = client.get("/api/auth/me", headers=auth_headers).json()["avatar_url"]
+    assert a == b
+
+
+def test_after_the_reuse_window_a_new_url_is_signed(client, db, auth_headers, student, klass,
+                                                    enrolled, r2_counting, monkeypatch):
+    from app.services import media
+
+    clock = [1000.0]
+    monkeypatch.setattr(media, "_now", lambda: clock[0])
+    p = _post_with(db, student, klass, ("foto.jpg", "image/jpeg"))
+    first = _feed_post(client, auth_headers, p.id)["attachments"][0]["url"]
+    clock[0] += media.REUSE_SECONDS - 1
+    assert _feed_post(client, auth_headers, p.id)["attachments"][0]["url"] == first
+    clock[0] += 2
+    later = _feed_post(client, auth_headers, p.id)["attachments"][0]["url"]
+    assert later != first and "exp=7200" in later
+
+
+def test_the_cache_is_pruned_when_it_grows(monkeypatch, r2_counting):
+    from app.services import media
+
+    for i in range(media.MAX_CACHED + 10):
+        media._signed(f"k/{i}")
+    assert len(media._cache) <= media.MAX_CACHED
+
+
+def test_uploaded_objects_are_cached_forever_by_the_browser(monkeypatch):
+    """Keys are unique per upload, so a stored object never changes."""
+    puts = []
+
+    class FakeClient:
+        def put_object(self, **kw):
+            puts.append(kw)
+
+    monkeypatch.setattr(storage, "_client", lambda: FakeClient())
+    storage.upload_bytes(b"x", "posts/1_a.jpg", "image/jpeg")
+    assert puts[0]["CacheControl"] == "private, max-age=31536000, immutable"
+    assert puts[0]["ContentType"] == "image/jpeg"
+
+
+# --- F4: a vetoed post's links stay refreshable ----------------------------
+
+def test_a_vetoed_posts_photo_link_can_be_refreshed(client, db, auth_headers, student, klass,
+                                                    enrolled, r2):
+    p = _post_with(db, student, klass, ("foto.jpg", "image/jpeg"), status="vetoed")
+    att = db.query(Attachment).filter_by(post_id=p.id).one()
+    r = client.get(f"/api/attachments/{att.id}/url", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["url"]
+
+
+def test_a_deleted_posts_photo_link_is_gone(client, db, auth_headers, student, klass,
+                                            enrolled, r2):
+    p = _post_with(db, student, klass, ("foto.jpg", "image/jpeg"), status="deleted")
+    att = db.query(Attachment).filter_by(post_id=p.id).one()
+    assert client.get(f"/api/attachments/{att.id}/url",
+                      headers=auth_headers).status_code == 404
+
+
+# --- F5: the roster says who has their own photo ---------------------------
+
+def test_the_roster_says_who_has_their_own_photo(client, db, auth_headers, teacher_headers,
+                                                student, student2, klass, enrolled, r2):
+    _upload(client, auth_headers)
+    roster = client.get(f"/api/classes/{klass.id}/roster",
+                        headers=teacher_headers).json()["students"]
+    by_id = {s["id"]: s for s in roster}
+    assert by_id[student.id]["has_own_avatar"] is True
+    assert by_id[student2.id]["has_own_avatar"] is False

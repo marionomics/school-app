@@ -119,3 +119,14 @@ def ghost(db, klass):
     db.commit()
     db.refresh(u)
     return u
+
+
+@pytest.fixture(autouse=True)
+def _fresh_signed_urls():
+    """Signed links are cached in-process; file keys repeat across tests
+    (post ids restart), so every test starts with an empty cache."""
+    from app.services import media
+
+    media.clear_signed_cache()
+    yield
+    media.clear_signed_cache()

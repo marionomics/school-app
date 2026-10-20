@@ -214,6 +214,7 @@ class RosterStudent(BaseModel):
     name: str
     username: Optional[str]
     avatar_url: Optional[str]
+    has_own_avatar: bool = False
     status: str  # active|ghost|polizon
     grade: float
     faltas: int
