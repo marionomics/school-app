@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { RiAttachment2, RiCloseLine } from "@remixicon/react";
+import { RiAttachment2, RiCloseLine, RiLoader4Line } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { addFiles } from "@/lib/attachments";
@@ -62,6 +62,7 @@ export function FilePicker({ files, onChange, compact = false, onPreparing, disa
         size={compact ? "icon-sm" : "sm"}
         onClick={() => input.current?.click()}
         disabled={busy || disabled}
+        aria-busy={busy}
         aria-label={
           busy
             ? es.attachments.preparing
@@ -70,7 +71,8 @@ export function FilePicker({ files, onChange, compact = false, onPreparing, disa
             : es.attachments.attach
         }
       >
-        <RiAttachment2 />
+        {/* Compact has no label to change, so the icon itself shows the work. */}
+        {compact && busy ? <RiLoader4Line className="animate-spin" /> : <RiAttachment2 />}
         {!compact && (busy ? es.attachments.preparing : es.attachments.attach)}
       </Button>
     </>
