@@ -1,3 +1,6 @@
+import logging
+from typing import Optional
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -5,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.auth.deps import get_current_user
 from app.database import get_db
 from app import storage
+from app.services import media
 from app.models import Class, Enrollment, User, utcnow
 from app.schemas import UserOut, UserUpdate
 
@@ -45,6 +49,22 @@ def username_available(
 
 AVATAR_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
+logger = logging.getLogger(__name__)
+
+
+def _delete_avatar_file(key: Optional[str]) -> None:
+    """A removed or replaced profile photo is deleted from R2, not just
+    unlinked — for a moderation removal the photo must actually be gone
+    (Mario, 2026-10-20). Runs after the commit and never fails the request:
+    the user already sees the change; a leftover object is only storage."""
+    if not key:
+        return
+    media.forget(key)
+    try:
+        storage.delete_object(key)
+    except Exception:
+        logger.exception("Could not delete avatar %s from R2", key)
+
 
 @router.put("/me/avatar", response_model=UserOut)
 def upload_avatar(file: UploadFile = File(...), user: User = Depends(get_current_user),
@@ -58,16 +78,20 @@ def upload_avatar(file: UploadFile = File(...), user: User = Depends(get_current
         raise HTTPException(status_code=422, detail="La foto es demasiado grande (máximo 10 MB)")
     key = f"avatars/{user.id}_{int(utcnow().timestamp())}.jpg"
     storage.upload_bytes(data, key, file.content_type)
+    previous = user.avatar_key
     user.avatar_key = key
     db.commit()
+    _delete_avatar_file(previous)
     db.refresh(user)
     return user
 
 
 @router.delete("/me/avatar", response_model=UserOut)
 def remove_my_avatar(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    previous = user.avatar_key
     user.avatar_key = None
     db.commit()
+    _delete_avatar_file(previous)
     db.refresh(user)
     return user
 
@@ -88,7 +112,9 @@ def remove_avatar(user_id: int, user: User = Depends(get_current_user),
     if in_my_class is None:
         raise HTTPException(status_code=403, detail="Ese alumno no está en tus clases")
     target = db.get(User, user_id)
+    previous = target.avatar_key
     target.avatar_key = None
     db.commit()
+    _delete_avatar_file(previous)
     db.refresh(target)
     return target

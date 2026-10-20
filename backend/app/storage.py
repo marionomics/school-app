@@ -50,6 +50,10 @@ def upload_bytes(data: bytes, key: str, content_type: str) -> None:
                          CacheControl="private, max-age=31536000, immutable")
 
 
+def delete_object(key: str) -> None:
+    _client().delete_object(Bucket=settings.r2_bucket_name, Key=key)
+
+
 def generate_presigned_url(key: str, expires: int = 3600) -> str:
     return _client().generate_presigned_url(
         "get_object",

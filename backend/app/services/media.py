@@ -31,6 +31,12 @@ def clear_signed_cache() -> None:
         _cache.clear()
 
 
+def forget(key: str) -> None:
+    """Drop a deleted object's cached link so it is never handed out again."""
+    with _lock:
+        _cache.pop(key, None)
+
+
 def _signed(key: str) -> str:
     """A signed GET link for `key`, reused while it is under REUSE_SECONDS old."""
     now = _now()

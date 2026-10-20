@@ -13,6 +13,7 @@ def r2(monkeypatch):
                         lambda data, key, content_type: uploads.append((key, content_type)))
     monkeypatch.setattr(storage, "generate_presigned_url",
                         lambda key, expires=3600: f"https://r2.test/{key}?exp={expires}")
+    monkeypatch.setattr(storage, "delete_object", lambda key: None)
     return uploads
 
 
@@ -297,3 +298,62 @@ def test_the_roster_says_who_has_their_own_photo(client, db, auth_headers, teach
     by_id = {s["id"]: s for s in roster}
     assert by_id[student.id]["has_own_avatar"] is True
     assert by_id[student2.id]["has_own_avatar"] is False
+
+
+@pytest.fixture()
+def r2_deletes(monkeypatch, r2):
+    """Records every R2 object the app deletes."""
+    deleted = []
+    monkeypatch.setattr(storage, "delete_object", lambda key: deleted.append(key))
+    return deleted
+
+
+def _own_key(db, user):
+    db.refresh(user)
+    return user.avatar_key
+
+
+def test_removing_your_photo_deletes_the_file(client, db, auth_headers, student, r2_deletes):
+    _upload(client, auth_headers)
+    key = _own_key(db, student)
+    client.delete("/api/users/me/avatar", headers=auth_headers)
+    assert r2_deletes == [key]
+
+
+def test_the_teachers_removal_deletes_the_file(client, db, auth_headers, teacher_headers,
+                                               student, enrolled, r2_deletes):
+    # Moderation: an offensive photo must be gone, not just unlinked (Mario, 2026-10-20).
+    _upload(client, auth_headers)
+    key = _own_key(db, student)
+    client.delete(f"/api/users/{student.id}/avatar", headers=teacher_headers)
+    assert r2_deletes == [key]
+
+
+def test_replacing_your_photo_deletes_the_old_file(client, db, auth_headers, student,
+                                                   r2_deletes, monkeypatch):
+    import app.routers.users as users_router
+
+    ticks = iter([1000, 2000])
+    monkeypatch.setattr(users_router, "utcnow",
+                        lambda: __import__("datetime").datetime.fromtimestamp(next(ticks)))
+    _upload(client, auth_headers)
+    old = _own_key(db, student)
+    _upload(client, auth_headers)
+    assert _own_key(db, student) != old
+    assert r2_deletes == [old]
+
+
+def test_a_failed_delete_never_blocks_the_removal(client, db, auth_headers, student, r2,
+                                                  monkeypatch):
+    def boom(key):
+        raise Exception("R2 down")
+    monkeypatch.setattr(storage, "delete_object", boom)
+    _upload(client, auth_headers)
+    r = client.delete("/api/users/me/avatar", headers=auth_headers)
+    assert r.status_code == 200
+    assert _own_key(db, student) is None
+
+
+def test_removing_with_no_own_photo_deletes_nothing(client, auth_headers, r2_deletes):
+    client.delete("/api/users/me/avatar", headers=auth_headers)
+    assert r2_deletes == []
