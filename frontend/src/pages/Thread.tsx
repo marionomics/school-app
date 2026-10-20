@@ -25,6 +25,7 @@ export default function Thread() {
   const veto = useVetoFlow();
   const [reply, setReply] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [preparing, setPreparing] = useState(false);
   const [replyTo, setReplyTo] = useState<Post | null>(null);
   const [confirming, setConfirming] = useState<Post | null>(null);
   const [isEntrega, setIsEntrega] = useState(false);
@@ -137,7 +138,7 @@ export default function Thread() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (canSubmit(reply, files)) send.mutate();
+          if (canSubmit(reply, files) && !preparing) send.mutate();
         }}
         className="fixed inset-x-0 bottom-14 border-t bg-background p-3"
       >
@@ -168,7 +169,7 @@ export default function Thread() {
           onRemove={(i) => setFiles(files.filter((_, n) => n !== i))}
         />
         <div className="flex items-center gap-2">
-          <FilePicker files={files} onChange={setFiles} compact />
+          <FilePicker files={files} onChange={setFiles} onPreparing={setPreparing} compact />
           <input
             className="min-w-0 flex-1 rounded-full border px-4 py-2"
             placeholder={es.post.replyPlaceholder}
@@ -176,7 +177,7 @@ export default function Thread() {
             onChange={(e) => setReply(e.target.value)}
           />
           <button
-            disabled={!canSubmit(reply, files) || send.isPending}
+            disabled={!canSubmit(reply, files) || send.isPending || preparing}
             className="rounded-full bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50"
           >
             {es.post.replySubmit}

@@ -25,6 +25,7 @@ export default function Compose() {
   const [content, setContent] = useState("");
   const [classId, setClassId] = useState<number | null>(null);
   const [files, setFiles] = useState<File[]>([]);
+  const [preparing, setPreparing] = useState(false);
 
   const mine = useQuery({
     queryKey: ["classes-mine"],
@@ -86,7 +87,7 @@ export default function Compose() {
         <h1 className="font-bold">{es.compose.title}</h1>
         {mode !== "participacion" ? (
           <button
-            disabled={!canSubmit(content, files) || needsClass || publish.isPending}
+            disabled={!canSubmit(content, files) || needsClass || publish.isPending || preparing}
             onClick={() => publish.mutate(null)}
             className="rounded-full bg-primary px-4 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
           >
@@ -195,7 +196,7 @@ export default function Compose() {
         onChange={(e) => setContent(e.target.value)}
       />
 
-      <FilePicker files={files} onChange={setFiles} />
+      <FilePicker files={files} onChange={setFiles} onPreparing={setPreparing} />
       <FileChips
         files={files}
         onRemove={(i) => setFiles(files.filter((_, n) => n !== i))}
@@ -207,7 +208,7 @@ export default function Compose() {
             {contentOk ? es.compose.participacionHint : es.compose.tooShort}
           </p>
           <button
-            disabled={!contentOk || publish.isPending}
+            disabled={!contentOk || publish.isPending || preparing}
             onClick={tapCtl.tap}
             aria-label={es.compose.tapToRegister}
             className="relative flex h-36 w-36 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform active:scale-90 disabled:opacity-40"

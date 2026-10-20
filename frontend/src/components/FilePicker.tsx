@@ -1,8 +1,9 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { RiAttachment2, RiCloseLine } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { addFiles } from "@/lib/attachments";
+import { prepareFiles } from "@/lib/images";
 import { useUploadsEnabled } from "@/lib/config";
 import { es } from "@/strings/es";
 
@@ -11,11 +12,15 @@ type PickerProps = {
   onChange: (files: File[]) => void;
   /** Icon-only, for the reply bar where there is no room for a label. */
   compact?: boolean;
+  /** True while picked photos are being shrunk. Parents disable publishing
+   *  until it is false again, or the post would go out without the photo. */
+  onPreparing?: (busy: boolean) => void;
 };
 
-export function FilePicker({ files, onChange, compact = false }: PickerProps) {
+export function FilePicker({ files, onChange, compact = false, onPreparing }: PickerProps) {
   const enabled = useUploadsEnabled();
   const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
 
   // Spec §5.2: when uploads are off the affordance does not exist at all. A
   // disabled button inviting a student to attach work the server will refuse
@@ -29,10 +34,18 @@ export function FilePicker({ files, onChange, compact = false }: PickerProps) {
         type="file"
         multiple
         hidden
-        onChange={(e) => {
-          onChange(addFiles(files, e.target.files));
+        onChange={async (e) => {
+          const picked = Array.from(e.target.files ?? []);
           // Reset so re-picking the same file still fires a change event.
           e.target.value = "";
+          setBusy(true);
+          onPreparing?.(true);
+          try {
+            onChange(addFiles(files, await prepareFiles(picked)));
+          } finally {
+            setBusy(false);
+            onPreparing?.(false);
+          }
         }}
       />
       <Button
@@ -40,14 +53,17 @@ export function FilePicker({ files, onChange, compact = false }: PickerProps) {
         variant="outline"
         size={compact ? "icon-sm" : "sm"}
         onClick={() => input.current?.click()}
+        disabled={busy}
         aria-label={
-          compact && files.length > 0
+          busy
+            ? es.attachments.preparing
+            : compact && files.length > 0
             ? es.attachments.chosen.replace("{n}", String(files.length))
             : es.attachments.attach
         }
       >
         <RiAttachment2 />
-        {!compact && es.attachments.attach}
+        {!compact && (busy ? es.attachments.preparing : es.attachments.attach)}
       </Button>
     </>
   );

@@ -70,6 +70,7 @@ export const es = {
   },
   attachments: {
     attach: "Adjuntar",
+    preparing: "Preparando foto…",
     chosen: "{n} archivo(s)",
     remove: "Quitar",
     photoAlt: "Foto de @{user}",
