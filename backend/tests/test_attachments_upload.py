@@ -14,6 +14,8 @@ def r2_on(monkeypatch):
         "upload_bytes",
         lambda data, key, content_type: uploaded.append((key, len(data))),
     )
+    monkeypatch.setattr(storage, "generate_presigned_url",
+                        lambda key, expires=3600: f"https://r2.test/{key}?exp={expires}")
     return uploaded
 
 
