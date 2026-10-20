@@ -4,6 +4,7 @@
 - **Las fotos se ven en el feed y el hilo.** Una imagen adjunta aparece en la tarjeta, no como enlace; tocarla la abre completa en pantalla completa.
 - **Las fotos se reducen en el teléfono antes de subir** (HEIC pasa a JPG y se quita el GPS), para no gastar el plan de datos del alumno.
 - **Foto de perfil propia en `/perfil`,** con recorte cuadrado, y ahí mismo la bio. Quitarla devuelve la de Google. El profesor puede quitar la foto de un alumno desde su hoja en el panel de clase.
+- **Quitar o cambiar una foto de perfil la borra de R2** (decisión de Mario): por moderación, la foto desaparece de verdad. **Toda foto se vuelve a codificar aunque pese un poco más**, porque eso es lo que le quita la ubicación GPS — la privacidad gana.
 
 ## 2026-10-19 (Bloque 2 — aura)
 - **El aura del profesor valida y es visible.** Dar aura a una participación la marca como validada sin tocar puntos, todos ven "profe" al lado del post, y quitar el aura des-valida. Es el mismo hecho: validar en `/revisar` enciende la aura y viceversa.

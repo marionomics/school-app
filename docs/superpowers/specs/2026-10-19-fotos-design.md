@@ -20,7 +20,7 @@ Sometimes a student says something better with a photo. Today an attached image 
 - `fitWithin(w, h, max): { width, height }` — scales down proportionally if the long side exceeds `max`; otherwise returns the input. Pure.
 - `centerSquare(w, h): { sx, sy, size }` — the centred square crop. Pure.
 - `shouldShrink(file): boolean` — `true` for `image/jpeg`, `image/png`, `image/webp`, `image/heic`, `image/heif` (or a `.heic/.heif` extension with an empty `type`); `false` for GIF (it would lose its animation), SVG, and anything that isn't an image. Pure.
-- `shrinkImage(file, max = 2048): Promise<File>` — if `shouldShrink`, decodes with `createImageBitmap(file, { imageOrientation: "from-image" })`, fills the canvas white (a transparent PNG would otherwise turn black in JPEG), draws at `fitWithin(...)` and encodes `image/jpeg` at 0.85, named `<base>.jpg`. Returns the **original** if: it doesn't apply, the browser can't decode it (HEIC on desktop Chrome), any step fails, or the result is larger than the original **and the original is JPEG, PNG or WebP** — a HEIC is always delivered converted, even if the JPEG is larger, because HEIC doesn't display on Android.
+- `shrinkImage(file, max = 2048): Promise<File>` — if `shouldShrink`, decodes with `createImageBitmap(file, { imageOrientation: "from-image" })`, fills the canvas white (a transparent PNG would otherwise turn black in JPEG), draws at `fitWithin(...)` and encodes `image/jpeg` at 0.85, named `<base>.jpg`. Returns the **original** if: it doesn't apply, the browser can't decode it (HEIC on desktop Chrome), or any step fails. **Every photo that decodes is re-encoded, even if the result is larger** — re-encoding is what strips GPS, and privacy wins over bytes (Mario, 2026-10-20; this replaces the original "keep the original if larger" rule).
 - `squareAvatar(file, size = 512): Promise<File>` — the same, cropping with `centerSquare` and scaling to `size`×`size`.
 
 **Side effects:** re-encoding drops all metadata — including the photo's **GPS location** (a photo taken at home no longer tells classmates where the student lives) — and applies orientation (sideways photos come out upright).
@@ -58,7 +58,7 @@ Used by `PostCard` and `ExamenRoster`.
 - `PUT /api/users/me/avatar` (multipart, one `file`): only `image/jpeg`, `image/png`, `image/webp`; at most 10 MB; otherwise 422. No R2: 400. Uploads to `avatars/{user_id}_{timestamp}.jpg`, sets `avatar_key`, returns `UserOut`.
 - `DELETE /api/users/me/avatar`: `avatar_key = NULL`; returns `UserOut`.
 - `DELETE /api/users/{user_id}/avatar`: teacher only, and only if that user has an enrollment in a class the teacher teaches; otherwise 403. Same effect.
-- Replaced photos are not deleted from R2 (they're small).
+- **Removed or replaced photos are deleted from R2** (Mario, 2026-10-20 — for a moderation removal the photo must actually be gone). The delete runs after the commit and never fails the request; an issued link stops working once the object is gone.
 
 ### Frontend
 - On `/onboarding` (where username and bio are already edited; the bottom-nav "perfil" icon leads there): the current photo with **Cambiar foto** and, if they uploaded their own, **Quitar foto**. Picking a photo crops it to the centre square and shrinks it to 512 px (`squareAvatar`), shows a preview and saves with **Guardar**. Optimistic with visible rollback.

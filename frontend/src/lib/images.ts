@@ -105,10 +105,11 @@ async function encode(
   }
 }
 
-/** 2048 px on the long side, JPEG 0.85. Returns the original whenever it
- *  can't help: not a photo, undecodable here (HEIC on desktop Chrome), any
- *  failure, or a JPEG/PNG/WebP that would come out larger. A HEIC is always
- *  converted — Android can't show HEIC at all. */
+/** 2048 px on the long side, JPEG 0.85. Every photo that decodes is
+ *  re-encoded, even when the result is a few KB larger: re-encoding is what
+ *  strips the GPS location, and privacy wins over bytes (Mario, 2026-10-20).
+ *  Returns the original only when it can't help: not a photo, undecodable
+ *  here (HEIC on desktop Chrome), or any failure. */
 export async function shrinkImage(file: File, max = 2048): Promise<File> {
   if (!shouldShrink(file)) return file;
   try {
@@ -119,7 +120,6 @@ export async function shrinkImage(file: File, max = 2048): Promise<File> {
       return canvas;
     });
     if (!out) return file;
-    if (!isHeic(file) && out.size >= file.size) return file;
     return out;
   } catch {
     return file;

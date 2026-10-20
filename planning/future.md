@@ -16,7 +16,6 @@ Cosas deliberadamente pospuestas. Nada aquí bloquea el MVP.
 ## Huecos conocidos (pequeños, con dueño claro)
 
 - **Editar nombre, fechas y horario de la clase.** Hoy sólo se pueden fijar al crearla: `ClassSettingsUpdate` acepta pesos, valores de puntos y el mínimo de asistencia, nada más. La página `/configurar/clase` los muestra en solo lectura. Falta un endpoint; se dejó fuera del design pass a propósito porque era scope de backend que esa fase no tenía. (2026-08-02)
-- **Fotos de perfil quitadas o reemplazadas siguen en R2.** Quitar o cambiar la foto sólo borra la referencia: el objeto queda en el bucket, y un enlace ya emitido sigue funcionando hasta 2 h. Para una remoción por moderación quizá valga la pena borrar el objeto; pregunta pendiente para Mario. (2026-10-20)
 
 ## Ideas de largo plazo
 
