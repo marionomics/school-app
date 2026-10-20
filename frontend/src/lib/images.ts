@@ -28,23 +28,58 @@ function jpegName(name: string): string {
   return `${dot > 0 ? name.slice(0, dot) : name}.jpg`;
 }
 
-async function encode(
-  file: File,
-  draw: (bmp: ImageBitmap) => { canvas: HTMLCanvasElement },
-): Promise<File | null> {
-  // "from-image" applies the EXIF orientation, so sideways photos come out
-  // upright. Re-encoding also drops every bit of metadata, GPS included.
-  const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+/** iOS Safari refuses (or blanks) any canvas larger than this many pixels. */
+export const MAX_CANVAS_PIXELS = 16_777_216;
+
+/** Scales width × height down, keeping proportions, until it fits in `max` pixels. */
+export function capPixels(w: number, h: number, max: number) {
+  if (w * h <= max) return { width: w, height: h };
+  const scale = Math.sqrt(max / (w * h));
+  return { width: Math.max(1, Math.floor(w * scale)), height: Math.max(1, Math.floor(h * scale)) };
+}
+
+type Decoded = { source: CanvasImageSource; width: number; height: number; close: () => void };
+
+function fromBitmap(bmp: ImageBitmap): Decoded {
+  return { source: bmp, width: bmp.width, height: bmp.height, close: () => bmp.close() };
+}
+
+/** Decodes a photo, trying each path a phone might support. All three apply
+ *  the EXIF orientation, so sideways photos come out upright. Throws only if
+ *  every path fails. */
+async function decode(file: File): Promise<Decoded> {
   try {
-    const { canvas } = draw(bmp);
-    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", QUALITY));
-    return blob ? new File([blob], jpegName(file.name), { type: "image/jpeg" }) : null;
-  } finally {
-    bmp.close();
+    return fromBitmap(await createImageBitmap(file, { imageOrientation: "from-image" }));
+  } catch {
+    // An engine that rejects the option, or a capture too large for it.
+  }
+  try {
+    // Current engines apply the EXIF orientation by default.
+    return fromBitmap(await createImageBitmap(file));
+  } catch {
+    // Fall through to an <img>: Safari decodes HEIC this way.
+  }
+  const src = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = src;
+    await img.decode();
+    return {
+      source: img,
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+      close: () => URL.revokeObjectURL(src),
+    };
+  } catch (err) {
+    URL.revokeObjectURL(src);
+    throw err;
   }
 }
 
-function canvasOf(width: number, height: number) {
+/** A white canvas of at most width × height, capped to MAX_CANVAS_PIXELS; the
+ *  caller draws into the size it gets back. */
+function canvasOf(w: number, h: number) {
+  const { width, height } = capPixels(w, h, MAX_CANVAS_PIXELS);
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -52,7 +87,22 @@ function canvasOf(width: number, height: number) {
   // A transparent PNG would come out with a black background in JPEG.
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, width, height);
-  return { canvas, ctx };
+  return { canvas, ctx, width, height };
+}
+
+async function encode(
+  file: File,
+  draw: (img: Decoded) => HTMLCanvasElement,
+): Promise<File | null> {
+  // Re-encoding drops every bit of metadata, GPS included.
+  const img = await decode(file);
+  try {
+    const canvas = draw(img);
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", QUALITY));
+    return blob ? new File([blob], jpegName(file.name), { type: "image/jpeg" }) : null;
+  } finally {
+    img.close();
+  }
 }
 
 /** 2048 px on the long side, JPEG 0.85. Returns the original whenever it
@@ -62,11 +112,11 @@ function canvasOf(width: number, height: number) {
 export async function shrinkImage(file: File, max = 2048): Promise<File> {
   if (!shouldShrink(file)) return file;
   try {
-    const out = await encode(file, (bmp) => {
-      const { width, height } = fitWithin(bmp.width, bmp.height, max);
-      const { canvas, ctx } = canvasOf(width, height);
-      ctx.drawImage(bmp, 0, 0, width, height);
-      return { canvas };
+    const out = await encode(file, (img) => {
+      const fit = fitWithin(img.width, img.height, max);
+      const { canvas, ctx, width, height } = canvasOf(fit.width, fit.height);
+      ctx.drawImage(img.source, 0, 0, width, height);
+      return canvas;
     });
     if (!out) return file;
     if (!isHeic(file) && out.size >= file.size) return file;
@@ -76,15 +126,16 @@ export async function shrinkImage(file: File, max = 2048): Promise<File> {
   }
 }
 
-/** Centre square, size × size, for the profile photo. */
+/** Centre square, size × size, for the profile photo. Returns the original
+ *  (not a JPEG) when the photo can't be decoded here. */
 export async function squareAvatar(file: File, size = 512): Promise<File> {
   try {
-    const out = await encode(file, (bmp) => {
-      const { sx, sy, size: side } = centerSquare(bmp.width, bmp.height);
+    const out = await encode(file, (img) => {
+      const { sx, sy, size: side } = centerSquare(img.width, img.height);
       const target = Math.min(size, side);
-      const { canvas, ctx } = canvasOf(target, target);
-      ctx.drawImage(bmp, sx, sy, side, side, 0, 0, target, target);
-      return { canvas };
+      const { canvas, ctx, width, height } = canvasOf(target, target);
+      ctx.drawImage(img.source, sx, sy, side, side, 0, 0, width, height);
+      return canvas;
     });
     return out ?? file;
   } catch {
@@ -92,6 +143,10 @@ export async function squareAvatar(file: File, size = 512): Promise<File> {
   }
 }
 
-export function prepareFiles(files: File[]): Promise<File[]> {
-  return Promise.all(files.map((f) => shrinkImage(f)));
+/** One photo at a time: decoding several full-resolution photos at once can
+ *  exhaust an iPhone's memory and kill the tab, losing the draft. */
+export async function prepareFiles(files: File[]): Promise<File[]> {
+  const out: File[] = [];
+  for (const f of files) out.push(await shrinkImage(f));
+  return out;
 }

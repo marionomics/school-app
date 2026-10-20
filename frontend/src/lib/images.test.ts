@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { centerSquare, fitWithin, isHeic, shouldShrink } from "./images";
+import { MAX_CANVAS_PIXELS, capPixels, centerSquare, fitWithin, isHeic, shouldShrink } from "./images";
 
 const f = (type: string, name = "x") => ({ type, name });
 
@@ -37,5 +37,19 @@ describe("shouldShrink", () => {
     expect(shouldShrink(f("", "IMG_0001.HEIC"))).toBe(true);
     expect(isHeic(f("", "IMG_0001.heif"))).toBe(true);
     expect(shouldShrink(f("", "notes.txt"))).toBe(false);
+  });
+});
+
+describe("capPixels", () => {
+  it("leaves a canvas under the limit alone", () => {
+    expect(capPixels(2048, 1536, MAX_CANVAS_PIXELS)).toEqual({ width: 2048, height: 1536 });
+  });
+  it("scales an oversized canvas under the limit, keeping proportions", () => {
+    const { width, height } = capPixels(8000, 6000, MAX_CANVAS_PIXELS);
+    expect(width * height).toBeLessThanOrEqual(MAX_CANVAS_PIXELS);
+    expect(Math.abs(width / height - 8000 / 6000)).toBeLessThan(0.01);
+  });
+  it("uses the iOS limit of 16 777 216 px", () => {
+    expect(MAX_CANVAS_PIXELS).toBe(16_777_216);
   });
 });
