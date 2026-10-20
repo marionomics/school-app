@@ -178,3 +178,32 @@ def test_teacher_aura_migration_reconciles_likes_and_validations():
     assert (1, 3) not in likes and rows[3][0] == 0      # never a self-like
     assert rows[4][1] is None                           # a regular post is not validated
     assert {r[2] for r in rows.values()} == {"2026-09-01T09:00:00"}  # no bump
+
+
+def test_avatar_key_migration_keeps_google_photos():
+    with tempfile.TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "avatar_migration.db"
+        cfg = Config(str(BACKEND_DIR / "alembic.ini"))
+        original_db_url = settings.database_url
+        settings.database_url = f"sqlite:///{db_path}"
+        try:
+            command.upgrade(cfg, "d4a1f7c2e9b3")
+            conn = sqlite3.connect(str(db_path))
+            try:
+                conn.execute(
+                    "INSERT INTO users (id, google_id, email, name, username, bio, "
+                    "avatar_url, role, grade_is_private, created_at) VALUES "
+                    "(1, 'g1', 'a@example.com', 'A', 'a', '', 'https://google.test/a.jpg', "
+                    "'student', 0, ?)", (utcnow().isoformat(),))
+                conn.commit()
+            finally:
+                conn.close()
+            command.upgrade(cfg, "head")
+            conn = sqlite3.connect(str(db_path))
+            try:
+                row = conn.execute("SELECT avatar_url, avatar_key FROM users WHERE id = 1").fetchone()
+            finally:
+                conn.close()
+        finally:
+            settings.database_url = original_db_url
+    assert row == ("https://google.test/a.jpg", None)

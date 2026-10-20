@@ -24,3 +24,16 @@ def attachment_out(att: Attachment) -> AttachmentOut:
                 f"Failed to generate presigned URL for {att.file_key}")
     return AttachmentOut(id=att.id, file_name=att.file_name,
                          mime_type=att.mime_type, url=url)
+
+
+def avatar_for(user) -> "str | None":
+    """A signed link to the user's own photo if they uploaded one and R2 is
+    configured; otherwise their Google photo. A storage error degrades to the
+    Google photo — avatars are on every post, so they must never break a page."""
+    if user.avatar_key and storage.is_r2_configured():
+        try:
+            return storage.generate_presigned_url(user.avatar_key, expires=LINK_SECONDS)
+        except Exception:
+            logging.getLogger(__name__).exception(
+                f"Failed to generate presigned URL for {user.avatar_key}")
+    return user.avatar_url

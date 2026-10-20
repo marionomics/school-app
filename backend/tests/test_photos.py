@@ -104,3 +104,93 @@ def test_presigned_url_error_degrades_gracefully(client, db, auth_headers, stude
     atts = _feed_post(client, auth_headers, p.id)["attachments"]
     assert atts[0]["url"] is None
     assert atts[0]["file_name"] == "foto.jpg"
+
+
+def _upload(client, headers, name="yo.jpg", mime="image/jpeg", size=100):
+    return client.put("/api/users/me/avatar",
+                      files={"file": (name, b"x" * size, mime)}, headers=headers)
+
+
+def test_uploading_a_photo_shows_it_everywhere(client, db, auth_headers, teacher_headers,
+                                               student, klass, enrolled, r2):
+    student.avatar_url = "https://google.test/me.jpg"
+    db.commit()
+    r = _upload(client, auth_headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["has_own_avatar"] is True
+    signed = r.json()["avatar_url"]
+    assert signed.startswith("https://r2.test/avatars/") and "exp=3600" in signed
+    assert r2[-1][1] == "image/jpeg"
+
+    assert client.get("/api/auth/me", headers=auth_headers).json()["avatar_url"] == signed
+    pid = client.post("/api/posts", data={"content": "hola"}, headers=auth_headers).json()["id"]
+    assert _feed_post(client, auth_headers, pid)["author"]["avatar_url"] == signed
+    members = client.get(f"/api/classes/{klass.id}", headers=teacher_headers).json()["members"]
+    assert next(m for m in members if m["id"] == student.id)["avatar_url"] == signed
+    roster = client.get(f"/api/classes/{klass.id}/roster", headers=teacher_headers).json()["students"]
+    assert next(s for s in roster if s["id"] == student.id)["avatar_url"] == signed
+
+
+def test_removing_your_photo_goes_back_to_google(client, db, auth_headers, student, r2):
+    student.avatar_url = "https://google.test/me.jpg"
+    db.commit()
+    _upload(client, auth_headers)
+    r = client.delete("/api/users/me/avatar", headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json()["avatar_url"] == "https://google.test/me.jpg"
+    assert r.json()["has_own_avatar"] is False
+
+
+def test_only_photo_formats_up_to_10mb(client, auth_headers, r2):
+    assert _upload(client, auth_headers, "cv.pdf", "application/pdf").status_code == 422
+    assert _upload(client, auth_headers, "a.gif", "image/gif").status_code == 422
+    assert _upload(client, auth_headers, size=10 * 1024 * 1024 + 1).status_code == 422
+    for name, mime in (("a.png", "image/png"), ("a.webp", "image/webp")):
+        assert _upload(client, auth_headers, name, mime).status_code == 200
+
+
+def test_no_r2_means_no_avatar_upload(client, auth_headers, monkeypatch):
+    monkeypatch.setattr(storage, "is_r2_configured", lambda: False)
+    assert _upload(client, auth_headers).status_code == 400
+
+
+def test_a_student_cannot_remove_another_students_photo(client, student, student2_headers,
+                                                       enrolled, r2):
+    assert client.delete(f"/api/users/{student.id}/avatar",
+                         headers=student2_headers).status_code == 403
+
+
+def test_the_teacher_removes_a_photo_in_their_class(client, db, auth_headers, teacher_headers,
+                                                   student, enrolled, r2):
+    student.avatar_url = "https://google.test/me.jpg"
+    db.commit()
+    _upload(client, auth_headers)
+    r = client.delete(f"/api/users/{student.id}/avatar", headers=teacher_headers)
+    assert r.status_code == 200
+    db.refresh(student)
+    assert student.avatar_key is None
+
+
+def test_teacher_cannot_remove_a_strangers_photo(client, db, teacher_headers, r2):
+    from app.models import User
+
+    stranger = User(google_id="g-stranger", email="x@example.com", name="X")
+    db.add(stranger)
+    db.commit()
+    assert client.delete(f"/api/users/{stranger.id}/avatar",
+                         headers=teacher_headers).status_code == 403
+
+
+def test_a_storage_error_falls_back_to_the_google_photo(client, db, auth_headers, student,
+                                                       r2, monkeypatch):
+    student.avatar_url = "https://google.test/me.jpg"
+    student.avatar_key = "avatars/1_1.jpg"
+    db.commit()
+
+    def boom(key, expires=3600):
+        raise RuntimeError("r2 down")
+
+    monkeypatch.setattr(storage, "generate_presigned_url", boom)
+    r = client.get("/api/auth/me", headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json()["avatar_url"] == "https://google.test/me.jpg"

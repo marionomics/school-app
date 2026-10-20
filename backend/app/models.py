@@ -26,6 +26,19 @@ class User(Base):
     username: Mapped[Optional[str]] = mapped_column(String(20), unique=True, index=True)
     bio: Mapped[str] = mapped_column(Text, default="")
     avatar_url: Mapped[Optional[str]] = mapped_column(String(500))
+    avatar_key: Mapped[Optional[str]] = mapped_column(String(500))
+
+    @property
+    def display_avatar_url(self) -> Optional[str]:
+        """What every screen shows: their own photo if they uploaded one,
+        else Google's. Read by UserOut and AuthorOut."""
+        from app.services.media import avatar_for  # avoid an import cycle
+        return avatar_for(self)
+
+    @property
+    def has_own_avatar(self) -> bool:
+        return self.avatar_key is not None
+
     role: Mapped[str] = mapped_column(String(20), default="student")
     grade_is_private: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

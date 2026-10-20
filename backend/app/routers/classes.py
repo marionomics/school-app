@@ -5,6 +5,7 @@ from app.auth.deps import get_current_teacher, get_current_user
 from app.database import get_db
 from app.models import Class, Enrollment, PointsConfig, User
 from app.schemas import ClassCreate, ClassDetail, ClassOut, JoinRequest, MemberOut, MyClasses
+from app.services.media import avatar_for
 from app.services.class_codes import generate_code
 
 router = APIRouter(prefix="/api/classes", tags=["classes"])
@@ -89,7 +90,7 @@ def class_detail(
             id=e.user.id,
             name=e.user.name,
             username=e.user.username,
-            avatar_url=e.user.avatar_url,
+            avatar_url=avatar_for(e.user),
             status=e.status,
         )
         for e in enrollments

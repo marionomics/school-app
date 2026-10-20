@@ -8,16 +8,17 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class UserOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: int
     email: str
     name: str
     username: Optional[str]
     bio: str
-    avatar_url: Optional[str]
+    avatar_url: Optional[str] = Field(default=None, validation_alias="display_avatar_url")
     role: str
     grade_is_private: bool
+    has_own_avatar: bool = False
 
 
 class UserUpdate(BaseModel):
@@ -90,12 +91,12 @@ class MyClasses(BaseModel):
 
 
 class AuthorOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: int
     username: Optional[str]
     name: str
-    avatar_url: Optional[str]
+    avatar_url: Optional[str] = Field(default=None, validation_alias="display_avatar_url")
     role: str
 
 

@@ -8,6 +8,7 @@ from app.auth.deps import get_current_teacher, get_current_user
 from app.database import get_db
 from app.models import Class, Enrollment, PointsLedger, User, utcnow
 from app.schemas import RosterStudent
+from app.services.media import avatar_for
 from app.services.grades import calculate_grade, faltas_breakdown
 
 router = APIRouter(prefix="/api/students/me", tags=["grades"])
@@ -106,7 +107,7 @@ def class_roster(
             id=e.user.id,
             name=e.user.name,
             username=e.user.username,
-            avatar_url=e.user.avatar_url,
+            avatar_url=avatar_for(e.user),
             status=e.status,
             grade=float(round_grade(g.total)),
             faltas=faltas_count,
