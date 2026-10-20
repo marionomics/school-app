@@ -6,8 +6,9 @@ from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_user
 from app.database import get_db
-from app.models import Class, Enrollment, Post, PointsLedger, Review, User, utcnow
+from app.models import Class, Enrollment, Post, PointsLedger, Review, User
 from app.schemas import BulkReviewIn
+from app.services.aura import set_teacher_aura
 from app.services.grades import _counting_entrega, counting_review, lateness_score
 
 router = APIRouter(prefix="/api/review", tags=["review"])
@@ -220,9 +221,7 @@ def bulk_reviewed(body: BulkReviewIn, user: User = Depends(get_current_user),
             raise HTTPException(status_code=403,
                                 detail="No eres profesor de esa clase")
 
-    now = utcnow()
     for post in posts:
-        post.reviewed_at = now
-        post.reviewed_by = user.id
+        set_teacher_aura(db, post, user, on=True)
     db.commit()
     return {"reviewed": len(posts)}

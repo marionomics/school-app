@@ -13,6 +13,7 @@ from app.database import get_db
 from app.models import Attachment, Class, Enrollment, Like, Post, Review, User, utcnow
 from app.schemas import AttachmentOut, AuthorOut, PostOut, ReviewOut
 from app.services import points
+from app.services.aura import set_teacher_aura
 from app.services.attribution import resolve_default_class
 from app.services.cursor import decode_cursor, encode_cursor
 from app.services.grades import _counting_entrega
@@ -398,6 +399,12 @@ def toggle_like(post_id: int, user: User = Depends(get_current_user),
         raise HTTPException(status_code=400, detail="No puedes dar like a tu propia publicación")
     existing = db.query(Like).filter(Like.user_id == user.id,
                                      Like.post_id == post.id).first()
+    if user.role == "teacher":
+        set_teacher_aura(db, post, user, on=existing is None)
+        db.commit()
+        return {"liked": existing is None, "like_count": post.like_count}
+    # Aura never bumps last_activity_at: validating 30 participaciones used to
+    # send all 30 to the top of the feed. Only replies reorder it.
     if existing is not None:
         points.revoke_like(db, like_id=existing.id, revoked_by=user.id)
         db.delete(existing)
@@ -408,7 +415,6 @@ def toggle_like(post_id: int, user: User = Depends(get_current_user),
     db.add(like)
     db.flush()
     post.like_count += 1
-    get_root(db, post).last_activity_at = utcnow()
     points.award_like(db, like=like, post=post, liker=user)
     db.commit()
     return {"liked": True, "like_count": post.like_count}
@@ -515,12 +521,10 @@ def _teacher_participacion(db: Session, post_id: int, user: User) -> Post:
 @router.post("/{post_id}/reviewed")
 def mark_reviewed(post_id: int, user: User = Depends(get_current_user),
                   db: Session = Depends(get_db)):
-    """Records that the teacher looked. Moves no points — the student earned
-    them on publish. This is the non-destructive twin of veto, and the two must
-    never be collapsed into one control."""
+    """Records that the teacher looked — and, since Bloque 2, gives their aura:
+    they are the same fact. Moves no points; veto stays a separate control."""
     post = _teacher_participacion(db, post_id, user)
-    post.reviewed_at = utcnow()
-    post.reviewed_by = user.id
+    set_teacher_aura(db, post, user, on=True)
     db.commit()
     return {"reviewed": True}
 
@@ -529,8 +533,7 @@ def mark_reviewed(post_id: int, user: User = Depends(get_current_user),
 def unmark_reviewed(post_id: int, user: User = Depends(get_current_user),
                     db: Session = Depends(get_db)):
     post = _teacher_participacion(db, post_id, user)
-    post.reviewed_at = None
-    post.reviewed_by = None
+    set_teacher_aura(db, post, user, on=False)
     db.commit()
     return {"reviewed": False}
 

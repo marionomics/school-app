@@ -27,13 +27,15 @@ def test_self_like_rejected(client, db, auth_headers, enrolled, klass, student):
     assert client.post(f"/api/posts/{p.id}/like", headers=auth_headers).status_code == 400
 
 
-def test_like_bumps_root(client, db, enrolled, klass, student, student2_headers):
+def test_like_does_not_bump_root(client, db, enrolled, klass, student, student2_headers):
+    # Aura no longer reorders the feed — only replies do (Bloque 2).
     root = _mk(db, student, klass)
     reply = _mk(db, student, klass, parent_id=root.id)
+    db.refresh(root)
     before = root.last_activity_at
     client.post(f"/api/posts/{reply.id}/like", headers=student2_headers)
     db.refresh(root)
-    assert root.last_activity_at >= before
+    assert root.last_activity_at == before
 
 
 def test_author_delete_revokes(client, db, auth_headers, enrolled, klass, student, student2, student2_headers):
