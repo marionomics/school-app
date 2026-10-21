@@ -104,3 +104,23 @@ def ranked_page(db: Session, viewer_id: int, class_ids: List[int], as_of: dateti
                 .offset(max(0, offset - len(order))).limit(need))
         page += [pid for (pid,) in tail]
     return page[:limit], len(page) > limit
+
+
+def has_new(db: Session, viewer_id: int, class_ids: List[int], since: datetime) -> bool:
+    """Something to show the "new posts" pill for: a visible root by someone
+    else, or a reply by someone else in a thread the viewer is part of."""
+    roots = (db.query(Post.id)
+             .filter(Post.parent_id.is_(None), Post.status == "active",
+                     Post.created_at > since, Post.author_id != viewer_id,
+                     assignment_visible(class_ids)))
+    if db.query(roots.exists()).scalar():
+        return True
+    mine = [pid for (pid,) in db.query(Post.id).filter(Post.author_id == viewer_id)]
+    threads = set(root_ids_of(db, mine).values())
+    if not threads:
+        return False
+    level2 = {pid for (pid,) in db.query(Post.id).filter(Post.parent_id.in_(threads))}
+    replies = (db.query(Post.id)
+               .filter(Post.parent_id.in_(threads | level2), Post.created_at > since,
+                       Post.author_id != viewer_id, Post.status == "active"))
+    return bool(db.query(replies.exists()).scalar())

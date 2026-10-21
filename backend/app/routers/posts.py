@@ -17,7 +17,7 @@ from app.services.media import attachment_out
 from app.services.attribution import resolve_default_class
 from app.services.visibility import assignment_visible, viewer_class_ids
 from app.services.cursor import decode_feed_cursor, encode_feed_cursor
-from app.services.feed_query import aware, ranked_page
+from app.services.feed_query import aware, has_new, ranked_page
 from app.services.feed_rank import ReplyOption, pick_featured
 from app.services.grades import _counting_entrega
 from app.services.dates import next_sunday_due
@@ -232,6 +232,18 @@ def get_feed(
             "pinned": [serialize_post(p, liked, viewer=user, teacher_aura_ids=aura) for p in pinned],
             "next_cursor": encode_feed_cursor(as_of, offset + limit) if has_more else None,
             "as_of": as_of.isoformat()}
+
+
+@feed_router.get("/has-new")
+def feed_has_new(since: str = Query(...), user: User = Depends(get_current_user),
+                 db: Session = Depends(get_db)):
+    try:
+        when = datetime.fromisoformat(since)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Fecha inválida")
+    if when.tzinfo is None:
+        raise HTTPException(status_code=422, detail="Fecha inválida")
+    return {"has_new": has_new(db, user.id, viewer_class_ids(db, user), when)}
 
 
 def _superseded_entregas(db: Session, posts: list) -> Set[int]:
