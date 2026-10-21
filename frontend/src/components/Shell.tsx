@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { refreshFeed } from "@/lib/feed";
 import { useAuth } from "@/lib/auth";
 import GradeChip from "@/components/GradeChip";
 import {
@@ -15,6 +17,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const qc = useQueryClient();
 
   async function handleLogout() {
     await logout();
@@ -63,7 +67,19 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <main className="flex-1 pb-16">{children}</main>
 
       <nav className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-around border-t bg-background py-2">
-        <Link to="/" aria-label={es.nav.home} className="p-2">
+        <Link
+          to="/"
+          aria-label={es.nav.home}
+          className="p-2"
+          onClick={(e) => {
+            // Already on Inicio: the tap means "show me what's new".
+            if (location.pathname === "/") {
+              e.preventDefault();
+              window.scrollTo({ top: 0 });
+              void refreshFeed(qc);
+            }
+          }}
+        >
           <RiHome5Line className="size-5" />
         </Link>
         <Link to="/componer" aria-label={es.nav.create} className="p-2">

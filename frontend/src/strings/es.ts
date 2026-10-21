@@ -58,6 +58,7 @@ export const es = {
     deletedPost: "[eliminado]",
     seeMore: "ver más",
     pinnedHeader: "Por entregar",
+    newPosts: "Publicaciones nuevas",
     participacionBadge: "Participación",
     tareaBadge: "Tarea",
     entregaBadge: "Entrega",

@@ -1,7 +1,9 @@
-import { useEffect, useRef } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { RiArrowUpLine } from "@remixicon/react";
+import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import { mergePages } from "@/lib/feed";
+import { mergePages, refreshFeed } from "@/lib/feed";
 import PostCard from "@/components/PostCard";
 import { FeedSkeleton } from "@/components/Skeletons";
 import { es } from "@/strings/es";
@@ -23,6 +25,32 @@ export default function Home() {
     refetchOnWindowFocus: false,
   });
   const like = useLikeMutation();
+  const qc = useQueryClient();
+  // Keyed on the load: a new as_of clears it without touching state.
+  const [newFor, setNewFor] = useState<string | null>(null);
+  const asOf = q.data?.pages[0]?.as_of;
+  const hasNew = asOf != null && newFor === asOf;
+
+  // Coming back never reorders (Mario, 2026-10-21): ask whether something
+  // new exists and offer it instead.
+  useEffect(() => {
+    if (!asOf) return;
+    const check = () => {
+      if (document.visibilityState !== "visible") return;
+      api<{ has_new: boolean }>(`/api/feed/has-new?since=${encodeURIComponent(asOf)}`)
+        .then((r) => r.has_new && setNewFor(asOf))
+        .catch(() => {});
+    };
+    check();
+    document.addEventListener("visibilitychange", check);
+    return () => document.removeEventListener("visibilitychange", check);
+  }, [asOf]);
+
+  function showNew() {
+    setNewFor(null);
+    window.scrollTo({ top: 0 });
+    void refreshFeed(qc);
+  }
   const { user } = useAuth();
   const veto = useVetoFlow();
   const onVeto = user?.role === "teacher" ? veto.request : undefined;
@@ -51,6 +79,14 @@ export default function Home() {
 
   return (
     <div className="divide-y">
+      {hasNew && (
+        <div className="pointer-events-none sticky top-14 z-10 flex justify-center py-2">
+          <Button size="sm" className="pointer-events-auto shadow-md" onClick={showNew}>
+            <RiArrowUpLine data-icon="inline-start" />
+            {es.feed.newPosts}
+          </Button>
+        </div>
+      )}
       {veto.dialog}
       {pinned.length > 0 && (
         <section className="border-b bg-muted/40">
