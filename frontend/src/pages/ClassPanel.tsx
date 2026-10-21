@@ -174,10 +174,14 @@ export default function ClassPanel() {
                 <span>{es.panel.statusPolizon}</span>
               )}
               <span className="font-medium">{m.name}</span>
-              <UserLink
-                user={m}
-                className="text-sm text-muted-foreground"
-              />
+              {/* No username yet: UserLink would fall back to "@{name}",
+                  repeating the real name right next to it. */}
+              {m.username && (
+                <UserLink
+                  user={m}
+                  className="text-sm text-muted-foreground"
+                />
+              )}
             </li>
           ))}
         </ul>
@@ -244,10 +248,12 @@ export default function ClassPanel() {
                   return s ? (
                     <>
                       <h2 className="text-lg font-bold">{s.name}</h2>
-                      <UserLink
-                        user={s}
-                        className="text-sm text-muted-foreground"
-                      />
+                      {s.username && (
+                        <UserLink
+                          user={s}
+                          className="text-sm text-muted-foreground"
+                        />
+                      )}
                     </>
                   ) : null;
                 })()}
