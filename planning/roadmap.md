@@ -8,17 +8,15 @@ Origen de los bloques 1–5: nota de Mario del 2026-09-28 ("Bug report y modific
 
 ## ▶ Empieza aquí (sesión nueva)
 
-Estado al 2026-10-21: **Bloques 0–3 cerrados y en producción** (salvo justificar faltas paso 2). **Sigue el Bloque 4 — algoritmo del feed.**
+Estado al 2026-10-21: **Bloques 0–4 cerrados y en producción** (salvo justificar faltas paso 2). **Sigue el Bloque 5 — actividad (notificaciones).** Pendiente del Bloque 4: correr `cd backend && python -m scripts.feed_metrics` contra producción dos o tres semanas después del despliegue y comparar con la semana previa; eso decide si se ajustan los pesos de `backend/app/services/feed_rank.py` o se abre la pregunta 7 de `future.md`.
 
 0. **`git fetch` primero** y confirmar `main...origin/main` en sync. Railway despliega `main` en cada push. Pendiente menor: borrar `origin/entregas-con-archivos` (ya mergeada; el borrado lo bloqueó el clasificador, Mario puede hacerlo con `! git push origin --delete entregas-con-archivos`).
 1. **Cómo se trabaja un bloque** (lo que funcionó en 2, 3a y 3b): brainstorming con Mario sección por sección → spec **en inglés** en `docs/superpowers/specs/` → plan en `docs/superpowers/plans/` → ejecución *subagent-driven*: cada implementador hace commit **sin push**, una revisión por tarea, y el controlador hace push sólo cuando la revisión sale limpia (cada push llega a los alumnos). Al final, una revisión de todo el bloque en el modelo más capaz, una sola ola de fixes y una re-revisión. Las decisiones que se toman en el camino se anotan como *rulings* y se le entregan a Mario al cerrar.
-2. **Bloque 4: lo que ya está decidido** está escrito abajo, en su sección; no volver a preguntarlo. La pregunta abierta es `future.md` (7): ¿baja sólo lo que tocaste, o también lo que viste? (lo visto requiere registrar impresiones).
-3. **Hechos del código que el spec del Bloque 4 tiene que saber:**
-   - El feed (`get_feed` en `backend/app/routers/posts.py`) pagina con keyset sobre `(last_activity_at, id)`; las tareas fijadas (`_pinned_tareas`) van **fuera** de la paginación.
-   - Desde el Bloque 2 **el aura no sube posts**; sólo una respuesta toca `last_activity_at`.
-   - El filtro por clase vive en `backend/app/services/visibility.py` (`viewer_class_ids`, `assignment_visible`, `root_visible`) y lo comparten feed y perfil — cualquier feed nuevo debe usarlo.
-   - En el cliente, dar aura o vetar **nunca** recarga el feed (`frontend/src/lib/likes.ts`, `useVetoFlow.tsx`): un refetch reordena las tarjetas bajo el dedo del profesor. Se parchan en caché con `patchPostInCaches` (`frontend/src/lib/postCache.ts`). El feed usa `staleTime` 15 s y recarga al volver a la pestaña.
-   - El perfil ya pagina por `created_at` (`backend/app/routers/profiles.py`) — es una línea de tiempo, no un ranking.
+2. **Bloque 5: hechos del código que su spec tiene que saber.**
+   - La señal "te respondieron" ya existe: `has_new` en `backend/app/services/feed_query.py` sabe qué hilos son tuyos (`root_ids_of` + los que escribiste o respondiste) y el ranking (`feed_rank.score`) distingue una respuesta *a ti* de una respuesta *en tu hilo*. Reusarla, no duplicarla.
+   - El feed sólo se recarga con `refreshFeed(qc)` (`frontend/src/lib/feed.ts`); todo lo demás parcha la caché (`patchFeedPost`, `dropFromFeed` en `postCache.ts`). Una página de actividad no debe invalidar `["feed"]`.
+   - El filtro por clase sigue en `backend/app/services/visibility.py`.
+3. **Cómo se trabajó el Bloque 4** (ejecución *native*: un solo contexto, TDD por tarea y una revisión final del bloque completo). Sirve para bloques medianos con plan detallado.
 4. Pendientes chicos fuera de bloques: **justificar faltas paso 2** (comprobante del alumno), bugs 9–11 en `bugs.md`, buscador de GIFs en `future.md`.
 
 ## Bloque 0 — Higiene ✅ (2026-10-09)
@@ -63,9 +61,9 @@ Después, el perfil:
 
 ## Bloque 4 — Algoritmo del feed
 Problema (Mario): la interacción sube posts y algunos se quedan arriba sin ser relevantes. Lo que se quiere: una vez que interactuaste con un post, baja **para ti** y deja lugar a lo nuevo.
-- [~] **Spec primero.** Escrito 2026-10-21: `docs/superpowers/specs/2026-10-21-feed-ranking-design.md` (pendiente revisión de Mario). Puntaje por post y por espectador: frescura + actividad reciente − penalización si ya interactuaste (aura, respuesta, validación). Implica dejar la paginación keyset sobre `last_activity_at` — la razón por la que hoy no se hizo. Retoma la idea de `future.md` (prioridad a no vistos, afinidad).
-- [ ] Implementación + tests del ranking como funciones puras, igual que el motor de calificación.
-- [ ] **Promover los comentarios** (Mario, 2026-10-17). Dos cosas que el spec del Bloque 4 debe cubrir:
+- [x] **Spec primero.** ✅ 2026-10-21: `docs/superpowers/specs/2026-10-21-feed-ranking-design.md`, plan en `docs/superpowers/plans/2026-10-21-feed-ranking.md`. Puntaje por post y por espectador: frescura + actividad reciente − penalización si ya interactuaste (aura, respuesta, validación). Implica dejar la paginación keyset sobre `last_activity_at` — la razón por la que hoy no se hizo. Retoma la idea de `future.md` (prioridad a no vistos, afinidad).
+- [x] Implementación + tests del ranking como funciones puras, igual que el motor de calificación. ✅ 2026-10-21 (`feed_rank.py`, `feed_query.py`).
+- [x] **Promover los comentarios** (Mario, 2026-10-17). ✅ 2026-10-21: un comentario destacado bajo cada post (nunca en tareas ni exámenes) y una respuesta a ti te regresa el hilo. Dos cosas que el spec del Bloque 4 debe cubrir:
   - **Un comentario en el feed principal.** Debajo de un post, mostrar al menos una respuesta — la que sea más relevante (criterio a definir en el spec: más aura, más reciente, de alguien a quien sigues…).
   - **Una respuesta te lo regresa.** Si alguien responde a tu post o a tu comentario, ese hilo vuelve a subir **para ti**, aunque ya lo hubieras tocado. Es la excepción a "lo que ya tocaste baja". Se cruza con el Bloque 5: es la misma señal que dispara la notificación.
 

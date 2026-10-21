@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-21 (Bloque 4 — algoritmo del feed)
+- **El feed se ordena para cada persona.** Lo nuevo va arriba; lo que ya tocaste baja *para ti*: dar aura lo baja un poco (como si fuera un día más viejo), responder o publicarlo lo baja más (tres días). A los demás no les cambia nada.
+- **Una respuesta te regresa el hilo.** Si alguien te responde a ti (a tu post o a tu comentario), ese hilo vuelve a subir aunque ya lo hubieras tocado; una respuesta en un hilo donde participaste lo sube menos. El aura sola no te suscribe.
+- **El orden sólo cambia cuando lo pides:** al publicar, al tocar Inicio estando en Inicio, o con la píldora **"Publicaciones nuevas"**, que aparece al volver a la app si hay algo nuevo. Dar aura, responder, validar o vetar ya no mueven el feed, y volver de un hilo conserva el lugar.
+- **Un comentario destacado bajo cada post:** el que tiene aura del profe; si no, el de más aura; si no, el más reciente. Nunca bajo una tarea o un examen (ahí las respuestas pueden ser la tarea de alguien).
+- Los posts de más de 14 días sin respuestas recientes siguen apareciendo, después de los demás y por fecha.
+- Nuevo `backend/scripts/feed_metrics.py`: respuestas por alumno activo y % de posts con respuesta, por semana, para decidir con datos si se ajustan los pesos.
+
 ## 2026-10-20 (Bloque 3b — perfil)
 - **Cada persona tiene perfil en `/u/:username`:** foto, bio, aura recibida y sus pestañas de Publicaciones y Respuestas. Tu propio perfil es donde editas la bio y la foto.
 - **Todo nombre y toda foto en la app llevan al perfil** (feed, hilo, `/revisar`, examen, hoja del alumno). En `/revisar` tocar el nombre abre el perfil y no dispara la acción de la fila. Quien aún no elige username se ve como texto, sin enlace roto.
