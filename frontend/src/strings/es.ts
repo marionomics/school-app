@@ -175,6 +175,7 @@ export const es = {
     participaciones: "Participaciones",
     likes: "Aura recibida",
     likesWithCount: "{n} de aura",
+    other: "Puntos extra",
     faltas: "Faltas",
     empty: "Aún no tienes puntos. ¡Participa en clase o publica en el foro!",
     error: "No se pudo cargar tu calificación",

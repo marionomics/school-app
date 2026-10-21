@@ -2,9 +2,11 @@ import {
   RiChat3Line,
   RiCloseCircleLine,
   RiFileTextLine,
+  RiGiftLine,
   RiPushpinLine,
+  RiSparkling2Line,
 } from "@remixicon/react";
-import { formatPoints } from "@/lib/points";
+import { formatPoints, formatSignedPoints } from "@/lib/points";
 import { es } from "@/strings/es";
 import type { GradeSummary } from "@/lib/types";
 
@@ -34,6 +36,20 @@ export default function GradeBreakdown({ grade }: { grade: GradeSummary }) {
         <dt className="flex items-center gap-1"><RiChat3Line className="size-3.5" /> {es.grade.participaciones}</dt>
         <dd className="text-right">{formatPoints(grade.ledger.participaciones)}</dd>
       </div>
+      <div className="flex justify-between gap-2">
+        <dt className="flex items-center gap-1"><RiSparkling2Line className="size-3.5" /> {es.grade.likes}</dt>
+        <dd className="text-right">
+          {formatPoints(grade.ledger.likes)} · {es.grade.likesWithCount.replace("{n}", String(grade.ledger.likes_count))}
+        </dd>
+      </div>
+      {/* Extras, bonuses and penalties: the one ledger rubro that can be
+          negative, so it carries its sign. */}
+      {grade.ledger.other !== 0 && (
+        <div className="flex justify-between gap-2">
+          <dt className="flex items-center gap-1"><RiGiftLine className="size-3.5" /> {es.grade.other}</dt>
+          <dd className="text-right">{formatSignedPoints(grade.ledger.other)}</dd>
+        </div>
+      )}
       {grade.faltas.count > 0 && (
         <div className="flex justify-between gap-2 text-destructive">
           <dt className="flex items-center gap-1"><RiCloseCircleLine className="size-3.5" /> {es.grade.faltas}</dt>
