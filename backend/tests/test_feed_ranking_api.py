@@ -82,3 +82,21 @@ def test_negative_offset_cursor_is_rejected(client, auth_headers):
     from app.services.cursor import encode_feed_cursor
     bad = encode_feed_cursor(utcnow(), -1)
     assert client.get(f"/api/feed?cursor={bad}", headers=auth_headers).status_code == 422
+
+
+def test_entregas_do_not_lift_a_tarea(client, db, teacher_headers, klass, student, teacher, student2):
+    # Replies under an assignment are homework, not conversation: an entrega
+    # to the teacher's tarea must not pull it above a fresh post.
+    tarea = _mk(db, teacher, klass, "tarea", age_h=48, type="tarea")
+    _mk(db, student, klass, "mi entrega", age_h=0, parent_id=tarea.id, is_entrega=True)
+    fresh = _mk(db, student2, klass, "fresh", age_h=0)
+    ids = _ids(client, teacher_headers)
+    assert ids.index(fresh.id) < ids.index(tarea.id)
+
+
+def test_an_old_keyset_cursor_is_rejected(client, auth_headers):
+    # A tab still running the previous bundle sends "<last_activity_at>|<post_id>";
+    # it must not be read as {as_of, offset}.
+    from app.services.cursor import encode_cursor
+    old = encode_cursor(utcnow(), 37)
+    assert client.get(f"/api/feed?cursor={old}", headers=auth_headers).status_code == 422

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Like, Post
 from app.services.feed_rank import WINDOW_DAYS, Candidate, ReplyFact, rank
-from app.services.visibility import assignment_visible
+from app.services.visibility import ASSIGNMENT_TYPES, assignment_visible
 
 ROOT_STATUSES = ("active", "vetoed")
 
@@ -61,10 +61,14 @@ def window_ids(db: Session, class_ids: List[int], as_of: datetime) -> List[int]:
 def load_candidates(db: Session, root_ids: List[int]) -> List[Candidate]:
     if not root_ids:
         return []
-    roots = db.query(Post.id, Post.author_id, Post.created_at).filter(Post.id.in_(root_ids)).all()
+    roots = (db.query(Post.id, Post.author_id, Post.created_at, Post.type)
+             .filter(Post.id.in_(root_ids)).all())
     root_author = {r.id: r.author_id for r in roots}
+    # Replies under a tarea or examen are homework, not conversation (spec
+    # decision 8): they neither add activity nor lift the thread back up.
+    social = [r.id for r in roots if r.type not in ASSIGNMENT_TYPES]
     cols = (Post.id, Post.parent_id, Post.author_id, Post.created_at, Post.status)
-    level2 = db.query(*cols).filter(Post.parent_id.in_(root_ids)).all()
+    level2 = db.query(*cols).filter(Post.parent_id.in_(social)).all() if social else []
     l2_root = {r.id: r.parent_id for r in level2}
     l2_author = {r.id: r.author_id for r in level2}
     level3 = db.query(*cols).filter(Post.parent_id.in_(list(l2_root))).all() if l2_root else []
@@ -117,6 +121,10 @@ def has_new(db: Session, viewer_id: int, class_ids: List[int], since: datetime) 
         return True
     mine = [pid for (pid,) in db.query(Post.id).filter(Post.author_id == viewer_id)]
     threads = set(root_ids_of(db, mine).values())
+    # An entrega is homework, not a reply worth a pill (spec decision 8).
+    if threads:
+        threads = {pid for (pid,) in db.query(Post.id).filter(
+            Post.id.in_(threads), Post.type.notin_(ASSIGNMENT_TYPES))}
     if not threads:
         return False
     level2 = {pid for (pid,) in db.query(Post.id).filter(Post.parent_id.in_(threads))}

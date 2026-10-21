@@ -77,3 +77,10 @@ def test_naive_or_garbage_since_is_rejected(client, auth_headers):
     assert client.get("/api/feed/has-new?since=2026-10-21T10:00:00",
                       headers=auth_headers).status_code == 422
     assert client.get("/api/feed/has-new?since=ayer", headers=auth_headers).status_code == 422
+
+
+def test_an_entrega_does_not_light_the_pill(client, db, teacher_headers, klass, teacher, student, enrolled):
+    tarea = _post(db, teacher, klass, type="tarea")
+    since = _since(client, teacher_headers)
+    _post(db, student, klass, parent_id=tarea.id, is_entrega=True)
+    assert _has_new(client, teacher_headers, since) is False

@@ -70,3 +70,12 @@ def test_the_thread_endpoint_carries_no_featured_reply(client, db, auth_headers,
     _mk(db, student2, klass, "r", parent_id=root.id)
     body = client.get(f"/api/posts/{root.id}", headers=auth_headers).json()
     assert body["post"]["featured_reply"] is None
+
+
+def test_a_reply_without_text_is_never_featured(client, db, auth_headers, enrolled, klass,
+                                                student, student2):
+    # A photo-only reply would render as a name over an empty block.
+    root = _mk(db, student, klass, "root")
+    _mk(db, student2, klass, "", parent_id=root.id, like_count=9)
+    worded = _mk(db, student2, klass, "con texto", parent_id=root.id)
+    assert _item(client, auth_headers, root.id)["featured_reply"]["id"] == worded.id

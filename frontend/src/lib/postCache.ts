@@ -117,3 +117,14 @@ export function dropFromFeed(qc: QueryClient, id: number): void {
     },
   );
 }
+
+/** An entrega was just delivered: the tarea leaves "Por entregar" (the server
+ *  stops pinning it too). It stays in the feed itself. */
+export function unpinFromFeed(qc: QueryClient, id: number): void {
+  qc.setQueryData<InfiniteData<FeedPage>>(["feed"], (d) =>
+    d && {
+      ...d,
+      pages: d.pages.map((pg) => ({ ...pg, pinned: pg.pinned.filter((p) => p.id !== id) })),
+    },
+  );
+}

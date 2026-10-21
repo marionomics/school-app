@@ -170,7 +170,7 @@ FEATURED_ROOT_TYPES = ("regular", "participacion")
 
 
 def _featured_replies(db: Session, roots: List[Post]) -> dict:
-    """root id → the reply shown under its card (level 2, active only)."""
+    """root id → the reply shown under its card (level 2, active, with text)."""
     eligible = [p.id for p in roots if p.type in FEATURED_ROOT_TYPES]
     if not eligible:
         return {}
@@ -178,6 +178,8 @@ def _featured_replies(db: Session, roots: List[Post]) -> dict:
                .options(selectinload(Post.author), selectinload(Post.klass),
                         selectinload(Post.attachments))
                .filter(Post.parent_id.in_(eligible), Post.status == "active").all())
+    # The card shows text only; a photo-only reply would be a name over nothing.
+    replies = [r for r in replies if r.content.strip()]
     blessed = _teacher_aura_ids(db, [r.id for r in replies])
     by_root: dict = {}
     for r in replies:

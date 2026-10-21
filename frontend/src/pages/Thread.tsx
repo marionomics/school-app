@@ -16,7 +16,7 @@ import { canSubmit } from "@/lib/attachments";
 import { es } from "@/strings/es";
 import type { Post, ThreadResponse } from "@/lib/types";
 import { invalidateGrades } from "@/lib/grades";
-import { dropFromFeed, patchFeedPost } from "@/lib/postCache";
+import { dropFromFeed, patchFeedPost, unpinFromFeed } from "@/lib/postCache";
 
 export default function Thread() {
   const { id } = useParams();
@@ -48,7 +48,7 @@ export default function Thread() {
       for (const f of files) fd.append("files", f);
       return api<Post>("/api/posts", { method: "POST", body: fd });
     },
-    onSuccess: () => {
+    onSuccess: (sent) => {
       setReply("");
       setFiles([]);
       setReplyTo(null);
@@ -56,6 +56,9 @@ export default function Thread() {
       void qc.invalidateQueries({ queryKey: ["thread", id] });
       // The thread's root gains a reply; patch it rather than reorder the feed.
       patchFeedPost(qc, Number(id), (p) => ({ ...p, reply_count: p.reply_count + 1 }));
+      // Without this the tarea stays under "Por entregar" until a refresh and
+      // the student thinks the entrega failed.
+      if (sent.is_entrega) unpinFromFeed(qc, Number(id));
     },
     onError: (e) => toast.show(e instanceof ApiError ? e.message : es.post.replyError),
   });

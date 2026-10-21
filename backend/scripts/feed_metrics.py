@@ -7,7 +7,7 @@ numbers are for comparing weeks, not for grading.
 """
 from collections import defaultdict
 from datetime import datetime
-from typing import Iterable, List, Optional, Tuple
+from typing import AbstractSet, Iterable, List, Optional, Tuple
 
 
 def _week(dt: datetime) -> str:
@@ -15,9 +15,12 @@ def _week(dt: datetime) -> str:
     return f"{y}-W{w:02d}"
 
 
-def weekly_metrics(rows: Iterable[Tuple[int, int, Optional[int], datetime]]
+def weekly_metrics(rows: Iterable[Tuple[int, int, Optional[int], datetime]],
+                   assignment_roots: AbstractSet[int] = frozenset()
                    ) -> List[Tuple[str, float, float]]:
-    rows = list(rows)
+    # Tareas, exámenes and their entregas follow the homework calendar, not
+    # the feed: leave them out or the numbers measure the syllabus.
+    rows = [r for r in rows if (r[2] if r[2] is not None else r[0]) not in assignment_roots]
     answered = {root for _, _, root, _ in rows if root is not None}
     active = defaultdict(set)
     replies = defaultdict(int)
@@ -46,15 +49,16 @@ def main() -> None:
 
     db = SessionLocal()
     try:
-        posts = db.query(Post.id, Post.author_id, Post.parent_id, Post.created_at).filter(
+        posts = db.query(Post.id, Post.author_id, Post.parent_id, Post.created_at, Post.type).filter(
             Post.status != "deleted").all()
+        assignments = {p.id for p in posts if p.parent_id is None and p.type in ("tarea", "examen")}
         root_of = root_ids_of(db, [p.id for p in posts if p.parent_id is not None])
         rows = [(p.id, p.author_id, root_of.get(p.id) if p.parent_id else None, p.created_at)
                 for p in posts]
     finally:
         db.close()
     print("semana      respuestas/alumno  posts con respuesta")
-    for wk, rps, share in weekly_metrics(rows):
+    for wk, rps, share in weekly_metrics(rows, assignments):
         print(f"{wk}   {rps:>17.2f}  {share:>18.0%}")
 
 

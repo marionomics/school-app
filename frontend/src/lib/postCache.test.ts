@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { QueryClient, type InfiniteData } from "@tanstack/react-query";
 import {
   dropFromFeed,
+  unpinFromFeed,
   mapFeed,
   mapThread,
   patchFeedPost,
@@ -184,5 +185,15 @@ describe("teacherAura", () => {
   it("un-validating turns it off", () => {
     const off = teacherAura(teacherAura(post(1), true), false);
     expect(off).toMatchObject({ liked_by_me: false, teacher_aura: false, like_count: 0 });
+  });
+});
+
+describe("unpinFromFeed", () => {
+  it("delivering takes the tarea out of Por entregar but keeps it in the feed", () => {
+    const qc = seeded();
+    unpinFromFeed(qc, 2);
+    const d = qc.getQueryData<InfiniteData<FeedPage>>(["feed"])!;
+    expect(d.pages[0].pinned).toEqual([]);
+    expect(d.pages[0].items.map((p) => p.id)).toEqual([1, 2]);
   });
 });
