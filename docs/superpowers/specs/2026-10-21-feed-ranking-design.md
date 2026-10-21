@@ -15,7 +15,7 @@ Interaction pushes posts up and some stay at the top without being relevant. Onc
 5. **Teacher validation = teacher aura** (already true since Bloque 2), so it sinks the post for the teacher like any aura.
 6. **Order changes only on refresh** (Mario, 2026-10-21). Nothing moves under the finger. The ranking is frozen at load time (`as_of`) for every page of that load.
 7. **Coming back to the tab never reorders; a "Publicaciones nuevas" pill appears instead** when something new exists (Mario, 2026-10-21, option C). Tapping it reloads.
-8. **One featured comment under each card** (Mario, 2026-10-21), chosen by a ladder: teacher-aura'd reply → most aura → most recent. Level 2 only, active only.
+8. **One featured comment under each card** (Mario, 2026-10-21), chosen by a ladder: teacher-aura'd reply → most aura → most recent. Level 2 only, active only. **Never under a tarea or examen** — every reply there may be a homework answer, and the profile already hides those (ruling while planning, 2026-10-21).
 9. **Interactions only, not impressions.** "Seen" (open question 7 in `future.md`) waits until the first round is measured.
 10. **Engagement data decides the weights** (Mario, 2026-10-21). All weights are named constants in one module; a metrics script compares before and after.
 11. **The comment prize** (random ×2/×3 for commenting) is out of scope — it moves points, so it belongs to the grade engine and gets its own spec. Recorded in `future.md`.
@@ -91,7 +91,7 @@ Root posts (`parent_id IS NULL`), `status IN ('active','vetoed')` — vetoed pos
 
 ### The featured reply — `pick_featured(replies, teacher_aura_ids)`
 
-Among level-2 replies (direct answers to the root) with `status == 'active'`:
+Only for `regular` and `participacion` roots (a tarea's or examen's replies are homework answers — see decision 8). Among level-2 replies (direct answers to the root) with `status == 'active'`:
 1. those with teacher aura, then
 2. highest `like_count`, then
 3. most recent `created_at`, then highest `id`.
