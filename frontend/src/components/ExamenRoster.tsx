@@ -11,6 +11,7 @@ import UserLink from "@/components/UserLink";
 import { useToast } from "@/components/Toaster";
 import { es } from "@/strings/es";
 import type { Author, ExamenRoster } from "@/lib/types";
+import { invalidateGrades } from "@/lib/grades";
 
 export default function ExamenRosterPanel({ examenId }: { examenId: number }) {
   const qc = useQueryClient();
@@ -37,7 +38,7 @@ export default function ExamenRosterPanel({ examenId }: { examenId: number }) {
     mutationFn: (graded: boolean) => markGraded(examenId, graded),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["examen-roster", examenId] });
-      void qc.invalidateQueries({ queryKey: ["grade"] });
+      invalidateGrades(qc);
     },
     onError: () => toast.show(es.revisar.saveError),
   });

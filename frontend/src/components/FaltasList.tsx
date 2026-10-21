@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/Toaster";
 import { es } from "@/strings/es";
 import type { FaltaRow } from "@/lib/types";
+import { invalidateGrades } from "@/lib/grades";
 
 /** "2026-09-14" as a local calendar date. new Date("2026-09-14") is UTC
  *  midnight, which in Mexico City is the evening before. */
@@ -68,7 +69,7 @@ export default function FaltasList({
     },
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: key });
-      void qc.invalidateQueries({ queryKey: ["student-grade", classId, studentId] });
+      invalidateGrades(qc);
       void qc.invalidateQueries({ queryKey: ["roster", classId] });
     },
   });

@@ -15,6 +15,7 @@ import { useVetoFlow } from "@/lib/useVetoFlow";
 import { canSubmit } from "@/lib/attachments";
 import { es } from "@/strings/es";
 import type { Post, ThreadResponse } from "@/lib/types";
+import { invalidateGrades } from "@/lib/grades";
 
 export default function Thread() {
   const { id } = useParams();
@@ -226,7 +227,7 @@ export default function Thread() {
           initialFeedback={grading.my_review?.feedback ?? ""}
           onSaved={() => {
             void qc.invalidateQueries({ queryKey: ["thread", id] });
-            void qc.invalidateQueries({ queryKey: ["grade"] });
+            invalidateGrades(qc);
           }}
           onClose={() => setGrading(null)}
         />

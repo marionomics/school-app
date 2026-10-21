@@ -21,6 +21,7 @@ import type {
   ParticipacionRow,
   QueueStudent,
 } from "@/lib/types";
+import { invalidateGrades } from "@/lib/grades";
 
 export default function Revisar() {
   const [classId, setClassId] = useState<number | null>(null);
@@ -301,7 +302,7 @@ function ParticipacionesTab({ classId }: { classId: number }) {
     },
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: key });
-      void qc.invalidateQueries({ queryKey: ["grade"] });
+      invalidateGrades(qc);
       void qc.invalidateQueries({ queryKey: ["feed"] });
       void qc.invalidateQueries({ queryKey: ["thread"] });
     },

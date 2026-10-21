@@ -6,6 +6,7 @@ import { patchPostInCaches } from "@/lib/postCache";
 import { setVeto } from "@/lib/review";
 import { es } from "@/strings/es";
 import type { Post } from "@/lib/types";
+import { invalidateGrades } from "@/lib/grades";
 
 /** Veto from the feed or a thread: confirm before vetoing, never before
  *  lifting a veto (that is the safe direction). Optimistic, with rollback. */
@@ -32,8 +33,9 @@ export function useVetoFlow() {
     // Not the feed: a refetch re-sorts it under the teacher's thumb. The
     // optimistic patch stands until the user refreshes.
     onSettled: () => {
-      for (const k of ["thread", "review-participaciones", "grade", "profile"])
+      for (const k of ["thread", "review-participaciones"])
         void qc.invalidateQueries({ queryKey: [k] });
+      invalidateGrades(qc);
     },
   });
 

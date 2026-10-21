@@ -18,6 +18,7 @@ import { useToast } from "@/components/Toaster";
 import { formatPoints } from "@/lib/points";
 import { es } from "@/strings/es";
 import type { Incentive, MemberOut } from "@/lib/types";
+import { invalidateGrades } from "@/lib/grades";
 
 export default function Extras() {
   const qc = useQueryClient();
@@ -79,7 +80,7 @@ export default function Extras() {
       }),
     onSuccess: () => {
       toast.show(es.configurar.incentiveAwarded);
-      void qc.invalidateQueries({ queryKey: ["grade"] });
+      invalidateGrades(qc);
       setAwarding(null);
       setStudentId("");
     },

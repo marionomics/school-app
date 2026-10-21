@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import { useToast } from "@/components/Toaster";
 import { es } from "@/strings/es";
 import type { ClassOut, ClassSettings, MyClasses } from "@/lib/types";
+import { invalidateGrades } from "@/lib/grades";
 
 /** The teacher's class and its settings, plus a partial-PATCH saver.
  *
@@ -35,7 +36,7 @@ export function useClassSettings() {
     onSuccess: (data) => {
       qc.setQueryData(["settings", klass?.id], data);
       // A weight or a point value changes every grade in the class.
-      void qc.invalidateQueries({ queryKey: ["grade"] });
+      invalidateGrades(qc);
       toast.show(es.configurar.saved);
     },
     onError: () => toast.show(es.configurar.saveError),
