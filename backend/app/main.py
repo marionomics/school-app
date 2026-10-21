@@ -15,6 +15,7 @@ from app.routers import review_queue as review_queue_router
 from app.routers import reviews as reviews_router
 from app.routers import settings as settings_router
 from app.routers import users as users_router
+from app.routers import profiles as profiles_router
 from app.schemas import UserOut
 
 app = FastAPI(title="Plataforma v2")
@@ -29,6 +30,7 @@ app.add_middleware(
 
 app.include_router(auth_router.router)
 app.include_router(users_router.router)
+app.include_router(profiles_router.router)
 app.include_router(classes_router.router)
 app.include_router(grades_router.router)
 app.include_router(grades_router.class_grades_router)
