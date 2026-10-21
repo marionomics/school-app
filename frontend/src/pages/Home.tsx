@@ -17,6 +17,10 @@ export default function Home() {
       api<FeedPage>(`/api/feed?limit=20${pageParam ? `&cursor=${pageParam}` : ""}`),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.next_cursor,
+    // Never refetch on its own: a refetch reorders under the reader's thumb.
+    // refreshFeed() is the only way in (Bloque 4).
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
   const like = useLikeMutation();
   const { user } = useAuth();

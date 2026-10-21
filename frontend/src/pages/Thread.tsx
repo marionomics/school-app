@@ -16,6 +16,7 @@ import { canSubmit } from "@/lib/attachments";
 import { es } from "@/strings/es";
 import type { Post, ThreadResponse } from "@/lib/types";
 import { invalidateGrades } from "@/lib/grades";
+import { dropFromFeed, patchFeedPost } from "@/lib/postCache";
 
 export default function Thread() {
   const { id } = useParams();
@@ -53,7 +54,8 @@ export default function Thread() {
       setReplyTo(null);
       setIsEntrega(false);
       void qc.invalidateQueries({ queryKey: ["thread", id] });
-      void qc.invalidateQueries({ queryKey: ["feed"] });
+      // The thread's root gains a reply; patch it rather than reorder the feed.
+      patchFeedPost(qc, Number(id), (p) => ({ ...p, reply_count: p.reply_count + 1 }));
     },
     onError: (e) => toast.show(e instanceof ApiError ? e.message : es.post.replyError),
   });
@@ -62,7 +64,12 @@ export default function Thread() {
     mutationFn: (post: Post) => api<void>(`/api/posts/${post.id}`, { method: "DELETE" }),
     onSuccess: (_d, post) => {
       setConfirming(null);
-      void qc.invalidateQueries({ queryKey: ["feed"] });
+      if (post.id === Number(id)) dropFromFeed(qc, post.id);
+      else
+        patchFeedPost(qc, Number(id), (p) => ({
+          ...p,
+          reply_count: Math.max(0, p.reply_count - 1),
+        }));
       if (post.id === Number(id)) navigate("/", { replace: true });
       else void qc.invalidateQueries({ queryKey: ["thread", id] });
     },

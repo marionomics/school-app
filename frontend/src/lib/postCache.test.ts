@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { QueryClient, type InfiniteData } from "@tanstack/react-query";
-import { mapFeed, mapThread, patchPostInCaches, toggleAura } from "./postCache";
+import {
+  dropFromFeed,
+  mapFeed,
+  mapThread,
+  patchFeedPost,
+  patchPostInCaches,
+  teacherAura,
+  toggleAura,
+} from "./postCache";
 import type { FeedPage, Post, ProfilePostsPage } from "./types";
 
 const post = (id: number, over: Partial<Post> = {}): Post =>
@@ -133,5 +141,48 @@ describe("patchPostInCaches", () => {
     expect(tab().parent).toEqual(parent);
     rollback();
     expect(tab().liked_by_me).toBe(false);
+  });
+});
+
+function seeded() {
+  const qc = new QueryClient();
+  qc.setQueryData(["feed"], {
+    pages: [{ items: [post(1), post(2)], pinned: [post(2)], next_cursor: null, as_of: "x" }],
+    pageParams: [null],
+  });
+  return qc;
+}
+
+describe("patchFeedPost", () => {
+  it("patches the post in items and pinned without refetching", () => {
+    const qc = seeded();
+    patchFeedPost(qc, 2, (p) => ({ ...p, reply_count: p.reply_count + 1 }));
+    const d = qc.getQueryData<InfiniteData<FeedPage>>(["feed"])!;
+    expect(d.pages[0].items[1].reply_count).toBe(1);
+    expect(d.pages[0].pinned[0].reply_count).toBe(1);
+    expect(qc.getQueryState(["feed"])!.isInvalidated).toBe(false);
+  });
+});
+
+describe("dropFromFeed", () => {
+  it("removes a deleted root from items and pinned", () => {
+    const qc = seeded();
+    dropFromFeed(qc, 2);
+    const d = qc.getQueryData<InfiniteData<FeedPage>>(["feed"])!;
+    expect(d.pages[0].items.map((p) => p.id)).toEqual([1]);
+    expect(d.pages[0].pinned).toEqual([]);
+  });
+});
+
+describe("teacherAura", () => {
+  it("validating turns the teacher's aura on once", () => {
+    const on = teacherAura(post(1), true);
+    expect(on).toMatchObject({ liked_by_me: true, teacher_aura: true, like_count: 1 });
+    expect(teacherAura(on, true).like_count).toBe(1);
+  });
+
+  it("un-validating turns it off", () => {
+    const off = teacherAura(teacherAura(post(1), true), false);
+    expect(off).toMatchObject({ liked_by_me: false, teacher_aura: false, like_count: 0 });
   });
 });

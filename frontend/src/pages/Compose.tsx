@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { es } from "@/strings/es";
 import type { MyClasses, Post } from "@/lib/types";
 import { invalidateGrades } from "@/lib/grades";
+import { refreshFeed } from "@/lib/feed";
 
 const MIN_PARTICIPACION_CHARS = 10;
 
@@ -59,7 +60,7 @@ export default function Compose() {
       return api<Post>("/api/posts", { method: "POST", body: fd });
     },
     onSuccess: (_post, taps) => {
-      void qc.invalidateQueries({ queryKey: ["feed"] });
+      void refreshFeed(qc);
       invalidateGrades(qc);
       if (taps) toast.show(es.compose.published.replace("{n}", String(taps)));
       navigate("/", { replace: true });

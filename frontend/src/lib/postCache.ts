@@ -13,6 +13,17 @@ export function toggleAura(p: Post, viewerIsTeacher: boolean): Post {
   };
 }
 
+/** Validating is the teacher's aura (Bloque 2): set it on or off, idempotently. */
+export function teacherAura(p: Post, on: boolean): Post {
+  if (p.liked_by_me === on) return { ...p, teacher_aura: on };
+  return {
+    ...p,
+    liked_by_me: on,
+    teacher_aura: on,
+    like_count: Math.max(0, p.like_count + (on ? 1 : -1)),
+  };
+}
+
 const patch = (id: number, fn: (p: Post) => Post) => (p: Post) =>
   p.id === id ? fn(p) : p;
 
@@ -85,4 +96,24 @@ export async function patchPostInCaches(
   };
   apply(fn);
   return () => apply(undo);
+}
+
+/** For screens that know a post's id but not the Post (the review queue,
+ *  a thread's root). Patches; never refetches — a refetch reorders. */
+export function patchFeedPost(qc: QueryClient, id: number, fn: (p: Post) => Post): void {
+  qc.setQueryData<InfiniteData<FeedPage>>(["feed"], (d) => mapFeed(d, id, fn));
+}
+
+/** A deleted root leaves the feed (the server hides it too). */
+export function dropFromFeed(qc: QueryClient, id: number): void {
+  qc.setQueryData<InfiniteData<FeedPage>>(["feed"], (d) =>
+    d && {
+      ...d,
+      pages: d.pages.map((pg) => ({
+        ...pg,
+        items: pg.items.filter((p) => p.id !== id),
+        pinned: pg.pinned.filter((p) => p.id !== id),
+      })),
+    },
+  );
 }

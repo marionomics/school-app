@@ -22,6 +22,7 @@ import type {
   QueueStudent,
 } from "@/lib/types";
 import { invalidateGrades } from "@/lib/grades";
+import { patchFeedPost, teacherAura } from "@/lib/postCache";
 
 export default function Revisar() {
   const [classId, setClassId] = useState<number | null>(null);
@@ -269,10 +270,12 @@ function ParticipacionesTab({ classId }: { classId: number }) {
     },
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: key });
-      // Validating gives the teacher's aura, which the feed shows.
-      void qc.invalidateQueries({ queryKey: ["feed"] });
       void qc.invalidateQueries({ queryKey: ["thread"] });
     },
+    // Validating gives the teacher's aura, which the feed shows — patched in
+    // place, never refetched: a refetch reorders the feed.
+    onSuccess: (_d, { postId, reviewed }) =>
+      patchFeedPost(qc, postId, (p) => teacherAura(p, reviewed)),
   });
 
   const bulk = useMutation({
@@ -281,10 +284,10 @@ function ParticipacionesTab({ classId }: { classId: number }) {
     onError: () => toast.show(es.revisar.saveError),
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: key });
-      // Validating gives the teacher's aura, which the feed shows.
-      void qc.invalidateQueries({ queryKey: ["feed"] });
       void qc.invalidateQueries({ queryKey: ["thread"] });
     },
+    onSuccess: (_d, ids) =>
+      ids.forEach((id) => patchFeedPost(qc, id, (p) => teacherAura(p, true))),
   });
 
   const toggle = useMutation({
@@ -303,9 +306,10 @@ function ParticipacionesTab({ classId }: { classId: number }) {
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: key });
       invalidateGrades(qc);
-      void qc.invalidateQueries({ queryKey: ["feed"] });
       void qc.invalidateQueries({ queryKey: ["thread"] });
     },
+    onSuccess: (_d, { postId, vetoed }) =>
+      patchFeedPost(qc, postId, (p) => ({ ...p, status: vetoed ? "vetoed" : "active" })),
   });
 
   if (q.isPending) return <FeedSkeleton />;

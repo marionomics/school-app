@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { refreshFeed } from "@/lib/feed";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,8 +29,11 @@ export default function RemovePhotoButton({
     mutationFn: (studentId: number) =>
       api<void>(`/api/users/${studentId}/avatar`, { method: "DELETE" }),
     onSuccess: () => {
-      for (const queryKey of [["roster"], ["class-detail"], ["feed"], ["thread"], ["profile"], ["profile-posts"]])
+      for (const queryKey of [["roster"], ["class-detail"], ["thread"], ["profile"], ["profile-posts"]])
         void qc.invalidateQueries({ queryKey });
+      // The teacher is on a profile, not the feed: a reorder costs nothing
+      // there, and the removed photo must not linger.
+      void refreshFeed(qc);
       toast.show(es.perfil.photoRemoved);
       onRemoved?.();
     },

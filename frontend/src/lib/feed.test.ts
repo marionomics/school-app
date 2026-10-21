@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mergePages } from "./feed";
+import { QueryClient, type InfiniteData } from "@tanstack/react-query";
+import { firstPageOnly, mergePages, refreshFeed } from "./feed";
 import type { FeedPage, Post } from "./types";
 
 const post = (id: number): Post =>
@@ -41,5 +42,42 @@ describe("mergePages", () => {
   it("handles empty pages", () => {
     expect(mergePages([])).toEqual([]);
     expect(mergePages([{ items: [], pinned: [], next_cursor: null }])).toEqual([]);
+  });
+});
+
+const page = (ids: number[], cursor: string | null): FeedPage => ({
+  items: ids.map(post),
+  pinned: [],
+  next_cursor: cursor,
+  as_of: "2026-10-21T12:00:00+00:00",
+});
+
+describe("firstPageOnly", () => {
+  it("keeps only page 1 so a refetch never mixes a new as_of with old cursors", () => {
+    const d: InfiniteData<FeedPage> = {
+      pages: [page([1, 2], "c1"), page([3], null)],
+      pageParams: [null, "c1"],
+    };
+    const out = firstPageOnly(d)!;
+    expect(out.pages).toHaveLength(1);
+    expect(out.pageParams).toEqual([null]);
+  });
+
+  it("leaves an empty cache alone", () => {
+    expect(firstPageOnly(undefined)).toBeUndefined();
+  });
+});
+
+describe("refreshFeed", () => {
+  it("truncates and marks the feed stale", async () => {
+    const qc = new QueryClient();
+    qc.setQueryData(["feed"], {
+      pages: [page([1], "c1"), page([2], null)],
+      pageParams: [null, "c1"],
+    });
+    await refreshFeed(qc);
+    const d = qc.getQueryData<InfiniteData<FeedPage>>(["feed"])!;
+    expect(d.pages).toHaveLength(1);
+    expect(qc.getQueryState(["feed"])!.isInvalidated).toBe(true);
   });
 });

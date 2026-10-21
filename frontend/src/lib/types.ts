@@ -80,6 +80,8 @@ export interface Post {
   graded_at: string | null;
   my_review: Review | null;
   veto_reason: string | null;
+  /** Feed only: the one comment shown under the card. */
+  featured_reply?: Post | null;
 }
 
 export interface Review {
@@ -213,6 +215,9 @@ export interface FeedPage {
    *  rides outside pagination — so read it from the first page only. */
   pinned: Post[];
   next_cursor: string | null;
+  /** When this load's ranking was frozen. Every page of one load shares it;
+   *  it is also the `since` for the new-posts check. */
+  as_of: string;
 }
 
 export interface ThreadResponse {
