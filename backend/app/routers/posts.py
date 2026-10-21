@@ -16,6 +16,7 @@ from app.services import points
 from app.services.aura import set_teacher_aura
 from app.services.media import attachment_out
 from app.services.attribution import resolve_default_class
+from app.services.visibility import assignment_visible, viewer_class_ids
 from app.services.cursor import decode_cursor, encode_cursor
 from app.services.grades import _counting_entrega
 from app.services.dates import next_sunday_due
@@ -181,22 +182,8 @@ def get_feed(
         .filter(Post.parent_id.is_(None), Post.status.in_(("active", "vetoed")))
     )
 
-    # Social content is global — all classes, all semesters. Assignments are
-    # not: a student cannot tell another class's tarea from work they owe, and
-    # that confusion is worse than the loss of reach. No status filter on the
-    # enrollment lookup on purpose — ghost and polizón are in the class.
-    my_class_ids = [
-        cid for (cid,) in db.query(Enrollment.class_id)
-        .filter(Enrollment.user_id == user.id).all()
-    ]
-    my_class_ids += [
-        cid for (cid,) in db.query(Class.id)
-        .filter(Class.teacher_id == user.id).all()
-    ]
-    q = q.filter(or_(
-        Post.type.notin_(("tarea", "examen")),
-        Post.class_id.in_(my_class_ids),
-    ))
+    my_class_ids = viewer_class_ids(db, user)
+    q = q.filter(assignment_visible(my_class_ids))
 
     if cursor:
         try:
