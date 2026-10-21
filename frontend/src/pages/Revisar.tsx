@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RiArrowLeftSLine } from "@remixicon/react";
 import { api } from "@/lib/api";
 import ReviewSheet from "@/components/ReviewSheet";
+import UserLink from "@/components/UserLink";
 import ExamenRosterPanel from "@/components/ExamenRoster";
 import { FeedSkeleton } from "@/components/Skeletons";
 import { Button } from "@/components/ui/button";
@@ -124,14 +125,14 @@ function EntregasTab({
           </h2>
           <ul className="mt-2 divide-y border-y">
             {g.entregas.map((row) => (
-              <li key={row.entrega_post_id}>
+              <li key={row.entrega_post_id} className="flex items-center">
+                {/* The name is a sibling of the row button, not inside it:
+                    a link in a button is invalid HTML. */}
+                <UserLink user={row.student} className="py-3 pr-3 text-sm" />
                 <button
-                  className="flex w-full items-center justify-between py-3 text-left"
+                  className="flex flex-1 items-center justify-end py-3 text-right"
                   onClick={() => setOpen({ tareaId: g.tarea.id, row })}
                 >
-                  <span className="text-sm">
-                    @{row.student.username ?? row.student.name}
-                  </span>
                   <span className="text-xs text-muted-foreground tabular-nums">
                     {row.auto_score != null
                       ? es.revisar.autoScore.replace(
@@ -351,7 +352,7 @@ function ParticipacionesTab({ classId }: { classId: number }) {
           >
             <div className="min-w-0">
               <p className="text-sm font-medium">
-                @{i.student.username ?? i.student.name}
+                <UserLink user={i.student} />
                 <span className="ml-2 font-normal text-muted-foreground">
                   ×{i.taps ?? 0} · {formatPoints(i.points)}
                 </span>

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/Toaster";
+import UserLink from "@/components/UserLink";
 import { formatPoints } from "@/lib/points";
 import { es } from "@/strings/es";
 import type { QueueStudent } from "@/lib/types";
@@ -70,7 +71,7 @@ export default function ReviewSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <p className="text-sm font-semibold">
-          @{student.username ?? student.name}
+          <UserLink user={student} />
         </p>
         {autoScore != null && (
           <p className="text-xs text-muted-foreground">

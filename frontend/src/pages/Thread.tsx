@@ -8,6 +8,7 @@ import { latenessTier } from "@/lib/lateness";
 import PostCard from "@/components/PostCard";
 import { FileChips, FilePicker } from "@/components/FilePicker";
 import ReviewSheet from "@/components/ReviewSheet";
+import UserLink from "@/components/UserLink";
 import { FeedSkeleton } from "@/components/Skeletons";
 import { useToast } from "@/components/Toaster";
 import { useVetoFlow } from "@/lib/useVetoFlow";
@@ -144,7 +145,7 @@ export default function Thread() {
       >
         {replyTo && (
           <p className="mb-1 text-xs text-muted-foreground">
-            ↩ @{replyTo.author.username ?? replyTo.author.name}{" "}
+            ↩ <UserLink user={replyTo.author} />{" "}
             <button type="button" onClick={() => setReplyTo(null)}>×</button>
           </p>
         )}

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-20 (Bloque 3b — perfil)
+- **Cada persona tiene perfil en `/u/:username`:** foto, bio, aura recibida y sus pestañas de Publicaciones y Respuestas. Tu propio perfil es donde editas la bio y la foto.
+- **Todo nombre y toda foto en la app llevan al perfil** (feed, hilo, `/revisar`, examen, hoja del alumno). En `/revisar` tocar el nombre abre el perfil y no dispara la acción de la fila. Quien aún no elige username se ve como texto, sin enlace roto.
+- **La calificación en el perfil sólo la ven el dueño y su profe;** el profe ve el desglose completo.
+
 ## 2026-10-20 (Bloque 3a — fotos)
 - **Las fotos se ven en el feed y el hilo.** Una imagen adjunta aparece en la tarjeta, no como enlace; tocarla la abre completa en pantalla completa.
 - **Las fotos se reducen en el teléfono antes de subir** (HEIC pasa a JPG y se quita el GPS), para no gastar el plan de datos del alumno.

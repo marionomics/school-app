@@ -7,6 +7,7 @@ import { isScoreValid, markGraded, saveReview } from "@/lib/review";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PostPhotos from "@/components/PostPhotos";
+import UserLink from "@/components/UserLink";
 import { useToast } from "@/components/Toaster";
 import { es } from "@/strings/es";
 import type { Author, ExamenRoster } from "@/lib/types";
@@ -69,7 +70,7 @@ export default function ExamenRosterPanel({ examenId }: { examenId: number }) {
                 serves the workflow, not the other way round (bug 8). */}
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <span className="text-sm">
-                @{r.student.username ?? r.student.name}
+                <UserLink user={r.student} />
               </span>
               {r.submission && (
                 <>

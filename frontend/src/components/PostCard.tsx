@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import Avatar from "@/components/Avatar";
+import UserLink from "@/components/UserLink";
 import { Button } from "@/components/ui/button";
 import {
   RiCheckLine,
@@ -76,10 +76,10 @@ export default function PostCard({
   );
   return (
     <article className="flex gap-3 p-4">
-      <Avatar author={post.author} />
+      <UserLink user={post.author} avatar />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 text-sm">
-          <span className="font-semibold">@{post.author.username ?? post.author.name}</span>
+          <UserLink user={post.author} className="font-semibold" />
           {post.author.role === "teacher" && <span className="text-xs text-muted-foreground">{es.feed.teacherTag}</span>}
           <span className="text-muted-foreground">{timeAgo(post.created_at)}</span>
           {canDelete && (

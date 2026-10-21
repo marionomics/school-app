@@ -61,6 +61,7 @@ docs/       specs and plans
 - **Use the preset components as they arrive.** Add them with `npx shadcn add`; never restyle a primitive, never edit `--radius` or strip `uppercase` to make something look softer. If a component is wrong for a surface, pick a different one. Reaching for a hand-rolled `<input className="border …">` is how the app ended up with twelve different guesses at what a form field looks like.
 - **One control per line** in any form. The only exception is a list row pairing a person with the one thing you're setting — the examen roster and pasar lista.
 - **Every points value goes through `formatPoints`** (`frontend/src/lib/points.ts`). One point on the 100-scale is one décima; a bare number is how that gets misread by a factor of ten.
+- **Every username or avatar goes through `UserLink`** (`frontend/src/components/UserLink.tsx`). If a name appears, you can tap it and reach the profile; a bare `@{user.username}` is how screens drift back to dead names.
 - Icons come from `@remixicon/react`. Emojis are not UI — the only survivors are 👻 ghost and 🥷 polizón, which carry meaning.
 - **Copy:** draft all user-facing text as placeholders in the single strings module; **Mario writes final copy**. Spanish at launch, English-ready structure.
 - **Testing:** the grade engine is pure functions and the most-tested code in the repo. CI runs against PostgreSQL.

@@ -8,6 +8,7 @@ import { formatSignedPoints } from "@/lib/points";
 import { Button } from "@/components/ui/button";
 import FaltasList from "@/components/FaltasList";
 import GradeBreakdown from "@/components/GradeBreakdown";
+import UserLink from "@/components/UserLink";
 import { es } from "@/strings/es";
 import type {
   ClassDetailWithMembers,
@@ -240,7 +241,10 @@ export default function ClassPanel() {
             {studentGrade.data && (
               <>
                 <h2 className="text-lg font-bold">
-                  {roster.data?.find((s) => s.id === selectedStudentId)?.name}
+                  {(() => {
+                    const s = roster.data?.find((s) => s.id === selectedStudentId);
+                    return s ? <UserLink user={s} /> : null;
+                  })()}
                 </h2>
                 <div className="mt-3 text-3xl font-bold text-primary">
                   {formatSignedPoints(studentGrade.data.total)}

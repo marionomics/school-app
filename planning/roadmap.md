@@ -47,10 +47,10 @@ Principio de Mario: si aparece un username, se le puede dar click y llegar al pe
   - **Moderación:** una foto vetada o borrada deja de verse igual que el texto (sin evidencia no hay puntos; el veto no borra, el borrado sí oculta).
 
 Después, el perfil:
-- [ ] **`/u/:username`** — todo username y avatar en la app enlaza aquí.
-- [ ] **Contenido:** foto, bio, aura recibida (el conteo). Sus publicaciones debajo.
-- [ ] **Tu propio perfil:** editas la bio ahí mismo y cambias tu foto (la del punto de arriba).
-- [ ] **Calificación en el perfil:** sólo la ve el dueño y el profesor. El profesor ve el desglose completo (el mismo del panel de clase).
+- [x] **`/u/:username`** — todo username y avatar en la app enlaza aquí. ✅ 2026-10-20
+- [x] **Contenido:** foto, bio, aura recibida (el conteo). Sus publicaciones debajo. ✅ 2026-10-20
+- [x] **Tu propio perfil:** editas la bio ahí mismo y cambias tu foto (la del punto de arriba). ✅ 2026-10-20
+- [x] **Calificación en el perfil:** sólo la ve el dueño y el profesor. El profesor ve el desglose completo (el mismo del panel de clase). ✅ 2026-10-20
 
 ## Bloque 4 — Algoritmo del feed
 Problema (Mario): la interacción sube posts y algunos se quedan arriba sin ser relevantes. Lo que se quiere: una vez que interactuaste con un post, baja **para ti** y deja lugar a lo nuevo.
