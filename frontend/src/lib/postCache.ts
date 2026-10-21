@@ -1,5 +1,5 @@
 import type { InfiniteData, QueryClient } from "@tanstack/react-query";
-import type { FeedPage, Post, ThreadResponse } from "./types";
+import type { FeedPage, Post, ProfilePostsPage, ThreadResponse } from "./types";
 
 /** Optimistic aura. A teacher's tap also flips the visible "profe" mark;
  *  a student's never does. */
@@ -42,6 +42,23 @@ export function mapThread(
   return { post: patch(id, fn)(t.post), replies: t.replies.map(patch(id, fn)) };
 }
 
+/** A profile tab: same post, plus the `parent` excerpt a reply carries,
+ *  which the spread keeps. */
+export function mapProfilePosts(
+  data: InfiniteData<ProfilePostsPage> | undefined,
+  id: number,
+  fn: (p: Post) => Post,
+): InfiniteData<ProfilePostsPage> | undefined {
+  if (!data) return data;
+  return {
+    ...data,
+    pages: data.pages.map((pg) => ({
+      ...pg,
+      items: pg.items.map((p) => (p.id === id ? { ...p, ...fn(p) } : p)),
+    })),
+  };
+}
+
 /** Applies fn to this post wherever it is cached and returns the rollback.
  *  The rollback applies undo to this one post in the caches as they are
  *  then, never a snapshot: restoring a snapshot would also wipe any other
@@ -54,9 +71,16 @@ export async function patchPostInCaches(
 ): Promise<() => void> {
   const feedKey = ["feed"];
   const threadKey = ["thread", String(post.parent_id ?? post.id)];
+  // Every cached profile tab, whoever's profile it is: the key says whose
+  // tab it is, not which posts are in it.
+  const profileKey = ["profile-posts"];
   await qc.cancelQueries({ queryKey: feedKey });
+  await qc.cancelQueries({ queryKey: profileKey });
   const apply = (f: (p: Post) => Post) => {
     qc.setQueryData<InfiniteData<FeedPage>>(feedKey, (d) => mapFeed(d, post.id, f));
+    qc.setQueriesData<InfiniteData<ProfilePostsPage>>({ queryKey: profileKey }, (d) =>
+      mapProfilePosts(d, post.id, f),
+    );
     qc.setQueryData<ThreadResponse>(threadKey, (t) => mapThread(t, post.id, f));
   };
   apply(fn);

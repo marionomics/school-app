@@ -294,4 +294,18 @@ export const es = {
     photoRemoved: "Foto quitada",
     photoUnreadable: "No pudimos leer esa foto. Prueba con otra (JPG o PNG).",
   },
+  profile: {
+    auraReceived: "{n} de aura",
+    editProfile: "Editar perfil",
+    tabPosts: "Publicaciones",
+    tabReplies: "Respuestas",
+    emptyPosts: "Todavía no publica nada",
+    emptyReplies: "Todavía no responde nada",
+    replyingTo: "Respondiendo a @{user}:",
+    gradesTitle: "Calificación",
+    gradesPrivate: "Sólo tú y tu profe ven esto",
+    notFound: "Ese usuario no existe",
+    backToFeed: "Volver al inicio",
+    teacherTag: "profe",
+  },
 } as const;

@@ -3,23 +3,11 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import {
-  RiArrowLeftSLine,
-  RiChat3Line,
-  RiCloseCircleLine,
-  RiFileTextLine,
-  RiPushpinLine,
-} from "@remixicon/react";
+import { RiArrowLeftSLine } from "@remixicon/react";
+import { formatPoints } from "@/lib/points";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import FaltasList from "@/components/FaltasList";
-import { useToast } from "@/components/Toaster";
+import GradeBreakdown from "@/components/GradeBreakdown";
 import { es } from "@/strings/es";
 import type {
   ClassDetailWithMembers,
@@ -37,9 +25,7 @@ export default function ClassPanel() {
   const isTeacher = user?.role === "teacher";
   const [tab, setTab] = useState<Tab>("roster");
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
-  const [confirmRemovePhoto, setConfirmRemovePhoto] = useState(false);
   const qc = useQueryClient();
-  const toast = useToast();
   const navigate = useNavigate();
 
   const detail = useQuery({
@@ -89,17 +75,6 @@ export default function ClassPanel() {
       void qc.invalidateQueries({ queryKey: ["session-active", classId] });
     },
     onError: () => alert(es.panel.closeSessionError),
-  });
-
-  const removePhoto = useMutation({
-    mutationFn: (studentId: number) =>
-      api<void>(`/api/users/${studentId}/avatar`, { method: "DELETE" }),
-    onSuccess: () => {
-      for (const queryKey of [["roster", classId], ["class-detail", classId], ["feed"], ["thread"]])
-        void qc.invalidateQueries({ queryKey });
-      toast.show(es.perfil.photoRemoved);
-    },
-    onError: () => toast.show(es.perfil.error),
   });
 
   const klass = detail.data;
@@ -268,75 +243,10 @@ export default function ClassPanel() {
                   {roster.data?.find((s) => s.id === selectedStudentId)?.name}
                 </h2>
                 <div className="mt-3 text-3xl font-bold text-primary">
-                  {studentGrade.data.total} {es.grade.points}
+                  {formatPoints(studentGrade.data.total)}
                 </div>
-                <dl className="mt-3 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <dt className="flex items-center gap-1"><RiPushpinLine className="size-3.5" /> {es.grade.tareas}</dt>
-                    <dd>
-                      {studentGrade.data.tareas.evaluated
-                        ? `${studentGrade.data.tareas.points} / ${studentGrade.data.tareas.weight}`
-                        : es.grade.notEvaluated}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="flex items-center gap-1"><RiFileTextLine className="size-3.5" /> {es.grade.examenes}</dt>
-                    <dd>
-                      {studentGrade.data.examenes.evaluated
-                        ? `${studentGrade.data.examenes.points} / ${studentGrade.data.examenes.weight}`
-                        : es.grade.notEvaluated}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="flex items-center gap-1"><RiChat3Line className="size-3.5" /> {es.grade.participaciones}</dt>
-                    <dd>{studentGrade.data.ledger.participaciones}</dd>
-                  </div>
-                  {studentGrade.data.faltas.count > 0 && (
-                    <div className="flex justify-between text-destructive">
-                      <dt className="flex items-center gap-1"><RiCloseCircleLine className="size-3.5" /> {es.grade.faltas}</dt>
-                      <dd>−{studentGrade.data.faltas.points}</dd>
-                    </div>
-                  )}
-                </dl>
+                <GradeBreakdown grade={studentGrade.data} />
                 <FaltasList classId={classId} studentId={selectedStudentId} />
-                {roster.data?.find((s) => s.id === selectedStudentId)?.has_own_avatar && (
-                  <Button
-                    variant="outline"
-                    className="mt-3 w-full"
-                    disabled={removePhoto.isPending}
-                    onClick={() => setConfirmRemovePhoto(true)}
-                  >
-                    {es.perfil.teacherRemovePhoto}
-                  </Button>
-                )}
-                <Dialog
-                  open={confirmRemovePhoto}
-                  onOpenChange={(o) => !o && setConfirmRemovePhoto(false)}
-                >
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>{es.perfil.teacherRemoveConfirmTitle}</DialogTitle>
-                    </DialogHeader>
-                    <p className="text-sm text-muted-foreground">
-                      {es.perfil.teacherRemoveConfirmBody}
-                    </p>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setConfirmRemovePhoto(false)}>
-                        {es.perfil.cancel}
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        disabled={removePhoto.isPending}
-                        onClick={() => {
-                          setConfirmRemovePhoto(false);
-                          removePhoto.mutate(selectedStudentId);
-                        }}
-                      >
-                        {es.perfil.teacherRemovePhoto}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
               </>
             )}
             <Button

@@ -259,3 +259,26 @@ export interface FaltaRow {
   date: string;
   justified: boolean;
 }
+
+export interface ProfileHeader {
+  id: number;
+  username: string;
+  name: string;
+  bio: string;
+  avatar_url: string | null;
+  role: "student" | "teacher";
+  is_me: boolean;
+  aura_received: number;
+  has_own_avatar: boolean;
+  /** Present only for the owner and a teacher who teaches them. */
+  grades?: { class_id: number; class_name: string; summary: GradeSummary }[];
+}
+
+export type ProfilePost = Post & {
+  parent?: { id: number; author_username: string | null; excerpt: string };
+};
+
+export interface ProfilePostsPage {
+  items: ProfilePost[];
+  next_cursor: string | null;
+}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { QueryClient, type InfiniteData } from "@tanstack/react-query";
 import { mapFeed, mapThread, patchPostInCaches, toggleAura } from "./postCache";
-import type { FeedPage, Post } from "./types";
+import type { FeedPage, Post, ProfilePostsPage } from "./types";
 
 const post = (id: number, over: Partial<Post> = {}): Post =>
   ({
@@ -116,5 +116,22 @@ describe("patchPostInCaches", () => {
     const t = qc.getQueryData<{ post: Post; replies: Post[] }>(["thread", "1"])!;
     expect(t.post.liked_by_me).toBe(false);
     expect(t.replies[0].status).toBe("vetoed");
+  });
+
+  it("patches a profile tab too, and keeps the reply's parent excerpt", async () => {
+    const { qc, reply } = seed();
+    const parent = { id: 1, author_username: "u", excerpt: "p1" };
+    qc.setQueryData<InfiniteData<ProfilePostsPage>>(["profile-posts", "u", "replies"], {
+      pageParams: [null],
+      pages: [{ items: [{ ...reply, parent }], next_cursor: null }],
+    });
+    const rollback = await patchPostInCaches(qc, reply, aura, aura);
+    const tab = () =>
+      qc.getQueryData<InfiniteData<ProfilePostsPage>>(["profile-posts", "u", "replies"])!
+        .pages[0].items[0];
+    expect(tab().liked_by_me).toBe(true);
+    expect(tab().parent).toEqual(parent);
+    rollback();
+    expect(tab().liked_by_me).toBe(false);
   });
 });
