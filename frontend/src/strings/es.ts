@@ -102,6 +102,7 @@ export const es = {
   },
   revisar: {
     title: "Revisar",
+    openReview: "Revisar la entrega de @{user}",
     tabEntregas: "Entregas",
     tabExamenes: "Exámenes",
     tabParticipaciones: "Participaciones",

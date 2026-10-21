@@ -8,6 +8,7 @@ import {
   RiMenuLine,
   RiUserLine,
 } from "@remixicon/react";
+import UserLink from "@/components/UserLink";
 import { es } from "@/strings/es";
 
 export default function Shell({ children }: { children: React.ReactNode }) {
@@ -33,7 +34,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       {menuOpen && (
         <div className="fixed inset-0 z-30 flex">
           <nav className="flex w-72 flex-col gap-1 border-r bg-background p-4">
-            <p className="mb-2 font-bold">@{user?.username}</p>
+            <p className="mb-2 font-bold">
+              {user && (
+                <UserLink user={user} onClick={() => setMenuOpen(false)} />
+              )}
+            </p>
             <Link to="/clases" className="rounded-md px-3 py-2 hover:bg-accent" onClick={() => setMenuOpen(false)}>
               {es.nav.classes}
             </Link>

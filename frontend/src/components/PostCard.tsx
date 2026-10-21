@@ -76,7 +76,13 @@ export default function PostCard({
   );
   return (
     <article className="flex gap-3 p-4">
-      <UserLink user={post.author} avatar />
+      <UserLink
+        user={post.author}
+        avatar
+        aria-hidden
+        tabIndex={-1}
+        className="block shrink-0 self-start"
+      />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 text-sm">
           <UserLink user={post.author} className="font-semibold" />

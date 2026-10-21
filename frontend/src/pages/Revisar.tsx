@@ -130,6 +130,10 @@ function EntregasTab({
                     a link in a button is invalid HTML. */}
                 <UserLink user={row.student} className="py-3 pr-3 text-sm" />
                 <button
+                  aria-label={es.revisar.openReview.replace(
+                    "{user}",
+                    row.student.username ?? row.student.name,
+                  )}
                   className="flex flex-1 items-center justify-end py-3 text-right"
                   onClick={() => setOpen({ tareaId: g.tarea.id, row })}
                 >

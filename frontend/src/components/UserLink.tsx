@@ -13,11 +13,17 @@ export default function UserLink({
   avatar = false,
   size = 40,
   className,
+  onClick,
+  tabIndex,
+  "aria-hidden": ariaHidden,
 }: {
   user: Who;
   avatar?: boolean;
   size?: number;
   className?: string;
+  onClick?: () => void;
+  tabIndex?: number;
+  "aria-hidden"?: boolean;
 }) {
   const body = avatar ? (
     <Avatar author={user as Author} size={size} />
@@ -30,7 +36,12 @@ export default function UserLink({
       to={`/u/${user.username}`}
       className={cn("hover:underline", className)}
       // Inside clickable rows (/revisar) the tap opens the profile only.
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.();
+      }}
+      tabIndex={tabIndex}
+      aria-hidden={ariaHidden}
     >
       {body}
     </Link>

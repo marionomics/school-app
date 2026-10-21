@@ -174,11 +174,10 @@ export default function ClassPanel() {
                 <span>{es.panel.statusPolizon}</span>
               )}
               <span className="font-medium">{m.name}</span>
-              {m.username && (
-                <span className="text-sm text-muted-foreground">
-                  @{m.username}
-                </span>
-              )}
+              <UserLink
+                user={m}
+                className="text-sm text-muted-foreground"
+              />
             </li>
           ))}
         </ul>
@@ -240,12 +239,18 @@ export default function ClassPanel() {
             )}
             {studentGrade.data && (
               <>
-                <h2 className="text-lg font-bold">
-                  {(() => {
-                    const s = roster.data?.find((s) => s.id === selectedStudentId);
-                    return s ? <UserLink user={s} /> : null;
-                  })()}
-                </h2>
+                {(() => {
+                  const s = roster.data?.find((s) => s.id === selectedStudentId);
+                  return s ? (
+                    <>
+                      <h2 className="text-lg font-bold">{s.name}</h2>
+                      <UserLink
+                        user={s}
+                        className="text-sm text-muted-foreground"
+                      />
+                    </>
+                  ) : null;
+                })()}
                 <div className="mt-3 text-3xl font-bold text-primary">
                   {formatSignedPoints(studentGrade.data.total)}
                 </div>
