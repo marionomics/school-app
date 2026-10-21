@@ -32,7 +32,7 @@ export function useVetoFlow() {
     // Not the feed: a refetch re-sorts it under the teacher's thumb. The
     // optimistic patch stands until the user refreshes.
     onSettled: () => {
-      for (const k of ["thread", "review-participaciones", "grade"])
+      for (const k of ["thread", "review-participaciones", "grade", "profile"])
         void qc.invalidateQueries({ queryKey: [k] });
     },
   });

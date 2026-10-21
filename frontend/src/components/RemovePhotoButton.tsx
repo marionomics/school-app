@@ -28,7 +28,7 @@ export default function RemovePhotoButton({
     mutationFn: (studentId: number) =>
       api<void>(`/api/users/${studentId}/avatar`, { method: "DELETE" }),
     onSuccess: () => {
-      for (const queryKey of [["roster"], ["class-detail"], ["feed"], ["thread"], ["profile"]])
+      for (const queryKey of [["roster"], ["class-detail"], ["feed"], ["thread"], ["profile"], ["profile-posts"]])
         void qc.invalidateQueries({ queryKey });
       toast.show(es.perfil.photoRemoved);
       onRemoved?.();

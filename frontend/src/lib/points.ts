@@ -31,6 +31,13 @@ export function formatPoints(points: number): string {
   return `${puntos} · ${decimas}${escala10}`;
 }
 
+/** formatPoints for a value that can be negative, such as a total pulled
+ *  under zero by faltas: the sign goes in front, since formatPoints itself
+ *  only states a magnitude. */
+export function formatSignedPoints(points: number): string {
+  return points < 0 ? `−${formatPoints(points)}` : formatPoints(points);
+}
+
 /** Mirrors like_points() in backend/app/services/grades.py: the nth like is
  *  worth n^exponent − (n−1)^exponent, so the total for n likes is n^exponent.
  *  Shown to the teacher so a curve is chosen by its consequence rather than by

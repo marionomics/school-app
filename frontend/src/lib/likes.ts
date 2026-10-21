@@ -30,7 +30,9 @@ export function useLikeMutation() {
       // posted meanwhile, and the teacher's next tap lands on the wrong card.
       // The optimistic patch is the truth until the user refreshes. The
       // teacher's aura is also a validation, so /revisar changes with it.
-      void qc.invalidateQueries({ queryKey: ["thread"] });
+      // A profile's aura count and grade breakdown are not posts, so the
+      // patch can't reach them.
+      for (const k of ["thread", "profile"]) void qc.invalidateQueries({ queryKey: [k] });
       if (isTeacher) void qc.invalidateQueries({ queryKey: ["review-participaciones"] });
     },
   });

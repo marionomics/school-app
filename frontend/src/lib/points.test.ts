@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPoints, likeCurvePreview } from "./points";
+import { formatPoints, formatSignedPoints, likeCurvePreview } from "./points";
 
 describe("formatPoints", () => {
   it("states one point as one décima", () => {
@@ -41,5 +41,16 @@ describe("likeCurvePreview", () => {
 
   it("accepts a different like count", () => {
     expect(likeCurvePreview(0.5, 25)).toBe(5);
+  });
+});
+
+describe("formatSignedPoints", () => {
+  it("puts a minus in front of a negative total", () => {
+    expect(formatSignedPoints(-20)).toBe("−20 puntos · 20 décimas · 2 puntos enteros de 10");
+  });
+
+  it("leaves zero and positive values as formatPoints has them", () => {
+    expect(formatSignedPoints(0)).toBe(formatPoints(0));
+    expect(formatSignedPoints(24)).toBe(formatPoints(24));
   });
 });

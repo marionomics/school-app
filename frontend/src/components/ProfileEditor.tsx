@@ -27,9 +27,12 @@ export default function ProfileEditor({ onDone }: { onDone?: () => void }) {
   if (!user) return null;
   const hasOwnPhoto = user.has_own_avatar;
 
-  function saved() {
-    void qc.invalidateQueries({ queryKey: ["profile"] });
-    onDone?.();
+  // A photo change shows on the header and on every card of your own
+  // profile. Only the bio save closes the editor: closing on a photo save
+  // would throw away a bio you were halfway through.
+  function photoChanged() {
+    for (const queryKey of [["profile"], ["profile-posts"]])
+      void qc.invalidateQueries({ queryKey });
   }
 
   async function savePhoto() {
@@ -42,7 +45,7 @@ export default function ProfileEditor({ onDone }: { onDone?: () => void }) {
       await refresh();
       setPreview(null);
       toast.show(es.perfil.saved);
-      saved();
+      photoChanged();
     } catch {
       toast.show(es.perfil.error);   // the old photo is still the one shown
     } finally {
@@ -55,7 +58,7 @@ export default function ProfileEditor({ onDone }: { onDone?: () => void }) {
     try {
       await api<User>("/api/users/me/avatar", { method: "DELETE" });
       await refresh();
-      saved();
+      photoChanged();
     } catch {
       toast.show(es.perfil.error);
     } finally {
@@ -69,7 +72,8 @@ export default function ProfileEditor({ onDone }: { onDone?: () => void }) {
       await api<User>("/api/users/me", { method: "PATCH", body: JSON.stringify({ bio }) });
       await refresh();
       toast.show(es.perfil.saved);
-      saved();
+      void qc.invalidateQueries({ queryKey: ["profile"] });
+      onDone?.();
     } catch {
       toast.show(es.perfil.error);
     } finally {

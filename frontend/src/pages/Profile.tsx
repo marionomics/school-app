@@ -6,7 +6,7 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useLikeMutation } from "@/lib/likes";
 import { useVetoFlow } from "@/lib/useVetoFlow";
-import { formatPoints } from "@/lib/points";
+import { formatSignedPoints } from "@/lib/points";
 import Avatar from "@/components/Avatar";
 import PostCard from "@/components/PostCard";
 import GradeBreakdown from "@/components/GradeBreakdown";
@@ -82,6 +82,13 @@ function PostList({ username, tab }: { username: string; tab: Tab }) {
 export default function Profile() {
   const { username = "" } = useParams<{ username: string }>();
   const [editing, setEditing] = useState(false);
+  const [openClasses, setOpenClasses] = useState<Set<number>>(new Set());
+  const toggleClass = (id: number) =>
+    setOpenClasses((s) => {
+      const next = new Set(s);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   const q = useQuery({
     queryKey: ["profile", username],
     queryFn: () => api<ProfileHeader>(`/api/users/${encodeURIComponent(username)}`),
@@ -132,17 +139,24 @@ export default function Profile() {
           <h2 className="text-xs font-semibold uppercase text-muted-foreground">
             {es.profile.gradesTitle}
           </h2>
-          {/* One or two classes at most: shown open, no hand-rolled
-              disclosure widget (there is no preset for one). */}
-          {grades.map((g) => (
-            <div key={g.class_id} className="flex flex-col gap-1">
-              <p className="flex justify-between text-sm">
-                <span className="font-medium">{g.class_name}</span>
-                <span className="font-semibold">{formatPoints(g.summary.total)}</span>
-              </p>
-              <GradeBreakdown grade={g.summary} />
-            </div>
-          ))}
+          {/* Each class opens on tap; all start collapsed. */}
+          {grades.map((g) => {
+            const open = openClasses.has(g.class_id);
+            return (
+              <div key={g.class_id} className="flex flex-col gap-1">
+                <Button
+                  variant="ghost"
+                  className="h-auto w-full justify-between gap-2 py-2 whitespace-normal"
+                  aria-expanded={open}
+                  onClick={() => toggleClass(g.class_id)}
+                >
+                  <span>{g.class_name}</span>
+                  <span className="text-right">{formatSignedPoints(g.summary.total)}</span>
+                </Button>
+                {open && <GradeBreakdown grade={g.summary} />}
+              </div>
+            );
+          })}
           {p.is_me && <p className="text-xs text-muted-foreground">{es.profile.gradesPrivate}</p>}
         </section>
       )}
@@ -159,7 +173,7 @@ export default function Profile() {
       <Dialog open={editing} onOpenChange={setEditing}>
         <DialogContent>
           <DialogTitle>{es.profile.editProfile}</DialogTitle>
-          <ProfileEditor onDone={() => { setEditing(false); void q.refetch(); }} />
+          <ProfileEditor onDone={() => setEditing(false)} />
         </DialogContent>
       </Dialog>
     </div>

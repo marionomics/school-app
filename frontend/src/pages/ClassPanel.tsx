@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { RiArrowLeftSLine } from "@remixicon/react";
-import { formatPoints } from "@/lib/points";
+import { formatSignedPoints } from "@/lib/points";
 import { Button } from "@/components/ui/button";
 import FaltasList from "@/components/FaltasList";
 import GradeBreakdown from "@/components/GradeBreakdown";
@@ -243,7 +243,7 @@ export default function ClassPanel() {
                   {roster.data?.find((s) => s.id === selectedStudentId)?.name}
                 </h2>
                 <div className="mt-3 text-3xl font-bold text-primary">
-                  {formatPoints(studentGrade.data.total)}
+                  {formatSignedPoints(studentGrade.data.total)}
                 </div>
                 <GradeBreakdown grade={studentGrade.data} />
                 <FaltasList classId={classId} studentId={selectedStudentId} />
