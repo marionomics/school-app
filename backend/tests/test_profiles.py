@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
 
-from app.models import Class, Enrollment, Post, User
+from app.models import Attachment, Class, Enrollment, Post, User
 
 T0 = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
 
@@ -181,6 +181,54 @@ def test_a_reply_to_a_deleted_post_has_an_empty_excerpt(client, db, student, stu
     _post(db, student, klass, at=T0 + timedelta(minutes=1), parent_id=root.id)
     items = client.get("/api/users/ana/posts?tab=replies", headers=auth_headers).json()["items"]
     assert items[0]["parent"]["excerpt"] == ""
+
+
+def _with_file(db, post):
+    db.add(Attachment(post_id=post.id, file_key=f"posts/{post.id}", file_name="hoja.jpg",
+                      file_size=1, mime_type="image/jpeg"))
+    db.commit()
+    return post
+
+
+def test_a_reply_with_files_to_an_examen_or_tarea_is_a_submission_and_hidden(
+        client, db, teacher, student, student2, auth_headers, enrolled, klass):
+    # Examen answers are rarely flagged is_entrega; the roster counts the
+    # latest reply with files as the submission, so the profile must too.
+    _name(db, student2, "beto")
+    examen = _post(db, teacher, klass, type="examen", content="P1")
+    tarea = _post(db, teacher, klass, type="tarea", content="Cap 4")
+    _with_file(db, _post(db, student2, klass, at=T0 + timedelta(minutes=1), parent_id=examen.id))
+    _with_file(db, _post(db, student2, klass, at=T0 + timedelta(minutes=2), parent_id=tarea.id))
+    question = _post(db, student2, klass, at=T0 + timedelta(minutes=3), parent_id=examen.id,
+                     content="¿Cuánto tiempo tenemos?")
+    items = client.get("/api/users/beto/posts?tab=replies", headers=auth_headers).json()["items"]
+    assert [p["id"] for p in items] == [question.id]
+
+
+def test_a_reply_to_a_submission_has_an_empty_excerpt(client, db, teacher, student, student2,
+                                                      auth_headers, enrolled, klass):
+    _name(db, student, "ana")
+    _name(db, student2, "beto")
+    tarea = _post(db, teacher, klass, type="tarea", content="Cap 3")
+    entrega = _post(db, student2, klass, at=T0 + timedelta(minutes=1), parent_id=tarea.id,
+                    is_entrega=True, content="Mi tarea completa")
+    examen = _post(db, teacher, klass, type="examen", content="P1")
+    answer = _with_file(db, _post(db, student2, klass, at=T0 + timedelta(minutes=2),
+                                  parent_id=examen.id, content="Mi respuesta"))
+    _post(db, student, klass, at=T0 + timedelta(minutes=3), parent_id=entrega.id, content="bien")
+    _post(db, student, klass, at=T0 + timedelta(minutes=4), parent_id=answer.id, content="ok")
+    items = client.get("/api/users/ana/posts?tab=replies", headers=auth_headers).json()["items"]
+    assert [p["parent"]["id"] for p in items] == [answer.id, entrega.id]
+    assert [p["parent"]["excerpt"] for p in items] == ["", ""]
+
+
+def test_a_reply_to_a_vetoed_post_keeps_its_excerpt(client, db, student, student2, auth_headers,
+                                                    enrolled, klass):
+    _name(db, student, "ana")
+    root = _post(db, student2, klass, status="vetoed", content="sigue visible")
+    _post(db, student, klass, at=T0 + timedelta(minutes=1), parent_id=root.id)
+    items = client.get("/api/users/ana/posts?tab=replies", headers=auth_headers).json()["items"]
+    assert items[0]["parent"]["excerpt"] == "sigue visible"
 
 
 # ---- scoping ----------------------------------------------------------------

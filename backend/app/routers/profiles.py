@@ -18,6 +18,21 @@ router = APIRouter(prefix="/api/users", tags=["profiles"])
 EXCERPT = 120
 
 
+def _is_submission(db: Session, post: Post) -> bool:
+    """Homework a student handed in: a marked entrega, or a reply with files
+    straight under a tarea or examen — the same "reply with files is the
+    submission" rule as review_queue._examen_submission. A text-only reply
+    there is a question, not an answer. The Respuestas tab hides these and
+    blanks the excerpt of a reply to one, so a profile can't be used to
+    browse and copy someone's work."""
+    if post.is_entrega:
+        return True
+    if post.parent_id is None or not post.attachments:
+        return False
+    parent = db.get(Post, post.parent_id)
+    return parent is not None and parent.type in ("tarea", "examen")
+
+
 def _user_or_404(db: Session, username: str) -> User:
     u = db.query(User).filter(User.username == username.lower()).first()
     if u is None:
@@ -82,8 +97,8 @@ def profile_posts(username: str,
     if tab == "posts":
         q = q.filter(Post.parent_id.is_(None))
     else:
-        # Entregas live in their tarea's thread; listing them per student
-        # would make homework easy to browse and copy.
+        # Cheap prefilter for flagged entregas; _is_submission below is the
+        # full definition (it also catches unflagged answers with files).
         q = q.filter(Post.parent_id.isnot(None), Post.is_entrega.is_(False))
     if cursor:
         try:
@@ -101,7 +116,8 @@ def profile_posts(username: str,
 
     kept = []
     for p in rows:
-        if tab == "replies" and not root_visible(get_root(db, p), class_ids):
+        if tab == "replies" and (_is_submission(db, p)
+                                 or not root_visible(get_root(db, p), class_ids)):
             continue
         kept.append(p)
 
@@ -116,7 +132,8 @@ def profile_posts(username: str,
             d["parent"] = {
                 "id": parent.id,
                 "author_username": parent.author.username,
-                "excerpt": "" if parent.status == "deleted" else parent.content[:EXCERPT],
+                "excerpt": ("" if parent.status == "deleted" or _is_submission(db, parent)
+                            else parent.content[:EXCERPT]),
             }
         items.append(d)
     return {"items": items, "next_cursor": next_cursor}
