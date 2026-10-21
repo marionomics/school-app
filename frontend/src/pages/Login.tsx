@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api, setToken } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { queryClient } from "@/lib/query";
 import { es } from "@/strings/es";
 import type { AuthResponse } from "@/lib/types";
 
@@ -47,6 +48,10 @@ export default function Login() {
               body: JSON.stringify({ credential: response.credential }),
             });
             setToken(auth.token);
+            // A session can end without an explicit logout (expired token, a
+            // second account): drop whatever the previous one cached so its
+            // grades and teacher-only data never reach this account.
+            queryClient.clear();
             await refresh();
             if (auth.needs_onboarding) {
               navigate("/onboarding", { replace: true, state: from ? { from } : undefined });

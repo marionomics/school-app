@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api, clearToken, getToken } from "./api";
+import { queryClient } from "./query";
 import type { User } from "./types";
 
 interface AuthState {
@@ -42,6 +43,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       clearToken();
       setUser(null);
+      // Login is a client-side navigate, not a reload: without this the next
+      // account on this tab would read the previous one's cached profiles
+      // (with grades), threads (veto reasons) and grade summaries.
+      queryClient.clear();
     }
   }, []);
 
