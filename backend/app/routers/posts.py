@@ -17,7 +17,8 @@ from app.services.media import attachment_out
 from app.services.attribution import resolve_default_class
 from app.services.visibility import assignment_visible, viewer_class_ids
 from app.services.cursor import decode_feed_cursor, encode_feed_cursor
-from app.services.feed_query import ranked_page
+from app.services.feed_query import aware, ranked_page
+from app.services.feed_rank import ReplyOption, pick_featured
 from app.services.grades import _counting_entrega
 from app.services.dates import next_sunday_due
 from app import storage
@@ -163,6 +164,32 @@ def _pinned_tareas(db: Session, user: User, class_ids: List[int]) -> List[Post]:
     return [t for t in tareas if _counting_entrega(db, user.id, t.id) is None]
 
 
+# A tarea's or examen's replies may be homework answers — the profile hides
+# them, so the feed never puts one under a card either.
+FEATURED_ROOT_TYPES = ("regular", "participacion")
+
+
+def _featured_replies(db: Session, roots: List[Post]) -> dict:
+    """root id → the reply shown under its card (level 2, active only)."""
+    eligible = [p.id for p in roots if p.type in FEATURED_ROOT_TYPES]
+    if not eligible:
+        return {}
+    replies = (db.query(Post)
+               .options(selectinload(Post.author), selectinload(Post.klass),
+                        selectinload(Post.attachments))
+               .filter(Post.parent_id.in_(eligible), Post.status == "active").all())
+    blessed = _teacher_aura_ids(db, [r.id for r in replies])
+    by_root: dict = {}
+    for r in replies:
+        by_root.setdefault(r.parent_id, []).append(r)
+    out = {}
+    for root_id, group in by_root.items():
+        pick = pick_featured([ReplyOption(r.id, aware(r.created_at), r.like_count, r.id in blessed)
+                              for r in group])
+        out[root_id] = next(r for r in group if r.id == pick)
+    return out
+
+
 @feed_router.get("")
 def get_feed(
     cursor: Optional[str] = Query(None),
@@ -189,9 +216,19 @@ def get_feed(
              .filter(Post.id.in_(ids)).all()} if ids else {}
     posts = [by_id[i] for i in ids if i in by_id]
     pinned = _pinned_tareas(db, user, my_class_ids)
-    liked = _liked_ids(db, user, [p.id for p in posts] + [p.id for p in pinned])
-    aura = _teacher_aura_ids(db, [p.id for p in posts] + [p.id for p in pinned])
-    return {"items": [serialize_post(p, liked, viewer=user, teacher_aura_ids=aura) for p in posts],
+    featured = _featured_replies(db, posts)
+    every = [p.id for p in posts] + [p.id for p in pinned] + [r.id for r in featured.values()]
+    liked = _liked_ids(db, user, every)
+    aura = _teacher_aura_ids(db, every)
+
+    def out(p: Post):
+        o = serialize_post(p, liked, viewer=user, teacher_aura_ids=aura)
+        if p.id in featured:
+            o.featured_reply = serialize_post(featured[p.id], liked, viewer=user,
+                                              teacher_aura_ids=aura)
+        return o
+
+    return {"items": [out(p) for p in posts],
             "pinned": [serialize_post(p, liked, viewer=user, teacher_aura_ids=aura) for p in pinned],
             "next_cursor": encode_feed_cursor(as_of, offset + limit) if has_more else None,
             "as_of": as_of.isoformat()}

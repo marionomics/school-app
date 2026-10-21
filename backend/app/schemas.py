@@ -243,6 +243,8 @@ class PostOut(BaseModel):
     created_at: datetime
     last_activity_at: datetime
     parent_id: Optional[int]
+    # Only on /api/feed items: the one comment shown under the card.
+    featured_reply: Optional["PostOut"] = None
 
 
 class BulkReviewIn(BaseModel):
