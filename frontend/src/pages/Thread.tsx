@@ -146,7 +146,7 @@ export default function Thread() {
       >
         {replyTo && (
           <p className="mb-1 text-xs text-muted-foreground">
-            ↩ <UserLink user={replyTo.author} />{" "}
+            ↩ <UserLink user={replyTo.author} plain />{" "}
             <button type="button" onClick={() => setReplyTo(null)}>×</button>
           </p>
         )}

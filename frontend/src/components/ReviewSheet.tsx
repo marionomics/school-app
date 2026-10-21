@@ -71,7 +71,7 @@ export default function ReviewSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <p className="text-sm font-semibold">
-          <UserLink user={student} />
+          <UserLink user={student} plain />
         </p>
         {autoScore != null && (
           <p className="text-xs text-muted-foreground">

@@ -7,7 +7,11 @@ type Who = Pick<Author, "username" | "name"> & Partial<Author>;
 
 /** Every username or avatar in the app goes through here (CLAUDE.md): if a
  *  name appears, you can tap it and reach the profile. A user who has not
- *  picked a username yet renders as plain text, never a broken link. */
+ *  picked a username yet renders as plain text, never a broken link.
+ *
+ *  `plain` renders the same text with no link, for editing surfaces (the
+ *  grading sheet, the examen roster, the reply composer) where one stray tap
+ *  would navigate away and discard what's being typed. */
 export default function UserLink({
   user,
   avatar = false,
@@ -16,6 +20,7 @@ export default function UserLink({
   onClick,
   tabIndex,
   "aria-hidden": ariaHidden,
+  plain = false,
 }: {
   user: Who;
   avatar?: boolean;
@@ -24,13 +29,14 @@ export default function UserLink({
   onClick?: () => void;
   tabIndex?: number;
   "aria-hidden"?: boolean;
+  plain?: boolean;
 }) {
   const body = avatar ? (
     <Avatar author={user as Author} size={size} />
   ) : (
     <span>@{user.username ?? user.name}</span>
   );
-  if (!user.username) return <span className={className}>{body}</span>;
+  if (plain || !user.username) return <span className={className}>{body}</span>;
   return (
     <Link
       to={`/u/${user.username}`}

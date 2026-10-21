@@ -71,7 +71,7 @@ export default function ExamenRosterPanel({ examenId }: { examenId: number }) {
                 serves the workflow, not the other way round (bug 8). */}
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <span className="text-sm">
-                <UserLink user={r.student} />
+                <UserLink user={r.student} plain />
               </span>
               {r.submission && (
                 <>
