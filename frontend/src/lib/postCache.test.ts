@@ -60,7 +60,7 @@ describe("toggleAura", () => {
 describe("mapFeed", () => {
   const feed: InfiniteData<FeedPage> = {
     pageParams: [null],
-    pages: [{ items: [post(1), post(2)], pinned: [post(3, { type: "tarea" })], next_cursor: null }],
+    pages: [{ items: [post(1), post(2)], pinned: [post(3, { type: "tarea" })], next_cursor: null, as_of: "x" }],
   };
 
   it("patches pinned as well as items", () => {
@@ -93,7 +93,7 @@ describe("patchPostInCaches", () => {
     const reply = post(2, { parent_id: 1 });
     qc.setQueryData<InfiniteData<FeedPage>>(["feed"], {
       pageParams: [null],
-      pages: [{ items: [post(1), reply], pinned: [post(3, { type: "tarea" })], next_cursor: null }],
+      pages: [{ items: [post(1), reply], pinned: [post(3, { type: "tarea" })], next_cursor: null, as_of: "x" }],
     });
     qc.setQueryData(["thread", "1"], { post: post(1), replies: [reply] });
     qc.setQueryData(["thread", "3"], { post: post(3, { type: "tarea" }), replies: [] });

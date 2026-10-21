@@ -32,8 +32,8 @@ const post = (id: number): Post =>
 describe("mergePages", () => {
   it("flattens and dedups by id keeping first occurrence", () => {
     const pages: FeedPage[] = [
-      { items: [post(3), post(2)], pinned: [], next_cursor: "c1" },
-      { items: [post(2), post(1)], pinned: [], next_cursor: null }, // 2 re-appeared after a bump
+      { items: [post(3), post(2)], pinned: [], next_cursor: "c1", as_of: "x" },
+      { items: [post(2), post(1)], pinned: [], next_cursor: null, as_of: "x" }, // 2 re-appeared after a bump
     ];
     const merged = mergePages(pages);
     expect(merged.map((p) => p.id)).toEqual([3, 2, 1]);
@@ -41,7 +41,7 @@ describe("mergePages", () => {
 
   it("handles empty pages", () => {
     expect(mergePages([])).toEqual([]);
-    expect(mergePages([{ items: [], pinned: [], next_cursor: null }])).toEqual([]);
+    expect(mergePages([{ items: [], pinned: [], next_cursor: null, as_of: "x" }])).toEqual([]);
   });
 });
 
