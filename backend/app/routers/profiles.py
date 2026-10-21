@@ -19,7 +19,7 @@ EXCERPT = 120
 
 
 def _user_or_404(db: Session, username: str) -> User:
-    u = db.query(User).filter(User.username == username).first()
+    u = db.query(User).filter(User.username == username.lower()).first()
     if u is None:
         raise HTTPException(status_code=404, detail="Ese usuario no existe")
     return u

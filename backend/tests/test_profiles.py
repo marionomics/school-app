@@ -91,6 +91,42 @@ def test_another_teacher_gets_no_grades_key(client, db, student, enrolled):
     assert "grades" not in client.get("/api/users/ana", headers=headers).json()
 
 
+def test_a_teacher_sees_only_the_classes_they_teach(client, db, student, teacher_headers,
+                                                    enrolled, klass):
+    from app.auth.sessions import create_session
+
+    b = User(google_id="g-prof-b", email="pb@example.com", name="Profe B", role="teacher")
+    db.add(b)
+    db.commit()
+    kb = Class(name="Macro B", code="MACROB1234", teacher_id=b.id,
+               start_date=date(2026, 8, 17), end_date=date(2026, 12, 4), schedule_json=[])
+    db.add(kb)
+    db.commit()
+    db.add(Enrollment(user_id=student.id, class_id=kb.id))
+    db.commit()
+    _name(db, student, "ana")
+    a_view = client.get("/api/users/ana", headers=teacher_headers).json()["grades"]
+    assert [g["class_id"] for g in a_view] == [klass.id]
+    b_headers = {"Authorization": f"Bearer {create_session(db, b)}"}
+    b_view = client.get("/api/users/ana", headers=b_headers).json()["grades"]
+    assert [g["class_id"] for g in b_view] == [kb.id]
+
+
+def test_the_owner_does_not_see_a_ghost_class(client, db, teacher, student, auth_headers,
+                                              enrolled, klass):
+    _name(db, student, "ana")
+    old = _other_class(db, teacher)
+    db.add(Enrollment(user_id=student.id, class_id=old.id, status="ghost"))
+    db.commit()
+    grades = client.get("/api/users/ana", headers=auth_headers).json()["grades"]
+    assert [g["class_id"] for g in grades] == [klass.id]
+
+
+def test_username_lookup_is_case_insensitive(client, db, student, auth_headers):
+    _name(db, student, "ana")
+    assert client.get("/api/users/ANA", headers=auth_headers).status_code == 200
+
+
 def test_a_teacher_viewing_their_own_profile_gets_an_empty_grades_list(client, db, teacher,
                                                                        teacher_headers, klass):
     _name(db, teacher, "profe")
