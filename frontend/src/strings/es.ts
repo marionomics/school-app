@@ -59,6 +59,7 @@ export const es = {
     seeMore: "ver más",
     pinnedHeader: "Por entregar",
     newPosts: "Publicaciones nuevas",
+    seeAllReplies: "Ver las {n} respuestas",
     participacionBadge: "Participación",
     tareaBadge: "Tarea",
     entregaBadge: "Entrega",

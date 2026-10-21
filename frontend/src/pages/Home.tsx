@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { mergePages, refreshFeed } from "@/lib/feed";
 import PostCard from "@/components/PostCard";
+import FeaturedReply from "@/components/FeaturedReply";
 import { FeedSkeleton } from "@/components/Skeletons";
 import { es } from "@/strings/es";
 import { useLikeMutation } from "@/lib/likes";
@@ -109,12 +110,12 @@ export default function Home() {
         <p className="p-10 text-center text-muted-foreground">{es.feed.empty}</p>
       )}
       {posts.filter((p) => !pinnedIds.has(p.id)).map((p) => (
-        <PostCard
-          key={p.id}
-          post={p}
-          onLike={(post) => like.mutate(post)}
-          onVeto={onVeto}
-        />
+        <div key={p.id}>
+          <PostCard post={p} onLike={(post) => like.mutate(post)} onVeto={onVeto} />
+          {p.featured_reply && p.status !== "deleted" && (
+            <FeaturedReply reply={p.featured_reply} rootId={p.id} replyCount={p.reply_count} />
+          )}
+        </div>
       ))}
       <div ref={sentinel} />
       {!q.hasNextPage && posts.length > 0 && (
