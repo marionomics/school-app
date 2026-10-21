@@ -100,3 +100,30 @@ def test_touches_and_replies_after_as_of_are_ignored():
     c = post(1, age=5, replies=[ReplyFact(ANA, AS_OF + timedelta(minutes=1), ANA, True)])
     assert score(c, ME, AS_OF + timedelta(minutes=1), AS_OF) == pytest.approx(
         score(post(1, age=5), ME, None, AS_OF))
+
+
+from app.services.feed_rank import ReplyOption, pick_featured  # noqa: E402
+
+
+def opt(pid, age=0, likes=0, teacher=False):
+    return ReplyOption(pid, ago(age), likes, teacher)
+
+
+def test_no_replies_no_featured():
+    assert pick_featured([]) is None
+
+
+def test_teacher_aura_beats_more_aura():
+    assert pick_featured([opt(1, likes=9), opt(2, likes=1, teacher=True)]) == 2
+
+
+def test_more_aura_beats_recency():
+    assert pick_featured([opt(1, age=0, likes=1), opt(2, age=5, likes=3)]) == 2
+
+
+def test_recency_breaks_an_aura_tie():
+    assert pick_featured([opt(1, age=5, likes=2), opt(2, age=1, likes=2)]) == 2
+
+
+def test_id_breaks_a_full_tie():
+    assert pick_featured([opt(1), opt(2)]) == 2

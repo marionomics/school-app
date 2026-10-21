@@ -8,7 +8,7 @@ when it moves. The weights are starting points to tune with data
 from dataclasses import dataclass
 from datetime import datetime
 from math import log1p
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 HALF_LIFE_H = 24.0      # a post's freshness halves every day
 W_FRESH = 1.0           # a brand-new post scores 1.0
@@ -87,3 +87,20 @@ def rank(candidates: Iterable[Candidate], viewer_id: int,
               for c in candidates]
     scored.sort(key=lambda t: (-t[0], -t[1]))
     return [pid for _, pid in scored]
+
+
+@dataclass(frozen=True)
+class ReplyOption:
+    post_id: int
+    created_at: datetime
+    like_count: int
+    teacher_aura: bool
+
+
+def pick_featured(options: Sequence[ReplyOption]) -> Optional[int]:
+    """The comment shown under a card: one the teacher gave aura, then the
+    most aura, then the most recent. The caller passes only eligible replies."""
+    if not options:
+        return None
+    best = max(options, key=lambda o: (o.teacher_aura, o.like_count, o.created_at, o.post_id))
+    return best.post_id
