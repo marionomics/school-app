@@ -39,7 +39,7 @@ No new tables, no migration.
 
 ### `GET /api/users/{username}/posts?tab=posts|replies&cursor=…&limit=20`
 - `posts`: `author_id = user.id`, `parent_id IS NULL`.
-- `replies`: `author_id = user.id`, `parent_id IS NOT NULL`, `is_entrega = false`. Each item carries `parent: { id, author_username, excerpt }` — `excerpt` = the parent's first 120 characters (empty if the parent is deleted).
+- `replies`: `author_id = user.id`, `parent_id IS NOT NULL`, and not a **submission** — a flagged entrega, or a reply with attachments whose direct parent is a tarea/examen (unflagged examen answers, matching `review_queue._examen_submission`; added after the final review, 2026-10-21). A reply to a submission gets an empty excerpt. Each item carries `parent: { id, author_username, excerpt }` — `excerpt` = the parent's first 120 characters (empty if the parent is deleted).
 - Both: `status IN ('active', 'vetoed')`; newest first by `(created_at, id)`; keyset cursor with the existing `encode_cursor`/`decode_cursor`; `{ "items": [...], "next_cursor": "…" | null }`.
 - **Class scoping:** a tarea or examen from a class the viewer neither attends (any enrollment status) nor teaches never appears; in `replies`, a reply whose **root** is such an assignment doesn't appear either. The rule is extracted from `get_feed` into one helper in `backend/app/services/visibility.py`:
   - `viewer_class_ids(db, viewer) -> list[int]` (enrollments of any status + classes taught — exactly what the feed computes today),
