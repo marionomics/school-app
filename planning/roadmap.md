@@ -63,7 +63,7 @@ Después, el perfil:
 
 ## Bloque 4 — Algoritmo del feed
 Problema (Mario): la interacción sube posts y algunos se quedan arriba sin ser relevantes. Lo que se quiere: una vez que interactuaste con un post, baja **para ti** y deja lugar a lo nuevo.
-- [ ] **Spec primero.** Puntaje por post y por espectador: frescura + actividad reciente − penalización si ya interactuaste (aura, respuesta, validación). Implica dejar la paginación keyset sobre `last_activity_at` — la razón por la que hoy no se hizo. Retoma la idea de `future.md` (prioridad a no vistos, afinidad).
+- [~] **Spec primero.** Escrito 2026-10-21: `docs/superpowers/specs/2026-10-21-feed-ranking-design.md` (pendiente revisión de Mario). Puntaje por post y por espectador: frescura + actividad reciente − penalización si ya interactuaste (aura, respuesta, validación). Implica dejar la paginación keyset sobre `last_activity_at` — la razón por la que hoy no se hizo. Retoma la idea de `future.md` (prioridad a no vistos, afinidad).
 - [ ] Implementación + tests del ranking como funciones puras, igual que el motor de calificación.
 - [ ] **Promover los comentarios** (Mario, 2026-10-17). Dos cosas que el spec del Bloque 4 debe cubrir:
   - **Un comentario en el feed principal.** Debajo de un post, mostrar al menos una respuesta — la que sea más relevante (criterio a definir en el spec: más aura, más reciente, de alguien a quien sigues…).
