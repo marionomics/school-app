@@ -79,8 +79,15 @@ function PostList({ username, tab }: { username: string; tab: Tab }) {
   );
 }
 
+/** /u/a → /u/b reuses this route's element, so the content is keyed by
+ *  username: the selected tab and the open classes never carry over from
+ *  one person's profile to the next. */
 export default function Profile() {
   const { username = "" } = useParams<{ username: string }>();
+  return <ProfileView key={username} username={username} />;
+}
+
+function ProfileView({ username }: { username: string }) {
   const [editing, setEditing] = useState(false);
   const [openClasses, setOpenClasses] = useState<Set<number>>(new Set());
   const toggleClass = (id: number) =>
@@ -171,7 +178,7 @@ export default function Profile() {
       </Tabs>
 
       <Dialog open={editing} onOpenChange={setEditing}>
-        <DialogContent>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto">
           <DialogTitle>{es.profile.editProfile}</DialogTitle>
           <ProfileEditor onDone={() => setEditing(false)} />
         </DialogContent>
