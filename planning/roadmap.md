@@ -8,9 +8,18 @@ Origen de los bloques 1–5: nota de Mario del 2026-09-28 ("Bug report y modific
 
 ## ▶ Empieza aquí (sesión nueva)
 
-0. **`git fetch` primero.** El 2026-10-09 el `main` local llevaba dos meses atrás de `origin/main` y se replaneó sobre información vieja. Railway despliega `main` (confirmado por Mario, 2026-10-17). Queda por borrar `origin/entregas-con-archivos` (ya mergeada, sin commits propios).
-1. **Bloques 1 y 2** cerrados (salvo justificar faltas paso 2). Sigue **Bloque 3, empezando por las fotos** (spec con brainstorming). Bug 8 y bug 2 son fixes acotados (TDD, sin spec propio). Justificar faltas sí lleva spec corto: el esquema ya existe, falta definir endpoints y dónde vive el control en el panel de clase.
-2. Los bloques 2–5 empiezan cada uno con brainstorming → spec → plan. Las decisiones ya tomadas por Mario están escritas en cada bloque; no volver a preguntarlas. La pregunta aún abierta está en `future.md` (7).
+Estado al 2026-10-21: **Bloques 0–3 cerrados y en producción** (salvo justificar faltas paso 2). **Sigue el Bloque 4 — algoritmo del feed.**
+
+0. **`git fetch` primero** y confirmar `main...origin/main` en sync. Railway despliega `main` en cada push. Pendiente menor: borrar `origin/entregas-con-archivos` (ya mergeada; el borrado lo bloqueó el clasificador, Mario puede hacerlo con `! git push origin --delete entregas-con-archivos`).
+1. **Cómo se trabaja un bloque** (lo que funcionó en 2, 3a y 3b): brainstorming con Mario sección por sección → spec **en inglés** en `docs/superpowers/specs/` → plan en `docs/superpowers/plans/` → ejecución *subagent-driven*: cada implementador hace commit **sin push**, una revisión por tarea, y el controlador hace push sólo cuando la revisión sale limpia (cada push llega a los alumnos). Al final, una revisión de todo el bloque en el modelo más capaz, una sola ola de fixes y una re-revisión. Las decisiones que se toman en el camino se anotan como *rulings* y se le entregan a Mario al cerrar.
+2. **Bloque 4: lo que ya está decidido** está escrito abajo, en su sección; no volver a preguntarlo. La pregunta abierta es `future.md` (7): ¿baja sólo lo que tocaste, o también lo que viste? (lo visto requiere registrar impresiones).
+3. **Hechos del código que el spec del Bloque 4 tiene que saber:**
+   - El feed (`get_feed` en `backend/app/routers/posts.py`) pagina con keyset sobre `(last_activity_at, id)`; las tareas fijadas (`_pinned_tareas`) van **fuera** de la paginación.
+   - Desde el Bloque 2 **el aura no sube posts**; sólo una respuesta toca `last_activity_at`.
+   - El filtro por clase vive en `backend/app/services/visibility.py` (`viewer_class_ids`, `assignment_visible`, `root_visible`) y lo comparten feed y perfil — cualquier feed nuevo debe usarlo.
+   - En el cliente, dar aura o vetar **nunca** recarga el feed (`frontend/src/lib/likes.ts`, `useVetoFlow.tsx`): un refetch reordena las tarjetas bajo el dedo del profesor. Se parchan en caché con `patchPostInCaches` (`frontend/src/lib/postCache.ts`). El feed usa `staleTime` 15 s y recarga al volver a la pestaña.
+   - El perfil ya pagina por `created_at` (`backend/app/routers/profiles.py`) — es una línea de tiempo, no un ranking.
+4. Pendientes chicos fuera de bloques: **justificar faltas paso 2** (comprobante del alumno), bugs 9–11 en `bugs.md`, buscador de GIFs en `future.md`.
 
 ## Bloque 0 — Higiene ✅ (2026-10-09)
 - [x] **`entregas-con-archivos` en `main`.** Ya estaba mergeada en `origin/main` (`ae9998e`, 2026-08-07, junto con los fixes R10 y R11); el `main` local nunca la había jalado. Se rebaseó la replaneación encima, se quitó el worktree y la rama, y `main` se empujó.
