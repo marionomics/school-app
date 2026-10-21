@@ -11,23 +11,19 @@ def _mk(db, author, klass, content, **kw):
     return p
 
 
-def test_feed_orders_by_activity_and_paginates(client, db, auth_headers, enrolled, klass, student):
+def test_feed_paginates_with_a_frozen_cursor(client, db, auth_headers, enrolled, klass, student):
     ids = [_mk(db, student, klass, f"p{i}").id for i in range(5)]
-    # bump the oldest post to the top
-    oldest = db.get(Post, ids[0])
-    oldest.last_activity_at = utcnow()
-    db.commit()
-
     res = client.get("/api/feed?limit=3", headers=auth_headers)
     assert res.status_code == 200
     body = res.json()
-    assert [p["id"] for p in body["items"]][0] == ids[0]  # bumped first
     assert len(body["items"]) == 3
     assert body["next_cursor"] is not None
+    assert body["as_of"]
 
     res2 = client.get(f"/api/feed?limit=3&cursor={body['next_cursor']}", headers=auth_headers)
     ids2 = [p["id"] for p in res2.json()["items"]]
     assert set(ids2).isdisjoint({p["id"] for p in body["items"]})
+    assert {p["id"] for p in body["items"]} | set(ids2) == set(ids)
     assert res2.json()["next_cursor"] is None
 
 

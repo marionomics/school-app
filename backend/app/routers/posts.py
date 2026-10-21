@@ -4,7 +4,6 @@ from typing import List, Optional, Set
 from pydantic import BaseModel
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth.deps import get_current_user
@@ -17,7 +16,8 @@ from app.services.aura import set_teacher_aura
 from app.services.media import attachment_out
 from app.services.attribution import resolve_default_class
 from app.services.visibility import assignment_visible, viewer_class_ids
-from app.services.cursor import decode_cursor, encode_cursor
+from app.services.cursor import decode_feed_cursor, encode_feed_cursor
+from app.services.feed_query import ranked_page
 from app.services.grades import _counting_entrega
 from app.services.dates import next_sunday_due
 from app import storage
@@ -170,38 +170,31 @@ def get_feed(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    q = (
-        db.query(Post)
-        .options(selectinload(Post.author), selectinload(Post.klass),
-                 selectinload(Post.attachments))
-        # Vetoed posts stay in the feed: a student whose post silently vanished
-        # gets no explanation, which is the opposite of what the veto flow
-        # intends. They keep their text and carry a veto_reason that
-        # serialize_post shows only to the author and the teacher. Deleted
-        # posts stay hidden.
-        .filter(Post.parent_id.is_(None), Post.status.in_(("active", "vetoed")))
-    )
-
-    my_class_ids = viewer_class_ids(db, user)
-    q = q.filter(assignment_visible(my_class_ids))
-
+    # Ranked per viewer (Bloque 4). The order is frozen at as_of for every
+    # page of one load: aura given while scrolling moves nothing until the
+    # next refresh. Vetoed posts stay in the feed (they keep their text and
+    # carry a veto_reason only the author and teacher see); deleted ones don't.
     if cursor:
         try:
-            c_dt, c_id = decode_cursor(cursor)
+            as_of, offset = decode_feed_cursor(cursor)
         except Exception:
             raise HTTPException(status_code=422, detail="Cursor inválido")
-        q = q.filter(or_(Post.last_activity_at < c_dt,
-                         and_(Post.last_activity_at == c_dt, Post.id < c_id)))
-    posts = q.order_by(Post.last_activity_at.desc(), Post.id.desc()).limit(limit + 1).all()
-    has_more = len(posts) > limit
-    posts = posts[:limit]
+    else:
+        as_of, offset = utcnow(), 0
+    my_class_ids = viewer_class_ids(db, user)
+    ids, has_more = ranked_page(db, user.id, my_class_ids, as_of, offset, limit)
+    by_id = {p.id: p for p in db.query(Post)
+             .options(selectinload(Post.author), selectinload(Post.klass),
+                      selectinload(Post.attachments))
+             .filter(Post.id.in_(ids)).all()} if ids else {}
+    posts = [by_id[i] for i in ids if i in by_id]
     pinned = _pinned_tareas(db, user, my_class_ids)
     liked = _liked_ids(db, user, [p.id for p in posts] + [p.id for p in pinned])
     aura = _teacher_aura_ids(db, [p.id for p in posts] + [p.id for p in pinned])
-    next_cursor = encode_cursor(posts[-1].last_activity_at, posts[-1].id) if (has_more and posts) else None
     return {"items": [serialize_post(p, liked, viewer=user, teacher_aura_ids=aura) for p in posts],
             "pinned": [serialize_post(p, liked, viewer=user, teacher_aura_ids=aura) for p in pinned],
-            "next_cursor": next_cursor}
+            "next_cursor": encode_feed_cursor(as_of, offset + limit) if has_more else None,
+            "as_of": as_of.isoformat()}
 
 
 def _superseded_entregas(db: Session, posts: list) -> Set[int]:
