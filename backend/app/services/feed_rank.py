@@ -1,8 +1,9 @@
 """Per-viewer feed ranking (Bloque 4).
 
 Pure functions over plain data — no ORM, no database — tested like the grade
-engine. What you touched sinks for you; a conversation you are in comes back
-when it moves. The weights are starting points to tune with data
+engine. The feed is ordered in tiers (Bloque 4b): the teacher's pending
+work, then what you haven't touched, then what you have — so a refresh always
+shows something new. A conversation you are in comes back when it moves. The weights are starting points to tune with data
 (scripts/feed_metrics.py), not results of a calculation.
 """
 from dataclasses import dataclass
@@ -45,8 +46,9 @@ def _age(as_of: datetime, dt: datetime) -> float:
     return (as_of - dt).total_seconds() / 3600
 
 
-def score(c: Candidate, viewer_id: int, aura_at: Optional[datetime],
-          as_of: datetime) -> float:
+def _evaluate(c: Candidate, viewer_id: int, aura_at: Optional[datetime],
+              as_of: datetime) -> Tuple[float, bool, float]:
+    """(score, touched, lift) — one pass, so tier and score never disagree."""
     replies = [r for r in c.replies if r.created_at <= as_of]
     if aura_at is not None and aura_at > as_of:
         aura_at = None
@@ -76,17 +78,42 @@ def score(c: Candidate, viewer_id: int, aura_at: Optional[datetime],
                 lift += LIFT_TO_ME * decay(_age(as_of, r.created_at))
             elif subscribed:
                 lift += LIFT_IN_THREAD * decay(_age(as_of, r.created_at))
-    return base * factor + W_LIFT * log1p(lift)
+    return base * factor + W_LIFT * log1p(lift), bool(touches), lift
+
+
+def score(c: Candidate, viewer_id: int, aura_at: Optional[datetime],
+          as_of: datetime) -> float:
+    return _evaluate(c, viewer_id, aura_at, as_of)[0]
+
+
+def tier(c: Candidate, viewer_id: int, aura_at: Optional[datetime], as_of: datetime,
+         pending_at: Optional[datetime] = None) -> int:
+    """1: the teacher's pending work. 2: untouched, or brought back by a reply.
+    3: touched — below everything new (Bloque 4b)."""
+    if pending_at is not None:
+        return 1
+    _, touched, lift = _evaluate(c, viewer_id, aura_at, as_of)
+    return 3 if touched and lift == 0 else 2
 
 
 def rank(candidates: Iterable[Candidate], viewer_id: int,
-         aura_at: Dict[int, datetime], as_of: datetime) -> List[int]:
-    """Post ids, best first. Ties break on post id descending, so the order
-    is total and the same on every page of one load."""
-    scored = [(score(c, viewer_id, aura_at.get(c.post_id), as_of), c.post_id)
-              for c in candidates]
-    scored.sort(key=lambda t: (-t[0], -t[1]))
-    return [pid for _, pid in scored]
+         aura_at: Dict[int, datetime], as_of: datetime,
+         pending_at: Optional[Dict[int, datetime]] = None) -> List[int]:
+    """Post ids, best first: by tier, then pending_at (tier 1, newest first)
+    or score (tiers 2–3). Ties break on post id descending, so the order is
+    total and the same on every page of one load."""
+    pending_at = pending_at or {}
+    keyed = []
+    for c in candidates:
+        p_at = pending_at.get(c.post_id)
+        s, touched, lift = _evaluate(c, viewer_id, aura_at.get(c.post_id), as_of)
+        if p_at is not None:
+            keyed.append(((1, -p_at.timestamp(), -c.post_id), c.post_id))
+        else:
+            t = 3 if touched and lift == 0 else 2
+            keyed.append(((t, -s, -c.post_id), c.post_id))
+    keyed.sort(key=lambda k: k[0])
+    return [pid for _, pid in keyed]
 
 
 @dataclass(frozen=True)

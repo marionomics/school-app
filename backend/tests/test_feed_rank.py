@@ -127,3 +127,40 @@ def test_recency_breaks_an_aura_tie():
 
 def test_id_breaks_a_full_tie():
     assert pick_featured([opt(1), opt(2)]) == 2
+
+
+from app.services.feed_rank import tier  # noqa: E402
+
+
+def test_untouched_goes_above_touched_whatever_the_age():
+    touched = post(1, age=0)
+    old = post(2, age=24 * 10)
+    assert rank([touched, old], ME, {1: ago(0)}, AS_OF) == [2, 1]
+
+
+def test_a_reply_to_me_puts_a_touched_post_back_in_tier_2():
+    mine = post(1, author=ME, age=48, replies=[reply(ANA, 1, parent_author=ME)])
+    assert tier(mine, ME, None, AS_OF) == 2
+
+
+def test_aura_then_a_reply_to_someone_else_stays_in_tier_3():
+    c = post(1, age=10, replies=[reply(LUIS, 1)])
+    assert tier(c, ME, ago(5), AS_OF) == 3
+
+
+def test_pending_is_tier_1_newest_first():
+    a = post(1, age=50)
+    b = post(2, age=1)
+    fresh = post(3, age=0)
+    pending = {1: ago(2), 2: ago(30)}
+    # pending_at, not age, orders tier 1: post 1 became pending more recently.
+    assert rank([a, b, fresh], ME, {}, AS_OF, pending) == [1, 2, 3]
+
+
+def test_pending_wins_over_touched():
+    c = post(1, author=ME, age=0)
+    assert tier(c, ME, None, AS_OF, pending_at=ago(1)) == 1
+
+
+def test_no_pending_map_means_no_tier_1():
+    assert rank([post(1), post(2, age=1)], ME, {}, AS_OF) == [1, 2]
