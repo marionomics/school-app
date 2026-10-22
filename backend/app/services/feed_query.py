@@ -5,11 +5,12 @@ created_at values, which never change — so every page of one load sees the
 same ordered list.
 """
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.models import Like, Post
+from app.models import Class, Enrollment, Like, Post, Review
 from app.services.feed_rank import WINDOW_DAYS, Candidate, ReplyFact, rank
 from app.services.visibility import ASSIGNMENT_TYPES, assignment_visible
 
@@ -93,11 +94,15 @@ def viewer_aura(db: Session, viewer_id: int, root_ids: List[int],
 
 
 def ranked_page(db: Session, viewer_id: int, class_ids: List[int], as_of: datetime,
-                offset: int, limit: int) -> Tuple[List[int], bool]:
-    """One page of ids and whether more follow: the ranked window first,
-    then every older root newest-first, so the feed never ends early."""
-    win = window_ids(db, class_ids, as_of)
-    order = rank(load_candidates(db, win), viewer_id, viewer_aura(db, viewer_id, win, as_of), as_of)
+                offset: int, limit: int,
+                pending_at: Optional[Dict[int, datetime]] = None) -> Tuple[List[int], bool]:
+    """One page of ids and whether more follow: the ranked window first
+    (tiers — Bloque 4b), then every older root newest-first, so the feed never
+    ends early. Pending roots join the window whatever their age."""
+    pending_at = pending_at or {}
+    win = sorted(set(window_ids(db, class_ids, as_of)) | set(pending_at))
+    order = rank(load_candidates(db, win), viewer_id,
+                 viewer_aura(db, viewer_id, win, as_of), as_of, pending_at)
     page = order[offset:offset + limit + 1]
     need = limit + 1 - len(page)
     if need > 0:
@@ -132,3 +137,75 @@ def has_new(db: Session, viewer_id: int, class_ids: List[int], since: datetime) 
                .filter(Post.parent_id.in_(threads | level2), Post.created_at > since,
                        Post.author_id != viewer_id, Post.status == "active"))
     return bool(db.query(replies.exists()).scalar())
+
+
+def teacher_pending(db: Session, teacher_id: int,
+                    as_of: datetime) -> Dict[int, Tuple[datetime, Optional[int]]]:
+    """root id → (pending since, count) for the work that needs this teacher,
+    as of as_of. Same meaning as /revisar: a participación not validated nor
+    vetoed; a tarea whose counting entrega from an active student has no
+    review; an examen not calificado with something uploaded and ungraded.
+    Participaciones carry no count."""
+    class_ids = [cid for (cid,) in db.query(Class.id).filter(Class.teacher_id == teacher_id)]
+    if not class_ids:
+        return {}
+    out: Dict[int, Tuple[datetime, Optional[int]]] = {}
+
+    parts = (db.query(Post.id, Post.created_at)
+             .filter(Post.class_id.in_(class_ids), Post.parent_id.is_(None),
+                     Post.type == "participacion", Post.status == "active",
+                     Post.created_at <= as_of,
+                     or_(Post.reviewed_at.is_(None), Post.reviewed_at > as_of)))
+    for pid, at in parts:
+        out[pid] = (aware(at), None)
+
+    items = (db.query(Post.id, Post.type, Post.class_id, Post.graded_at)
+             .filter(Post.class_id.in_(class_ids), Post.parent_id.is_(None),
+                     Post.type.in_(ASSIGNMENT_TYPES), Post.status == "active",
+                     Post.created_at <= as_of).all())
+    items = [i for i in items
+             if i.type == "tarea" or i.graded_at is None or aware(i.graded_at) > as_of]
+    if not items:
+        return out
+    active = {(cid, uid) for cid, uid in db.query(Enrollment.class_id, Enrollment.user_id)
+              .filter(Enrollment.class_id.in_(class_ids), Enrollment.status == "active")}
+    item_ids = [i.id for i in items]
+    replies = (db.query(Post.id, Post.parent_id, Post.author_id, Post.created_at,
+                        Post.is_entrega, Post.attachments.any().label("has_files"))
+               .filter(Post.parent_id.in_(item_ids), Post.status == "active",
+                       Post.created_at <= as_of).all())
+    reviews = {(r.item_post_id, r.student_id): r
+               for r in db.query(Review).filter(Review.item_post_id.in_(item_ids))}
+
+    for item in items:
+        latest_entrega: Dict[int, tuple] = {}
+        latest_upload: Dict[int, tuple] = {}
+        for r in replies:
+            if r.parent_id != item.id or (item.class_id, r.author_id) not in active:
+                continue
+            at = aware(r.created_at)
+            if r.is_entrega and (r.author_id not in latest_entrega
+                                 or at > latest_entrega[r.author_id][1]):
+                latest_entrega[r.author_id] = (r.id, at)
+            if r.has_files and (r.author_id not in latest_upload
+                                or at > latest_upload[r.author_id][1]):
+                latest_upload[r.author_id] = (r.id, at)
+        # An examen's submission is the entrega, else the latest reply with
+        # files (the roster rule); a tarea's is only the entrega.
+        subs = dict(latest_entrega)
+        if item.type == "examen":
+            for uid, v in latest_upload.items():
+                subs.setdefault(uid, v)
+        ungraded = []
+        for uid, (sub_id, at) in subs.items():
+            rv = reviews.get((item.id, uid))
+            done = (rv is not None
+                    and aware(rv.updated_at or rv.created_at) <= as_of
+                    # counting_review: a review of a replaced entrega is stale.
+                    and (rv.entrega_post_id is None or rv.entrega_post_id == sub_id)
+                    and (item.type == "tarea" or rv.score is not None))
+            if not done:
+                ungraded.append(at)
+        if ungraded:
+            out[item.id] = (max(ungraded), len(ungraded))
+    return out

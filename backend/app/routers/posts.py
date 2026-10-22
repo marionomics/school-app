@@ -17,7 +17,7 @@ from app.services.media import attachment_out
 from app.services.attribution import resolve_default_class
 from app.services.visibility import assignment_visible, viewer_class_ids
 from app.services.cursor import decode_feed_cursor, encode_feed_cursor
-from app.services.feed_query import aware, has_new, ranked_page
+from app.services.feed_query import aware, has_new, ranked_page, teacher_pending
 from app.services.feed_rank import ReplyOption, pick_featured
 from app.services.grades import _counting_entrega
 from app.services.dates import next_sunday_due
@@ -211,7 +211,10 @@ def get_feed(
     else:
         as_of, offset = utcnow(), 0
     my_class_ids = viewer_class_ids(db, user)
-    ids, has_more = ranked_page(db, user.id, my_class_ids, as_of, offset, limit)
+    # The teacher's pending work goes on top (Bloque 4b).
+    pending = teacher_pending(db, user.id, as_of) if user.role == "teacher" else {}
+    ids, has_more = ranked_page(db, user.id, my_class_ids, as_of, offset, limit,
+                                {pid: at for pid, (at, _) in pending.items()})
     by_id = {p.id: p for p in db.query(Post)
              .options(selectinload(Post.author), selectinload(Post.klass),
                       selectinload(Post.attachments))
@@ -228,6 +231,9 @@ def get_feed(
         if p.id in featured:
             o.featured_reply = serialize_post(featured[p.id], liked, viewer=user,
                                               teacher_aura_ids=aura)
+        count = pending.get(p.id, (None, None))[1]
+        if count:
+            o.pending_count = count
         return o
 
     return {"items": [out(p) for p in posts],

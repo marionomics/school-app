@@ -245,6 +245,8 @@ class PostOut(BaseModel):
     parent_id: Optional[int]
     # Only on /api/feed items: the one comment shown under the card.
     featured_reply: Optional["PostOut"] = None
+    # Only on the teacher's /api/feed: entregas or exámenes left to grade.
+    pending_count: Optional[int] = None
 
 
 class BulkReviewIn(BaseModel):
