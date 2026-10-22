@@ -149,6 +149,11 @@ def _pinned_tareas(db: Session, user: User, class_ids: List[int]) -> List[Post]:
     cursor over a mutable sort key — the same fragility that made likes
     reorder the feed under the reader's thumb.
     """
+    # "Por entregar" is a student's list: the teacher never delivers, so
+    # pinning their own tareas hid them (and their "por calificar" badge,
+    # Bloque 4b) under a header that doesn't apply to them.
+    taught = {cid for (cid,) in db.query(Class.id).filter(Class.teacher_id == user.id)}
+    class_ids = [cid for cid in class_ids if cid not in taught]
     if not class_ids:
         return []
     tareas = (

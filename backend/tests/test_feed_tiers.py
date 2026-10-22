@@ -151,3 +151,30 @@ def test_paging_is_stable_while_the_teacher_validates(
         db.commit()
         url = f"/api/feed?limit=10&cursor={body['next_cursor']}" if body["next_cursor"] else None
     assert len(seen) == len(set(seen)) and set(seen) == ids
+
+
+def test_the_teacher_sees_an_open_tarea_with_its_badge_not_pinned(
+        client, db, teacher_headers, klass, teacher, student, enrolled):
+    # Every tarea gets a due date; "Por entregar" is a student's list, and
+    # pinning it for the teacher hid the tier-1 card and its badge.
+    tarea = _mk(db, teacher, klass, "tarea", age_h=24, type="tarea",
+                due_date=utcnow() + timedelta(days=3))
+    _mk(db, student, klass, "entrega", age_h=1, parent_id=tarea.id, is_entrega=True)
+    body = client.get("/api/feed?limit=50", headers=teacher_headers).json()
+    assert body["pinned"] == []
+    assert body["items"][0]["id"] == tarea.id and body["items"][0]["pending_count"] == 1
+
+
+def test_a_finished_class_no_longer_feeds_tier_1(client, db, teacher_headers, teacher, student):
+    # Next semester, last semester's unvalidated participaciones must not
+    # sit above everything forever.
+    old = Class(name="Vieja", code="VIEJA2026TIERS", teacher_id=teacher.id,
+                start_date=date(2025, 1, 6), end_date=date(2025, 5, 30), schedule_json=[])
+    db.add(old)
+    db.commit()
+    db.add(Enrollment(user_id=student.id, class_id=old.id))
+    db.commit()
+    part = _mk(db, student, old, "part", age_h=24 * 200, type="participacion", taps=1)
+    fresh = _mk(db, student, old, "fresh", age_h=0)
+    ids = _ids(client, teacher_headers)
+    assert ids.index(fresh.id) < ids.index(part.id)

@@ -39,7 +39,9 @@ Only for a viewer with `role == "teacher"`, and only items in classes where `Cla
 
 Pending items join the ranked candidates even when they fall outside the 14-day window; otherwise an old participación would never come up.
 
-**Known tolerance:** a veto is not timestamped, so a participación vetoed mid-scroll can shift a later page by one (as in Bloque 4).
+**Scope (final-review ruling):** only classes whose `end_date` is no more than 14 days before `as_of` — the feed spans every semester, and last term's unreviewed work must not sit on top forever. The teacher's own tareas are never pinned under "Por entregar" (a student's list); they appear in the feed with their badge.
+
+**Known tolerance:** re-grading, removing aura (un-validating) or un-marking calificado mid-scroll can make an item pending again on later pages of the same load (one duplicate or skip). A veto is not timestamped either, so a participación vetoed mid-scroll can shift a later page by one (as in Bloque 4).
 
 ## 3. API
 

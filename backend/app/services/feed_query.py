@@ -4,6 +4,7 @@ Every query is bounded by as_of, and window membership depends only on
 created_at values, which never change — so every page of one load sees the
 same ordered list.
 """
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -15,6 +16,7 @@ from app.services.feed_rank import WINDOW_DAYS, Candidate, ReplyFact, rank
 from app.services.visibility import ASSIGNMENT_TYPES, assignment_visible
 
 ROOT_STATUSES = ("active", "vetoed")
+PENDING_GRACE_DAYS = 14  # after a class ends, its pending work stays on top this long
 
 
 def aware(dt: datetime) -> datetime:
@@ -146,7 +148,12 @@ def teacher_pending(db: Session, teacher_id: int,
     vetoed; a tarea whose counting entrega from an active student has no
     review; an examen not calificado with something uploaded and ungraded.
     Participaciones carry no count."""
-    class_ids = [cid for (cid,) in db.query(Class.id).filter(Class.teacher_id == teacher_id)]
+    # Only classes still running (plus a grace period for final grading): the
+    # feed spans every semester, and last term's unreviewed work must not sit
+    # above everything forever.
+    still_running = (as_of - timedelta(days=PENDING_GRACE_DAYS)).date()
+    class_ids = [cid for (cid,) in db.query(Class.id).filter(
+        Class.teacher_id == teacher_id, Class.end_date >= still_running)]
     if not class_ids:
         return {}
     out: Dict[int, Tuple[datetime, Optional[int]]] = {}
@@ -177,11 +184,15 @@ def teacher_pending(db: Session, teacher_id: int,
     reviews = {(r.item_post_id, r.student_id): r
                for r in db.query(Review).filter(Review.item_post_id.in_(item_ids))}
 
+    by_item = defaultdict(list)
+    for r in replies:
+        by_item[r.parent_id].append(r)
+
     for item in items:
         latest_entrega: Dict[int, tuple] = {}
         latest_upload: Dict[int, tuple] = {}
-        for r in replies:
-            if r.parent_id != item.id or (item.class_id, r.author_id) not in active:
+        for r in by_item[item.id]:
+            if (item.class_id, r.author_id) not in active:
                 continue
             at = aware(r.created_at)
             if r.is_entrega and (r.author_id not in latest_entrega
