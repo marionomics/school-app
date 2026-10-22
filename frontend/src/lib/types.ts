@@ -82,6 +82,8 @@ export interface Post {
   veto_reason: string | null;
   /** Feed only: the one comment shown under the card. */
   featured_reply?: Post | null;
+  /** Teacher's feed only: entregas or exámenes left to grade. */
+  pending_count?: number | null;
 }
 
 export interface Review {

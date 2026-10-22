@@ -143,6 +143,12 @@ export default function PostCard({
             <RiFileTextLine className="size-3" /> {es.post.examenBadge}
           </span>
         )}
+        {/* Teacher's feed only (Bloque 4b): how much is left to grade here. */}
+        {post.pending_count != null && post.pending_count > 0 && !removed && (
+          <span className="mt-1 ml-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            {es.feed.toGrade.replace("{n}", String(post.pending_count))}
+          </span>
+        )}
         {linkToThread && !removed ? (
           <Link to={`/post/${post.id}`} className="mt-1 block">
             {body}

@@ -6,6 +6,8 @@
 - **El orden sólo cambia cuando lo pides:** al publicar, al tocar Inicio estando en Inicio, o con la píldora **"Publicaciones nuevas"**, que aparece al volver a la app si hay algo nuevo. Dar aura, responder, validar o vetar ya no mueven el feed, y volver de un hilo conserva el lugar.
 - **Un comentario destacado bajo cada post:** el que tiene aura del profe; si no, el de más aura; si no, el más reciente. Nunca bajo una tarea o un examen (ahí las respuestas pueden ser la tarea de alguien).
 - Los posts de más de 14 días sin respuestas recientes siguen apareciendo, después de los demás y por fecha.
+- **Bloque 4b — refrescar enseña algo nuevo.** Lo que ya tocaste (aura, respuesta, tu propio post) ahora va debajo de *todo* lo que no has tocado, no sólo un poco más abajo; una respuesta a ti lo regresa arriba.
+- **Para el profe, el feed es también su cola de revisión.** Arriba van las participaciones sin validar y las tareas y exámenes con algo por calificar (con la etiqueta "N por calificar"), lo más reciente primero. Validar con aura o calificar lo baja en la siguiente recarga, y lo que sigue pendiente sube.
 - Nuevo `backend/scripts/feed_metrics.py`: respuestas por alumno activo y % de posts con respuesta, por semana, para decidir con datos si se ajustan los pesos.
 
 ## 2026-10-20 (Bloque 3b — perfil)

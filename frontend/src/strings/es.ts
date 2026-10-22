@@ -60,6 +60,7 @@ export const es = {
     pinnedHeader: "Por entregar",
     newPosts: "Publicaciones nuevas",
     seeAllReplies: "Ver las {n} respuestas",
+    toGrade: "{n} por calificar",
     participacionBadge: "Participación",
     tareaBadge: "Tarea",
     entregaBadge: "Entrega",
