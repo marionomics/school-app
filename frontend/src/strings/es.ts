@@ -128,6 +128,8 @@ export const es = {
     vetoed: "Vetada",
     validar: "Validar",
     validarTodas: "Validar todas ({n})",
+    acceptSuggested: "Aceptar sugeridas ({n})",
+    acceptedSuggested: "{n} calificadas",
     validated: "Validada",
     unvalidate: "Marcar como no vista",
     vetoConfirmTitle: "¿Vetar esta participación?",

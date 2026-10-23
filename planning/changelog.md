@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-23
+- **Aceptar sugeridas en un toque.** En el hilo de una tarea y en `/revisar` → Entregas, el profe tiene "Aceptar sugeridas (N)": califica de una vez cada entrega a la vista con su calificación automática (100/90/50/20 según el retraso). La calificación del alumno no cambia — una entrega sin calificar ya contaba así —, sólo pasa de "sugerida" a "dada" y sale de lo pendiente del profe. Nunca pisa una calificación que el profe ya puso, y sólo toca las entregas que estaban en pantalla.
+
 ## 2026-10-21 (Bloque 4 — algoritmo del feed)
 - **El feed se ordena para cada persona.** Lo nuevo va arriba; lo que ya tocaste baja *para ti*: dar aura lo baja un poco (como si fuera un día más viejo), responder o publicarlo lo baja más (tres días). A los demás no les cambia nada.
 - **Una respuesta te regresa el hilo.** Si alguien te responde a ti (a tu post o a tu comentario), ese hilo vuelve a subir aunque ya lo hubieras tocado; una respuesta en un hilo donde participaste lo sube menos. El aura sola no te suscribe.

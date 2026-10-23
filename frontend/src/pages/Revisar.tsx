@@ -23,6 +23,7 @@ import type {
 } from "@/lib/types";
 import { invalidateGrades } from "@/lib/grades";
 import { patchFeedPost, teacherAura } from "@/lib/postCache";
+import { useAcceptSuggested } from "@/lib/useAcceptSuggested";
 
 export default function Revisar() {
   const [classId, setClassId] = useState<number | null>(null);
@@ -98,6 +99,7 @@ function EntregasTab({
     tareaId: number;
     row: EntregaRow;
   } | null>(null);
+  const accept = useAcceptSuggested();
 
   const q = useQuery({
     queryKey: ["review-entregas", classId],
@@ -125,6 +127,21 @@ function EntregasTab({
             {g.tarea.content.slice(0, 60)} ·{" "}
             {es.revisar.pending.replace("{n}", String(g.pending))}
           </h2>
+          {(() => {
+            // Exactly the rows on screen that have a suggestion.
+            const ids = g.entregas
+              .filter((e) => !e.reviewed && e.auto_score != null)
+              .map((e) => e.entrega_post_id);
+            return ids.length > 0 ? (
+              <Button
+                className="mt-2 w-full"
+                disabled={accept.isPending}
+                onClick={() => accept.mutate({ itemId: g.tarea.id, ids })}
+              >
+                {es.revisar.acceptSuggested.replace("{n}", String(ids.length))}
+              </Button>
+            ) : null;
+          })()}
           <ul className="mt-2 divide-y border-y">
             {g.entregas.map((row) => (
               <li key={row.entrega_post_id} className="flex items-center">

@@ -17,6 +17,9 @@ import { es } from "@/strings/es";
 import type { Post, ThreadResponse } from "@/lib/types";
 import { invalidateGrades } from "@/lib/grades";
 import { dropFromFeed, patchFeedPost, unpinFromFeed } from "@/lib/postCache";
+import { ungradedEntregaIds } from "@/lib/review";
+import { useAcceptSuggested } from "@/lib/useAcceptSuggested";
+import { Button } from "@/components/ui/button";
 
 export default function Thread() {
   const { id } = useParams();
@@ -33,6 +36,7 @@ export default function Thread() {
   const [confirming, setConfirming] = useState<Post | null>(null);
   const [isEntrega, setIsEntrega] = useState(false);
   const [grading, setGrading] = useState<Post | null>(null);
+  const accept = useAcceptSuggested();
 
   const q = useQuery({
     queryKey: ["thread", id],
@@ -96,6 +100,11 @@ export default function Thread() {
   })();
   const canDelete = (p: Post) => user != null && (user.id === p.author.id || user.role === "teacher");
   const level2 = replies.filter((r) => r.parent_id === post.id);
+  // Only a tarea with a due date has a suggested (lateness) score.
+  const ungraded =
+    user?.role === "teacher" && post.type === "tarea" && post.due_date
+      ? ungradedEntregaIds(replies)
+      : [];
   const childrenOf = (rid: number) => replies.filter((r) => r.parent_id === rid);
 
   const card = (p: Post, indent: number) => (
@@ -138,6 +147,17 @@ export default function Thread() {
     <div className={files.length > 0 ? "pb-52" : "pb-28"}>
       {veto.dialog}
       {card(post, 0)}
+      {ungraded.length > 0 && (
+        <div className="px-4 pb-3">
+          <Button
+            className="w-full"
+            disabled={accept.isPending}
+            onClick={() => accept.mutate({ itemId: post.id, ids: ungraded })}
+          >
+            {es.revisar.acceptSuggested.replace("{n}", String(ungraded.length))}
+          </Button>
+        </div>
+      )}
       <div className="divide-y border-t">
         {level2.map((r) => (
           <div key={r.id} className="py-1">

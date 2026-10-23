@@ -249,5 +249,11 @@ class PostOut(BaseModel):
     pending_count: Optional[int] = None
 
 
+class AcceptSuggestedIn(BaseModel):
+    item_post_id: int
+    # What the teacher has on screen — never "everything pending".
+    entrega_post_ids: List[int]
+
+
 class BulkReviewIn(BaseModel):
     post_ids: List[int]

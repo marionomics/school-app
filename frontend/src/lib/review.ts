@@ -2,7 +2,7 @@
 // resolve under vitest, so a module using it makes its own test file
 // unrunnable — which is what had happened to review.test.ts.
 import { api } from "./api";
-import type { Review } from "./types";
+import type { Post, Review } from "./types";
 
 export type ItemType = "tarea" | "examen";
 
@@ -63,4 +63,21 @@ export function bulkReviewed(postIds: number[]) {
     method: "POST",
     body: JSON.stringify({ post_ids: postIds }),
   });
+}
+
+/** Grade these entregas with their suggested (lateness) score in one tap.
+ *  Exactly the ids on screen — never "everything pending". */
+export function acceptSuggested(itemPostId: number, entregaPostIds: number[]) {
+  return api<{ graded: number }>("/api/reviews/accept-suggested", {
+    method: "POST",
+    body: JSON.stringify({ item_post_id: itemPostId, entrega_post_ids: entregaPostIds }),
+  });
+}
+
+/** The thread's entregas the teacher hasn't graded yet. A replaced entrega
+ *  already arrives with is_entrega false (the server marks it superseded). */
+export function ungradedEntregaIds(replies: Post[]): number[] {
+  return replies
+    .filter((r) => r.is_entrega && r.status === "active" && r.my_review == null)
+    .map((r) => r.id);
 }
