@@ -68,6 +68,12 @@ Problema (Mario): la interacción sube posts y algunos se quedan arriba sin ser 
   - **Un comentario en el feed principal.** Debajo de un post, mostrar al menos una respuesta — la que sea más relevante (criterio a definir en el spec: más aura, más reciente, de alguien a quien sigues…).
   - **Una respuesta te lo regresa.** Si alguien responde a tu post o a tu comentario, ese hilo vuelve a subir **para ti**, aunque ya lo hubieras tocado. Es la excepción a "lo que ya tocaste baja". Se cruza con el Bloque 5: es la misma señal que dispara la notificación.
 
+## Calificar exámenes desde el hilo (Mario, 2026-10-23)
+Calificar una tarea ahí mismo, desde el feed y el hilo, funciona y gusta; los exámenes deberían igual. Hoy el botón "Calificar" del hilo sólo aparece en respuestas marcadas como entrega (`Thread.tsx`), y casi nadie marca su examen como entrega — por eso el roster de `/revisar` ya cuenta como entrega la respuesta más reciente con archivos (bug 8 → R12, `_examen_submission`).
+- [ ] En el hilo de un examen, "Calificar" aparece en la respuesta que el roster considera la del alumno (su entrega, o si no, su respuesta más reciente con archivos), con la escala 1–10. Misma regla en los dos lugares — reusar `_examen_submission`, no duplicarla.
+- [ ] Marcar el examen como "calificado" desde el hilo, sin ir a `/revisar`.
+- [ ] Pregunta abierta para el spec: un examen con todas las calificaciones puestas pero sin "calificado", ¿sigue en lo pendiente del profe (Bloque 4b) hasta que lo marque? Hoy sale.
+
 ## Bloque 5 — Actividad (notificaciones)
 Como "Actividad" en Threads o "Notificaciones" en X.
 - [ ] Ícono con puntito rojo cuando hay algo nuevo.
