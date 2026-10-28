@@ -8,7 +8,16 @@ Origen de los bloques 1–5: nota de Mario del 2026-09-28 ("Bug report y modific
 
 ## ▶ Empieza aquí (sesión nueva)
 
-Estado al 2026-10-21: **Bloques 0–4 cerrados y en producción** (salvo justificar faltas paso 2). **Sigue el Bloque 5 — actividad (notificaciones).** Pendiente del Bloque 4: correr `cd backend && python -m scripts.feed_metrics` contra producción dos o tres semanas después del despliegue y comparar con la semana previa; eso decide si se ajustan los pesos de `backend/app/services/feed_rank.py` o se abre la pregunta 7 de `future.md`.
+Estado al 2026-10-28: **Bloques 0–4b cerrados y en producción**, más "Aceptar sugeridas" (calificar en un toque todas las entregas con su calificación automática). Pendiente sólo justificar faltas paso 2.
+
+**Siguiente, en este orden (propuesta, Mario decide):**
+1. **Calificar exámenes desde el hilo** (sección propia abajo) — chico, sin spec largo, Mario lo pidió el 2026-10-23. Trae una pregunta abierta: ¿un examen con todas las calificaciones pero sin "calificado" sigue en lo pendiente del profe?
+2. **Racha** (sección propia abajo) — la idea grande de Mario para que los alumnos vuelvan y avancen. Toca el motor de calificación, así que va con brainstorming → spec → plan, y absorbe el "premio por comentar" de `future.md`.
+3. **Bloque 5 — notificaciones.**
+
+**Medir el Bloque 4:** entre el **2026-11-06 y el 2026-11-13** (dos o tres semanas después del despliegue del 2026-10-23), correr `cd backend && python -m scripts.feed_metrics` contra producción y comparar con las semanas previas. Eso decide si se ajustan los pesos de `backend/app/services/feed_rank.py` o se abre la pregunta 7 de `future.md`. El profe vigila si las participaciones sin validar se le amontonan arriba (capa 1 del feed).
+
+**Deploy:** Railway despliega `main` en cada push cuando pasa CI. Si deja de hacerlo (pasó del 2026-10-21 al 23 por un incidente de Railway; se arregló reconectando GitHub en Settings → Source), `railway up --ci` desde un `main` limpio despliega directo — el CLI ya está ligado al proyecto `poetic-caring`, servicio `school-app`. Para saber si una ruta nueva ya está viva: sin sesión responde 401 si existe y 404 si no.
 
 0. **`git fetch` primero** y confirmar `main...origin/main` en sync. Railway despliega `main` en cada push. Pendiente menor: borrar `origin/entregas-con-archivos` (ya mergeada; el borrado lo bloqueó el clasificador, Mario puede hacerlo con `! git push origin --delete entregas-con-archivos`).
 1. **Cómo se trabaja un bloque** (lo que funcionó en 2, 3a y 3b): brainstorming con Mario sección por sección → spec **en inglés** en `docs/superpowers/specs/` → plan en `docs/superpowers/plans/` → ejecución *subagent-driven*: cada implementador hace commit **sin push**, una revisión por tarea, y el controlador hace push sólo cuando la revisión sale limpia (cada push llega a los alumnos). Al final, una revisión de todo el bloque en el modelo más capaz, una sola ola de fixes y una re-revisión. Las decisiones que se toman en el camino se anotan como *rulings* y se le entregan a Mario al cerrar.
@@ -67,6 +76,21 @@ Problema (Mario): la interacción sube posts y algunos se quedan arriba sin ser 
 - [x] **Promover los comentarios** (Mario, 2026-10-17). ✅ 2026-10-21: un comentario destacado bajo cada post (nunca en tareas ni exámenes) y una respuesta a ti te regresa el hilo. Dos cosas que el spec del Bloque 4 debe cubrir:
   - **Un comentario en el feed principal.** Debajo de un post, mostrar al menos una respuesta — la que sea más relevante (criterio a definir en el spec: más aura, más reciente, de alguien a quien sigues…).
   - **Una respuesta te lo regresa.** Si alguien responde a tu post o a tu comentario, ese hilo vuelve a subir **para ti**, aunque ya lo hubieras tocado. Es la excepción a "lo que ya tocaste baja". Se cruza con el Bloque 5: es la misma señal que dispara la notificación.
+
+## Racha (Mario, 2026-10-28)
+La idea para que los alumnos estén en la plataforma y de verdad avancen: **la racha**. Si mantienen su racha, según cuántos días lleven, sube la probabilidad de que el aura de sus publicaciones valga **2× o 3×**. Mientras más larga la racha, más probable el multiplicador.
+
+Absorbe el **premio por comentar** de `future.md` (2026-10-21: con cierta probabilidad, el aura de un comentario vale doble o triple) — es el mismo mecanismo, ahora atado a la constancia. Pariente de "Salvando el semestre".
+
+Mueve puntos, así que toca el motor: brainstorming → spec → plan, con tests del motor como siempre. Lo que el spec tiene que decidir:
+- **Qué mantiene la racha.** ¿Publicar o comentar cualquier cosa, una participación, o sólo comentar (lo que se quiere empujar)? ¿Cuenta la entrega de una tarea? Un comentario vacío o de una palabra no debería bastar.
+- **Qué es "un día".** ¿Días naturales o días de clase? Los fines de semana y vacaciones no deberían romperla si la clase no se reúne — el horario de la clase (`schedule_json`) ya existe. Zona horaria del alumno vs del servidor.
+- **La curva de probabilidad.** Por ejemplo: 0 % los primeros días y subiendo hasta un tope (¿cuánto 2× y cuánto 3×?). Configurable por clase, como `like_exponent` — nunca valores fijos en el código.
+- **A qué se aplica el multiplicador.** Al aura que reciba *esa* publicación. Ojo con la curva cóncava: el aura vale `like_value × N^0.5` sobre el total del alumno, no por post. Hay que definir cómo entra un post con 2× en esa suma (p. ej., sus auras cuentan doble en N, o un bono aparte en el ledger). Escribir el ejemplo con números en el spec.
+- **El sorteo se guarda, nunca se recalcula.** Cada sorteo es una fila append-only en el ledger en el momento de publicar; la calificación se computa, no se guarda, así que tirar el dado al calcular cambiaría la nota en cada carga. Si el post se borra o se veta, el multiplicador se va con él ("sin evidencia no hay puntos").
+- **Cómo se ve.** Contador de racha (¿en el perfil, junto a la calificación, en el compositor?); el alumno debe ver que su post "salió" 2× o 3× — es lo que engancha. Sin emojis como UI (CLAUDE.md): un icono de remixicon.
+- **Quién juega.** Ghost 👻 y polizón 🥷 no ganan puntos, así que tampoco multiplicadores; el aura del profe no da puntos — ¿la multiplica?
+- **Anti-trampa.** Publicar basura para no perder la racha. El veto ya cancela; ¿basta?
 
 ## Calificar exámenes desde el hilo (Mario, 2026-10-23)
 Calificar una tarea ahí mismo, desde el feed y el hilo, funciona y gusta; los exámenes deberían igual. Hoy el botón "Calificar" del hilo sólo aparece en respuestas marcadas como entrega (`Thread.tsx`), y casi nadie marca su examen como entrega — por eso el roster de `/revisar` ya cuenta como entrega la respuesta más reciente con archivos (bug 8 → R12, `_examen_submission`).
