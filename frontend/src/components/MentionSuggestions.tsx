@@ -56,12 +56,16 @@ export default function MentionSuggestions({
                 <li key={u.id}>
                   <button
                     type="button"
-                    // pointerdown + preventDefault keeps focus (and the
-                    // keyboard) on the field.
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      onPick(insertMention(value, active!.start, caret, u.username!));
-                    }}
+                    // Pointer/mouse down are only cancelled, to keep focus (and
+                    // the keyboard) on the field. The pick runs on click: picking
+                    // on pointerdown changes `value`, unmounts this list before
+                    // the finger lifts, and the browser's follow-up click would
+                    // land on whatever is underneath (a ghost tap).
+                    onPointerDown={(e) => e.preventDefault()}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() =>
+                      onPick(insertMention(value, active!.start, caret, u.username!))
+                    }
                     className="flex w-full items-center gap-2 px-2 py-2 text-left text-sm"
                   >
                     <UserLink user={u} avatar size={24} plain />
