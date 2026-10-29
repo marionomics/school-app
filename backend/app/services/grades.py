@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.models import (AttendanceRecord, Class, ClassSession, PointsConfig,
                         PointsLedger, Post, Review)
+from app.services.submissions import counting_entrega, counting_submission
 
 ON_TIME = Decimal("100")
 UNDER_24H = Decimal("90")
@@ -57,53 +58,31 @@ def get_config(db: Session, class_id: int) -> PointsConfig:
 
 
 def _counting_entrega(db: Session, user_id: int, tarea_id: int) -> Optional[Post]:
-    """Latest active entrega by this student on this tarea."""
-    return (
-        db.query(Post)
-        .filter(Post.author_id == user_id,
-                Post.parent_id == tarea_id,
-                Post.is_entrega.is_(True),
-                Post.status == "active")
-        .order_by(Post.created_at.desc())
-        .first()
-    )
+    """The entrega that counts for this student — their own or their team's
+    (services/submissions.py)."""
+    return counting_entrega(db, user_id, tarea_id)
 
 
 def examen_submission(db: Session, student_id: int, examen: Post) -> Optional[Post]:
-    """What the student handed in for this examen, whatever its modality.
-
-    Their marked entrega if there is one; otherwise their latest reply that
-    carries files. Nobody tells a student to flip the entrega toggle on an
-    examen, and the roster must not hide their work for it (bug 8). A reply
-    with only text is a question, not an answer, so it is left out.
-    """
-    entrega = _counting_entrega(db, student_id, examen.id)
-    if entrega is not None:
-        return entrega
-    return (
-        db.query(Post)
-        .filter(Post.author_id == student_id,
-                Post.parent_id == examen.id,
-                Post.status == "active",
-                Post.attachments.any())
-        .order_by(Post.created_at.desc())
-        .first()
-    )
+    """What counts as this student's examen work, own or team
+    (services/submissions.py)."""
+    return counting_submission(db, student_id, examen)
 
 
 def counting_review(db: Session, item_post_id: int, student_id: int,
                     entrega: Optional[Post]) -> Optional[Review]:
-    """The review for this (item, student), unless it is stale.
+    """The review for this student's counting submission, unless it is stale.
 
-    A review is stale when it was written against a submission the student has
-    since replaced — grading someone early must not freeze their score against
-    work that no longer exists. A paper examen has no entrega and never goes
-    stale.
+    The review lives on the submission's author: a team member's grade *is*
+    the author's review of the team entrega (spec 2026-10-28 §2) — never a
+    copy. A review is stale when written against a submission since replaced;
+    a paper examen has no submission and never goes stale.
     """
+    owner = entrega.author_id if entrega is not None else student_id
     review = (
         db.query(Review)
         .filter(Review.item_post_id == item_post_id,
-                Review.student_id == student_id)
+                Review.student_id == owner)
         .first()
     )
     if review is None:
@@ -280,7 +259,8 @@ def examenes_rubro(db: Session, user_id: int, klass: Class, now: datetime) -> Ru
         entrega = _counting_entrega(db, user_id, examen.id)
         if entrega is not None:
             entregadas += 1
-        review = counting_review(db, examen.id, user_id, entrega)
+        submission = examen_submission(db, user_id, examen)
+        review = counting_review(db, examen.id, user_id, submission)
         if review is not None and review.score is not None:
             total += Decimal(review.score) / Decimal("10")   # 1–10 scale
     points = (total / len(graded)) * weight
