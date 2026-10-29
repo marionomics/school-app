@@ -16,7 +16,10 @@ import { useToast } from "@/components/Toaster";
 import { useVetoFlow } from "@/lib/useVetoFlow";
 import { canSubmit } from "@/lib/attachments";
 import { es } from "@/strings/es";
-import type { Post, ThreadResponse } from "@/lib/types";
+import type { Post, TeamCheckResult, ThreadResponse } from "@/lib/types";
+import { parseUsernames } from "@/lib/mentions";
+import { useDebounced } from "@/lib/useDebounced";
+import { teamResultToast, teamWarning } from "@/lib/teamWarnings";
 import { invalidateGrades } from "@/lib/grades";
 import { dropFromFeed, patchFeedPost, unpinFromFeed } from "@/lib/postCache";
 import { ungradedEntregaIds } from "@/lib/review";
@@ -47,6 +50,28 @@ export default function Thread() {
     queryFn: () => api<ThreadResponse>(`/api/posts/${id}`),
   });
 
+  // A submission: the entrega switch on, or an examen reply with files.
+  // Hooks run before the early returns, so read the root from q.data.
+  const isSubmission =
+    replyTo === null &&
+    (isEntrega || (q.data?.post.type === "examen" && files.length > 0));
+  const teamNames = useDebounced(
+    isSubmission ? parseUsernames(reply).join(",") : "",
+    300,
+  );
+  const teamCheck = useQuery({
+    queryKey: ["team-check", id, teamNames],
+    queryFn: () =>
+      api<{ results: TeamCheckResult[] }>(
+        `/api/posts/${id}/team-check?` +
+          teamNames.split(",").map((u) => `u=${encodeURIComponent(u)}`).join("&"),
+      ),
+    enabled: teamNames !== "",
+  });
+  const okTeam = (teamCheck.data?.results ?? [])
+    .filter((r) => r.status === "ok")
+    .map((r) => r.username);
+
   const send = useMutation({
     mutationFn: () => {
       const fd = new FormData();
@@ -67,6 +92,10 @@ export default function Thread() {
       // Without this the tarea stays under "Por entregar" until a refresh and
       // the student thinks the entrega failed.
       if (sent.is_entrega) unpinFromFeed(qc, Number(id));
+      if (isSubmission && teamNames !== "") {
+        const msg = teamResultToast(okTeam, sent);
+        if (msg) toast.show(msg);
+      }
     },
     onError: (e) => toast.show(e instanceof ApiError ? e.message : es.post.replyError),
   });
@@ -153,7 +182,7 @@ export default function Thread() {
     // The reply bar is fixed to the bottom and grows with the attached-file
     // chips (entrega toggle + a wrapped chip row can pass 200 px), so the
     // list needs to reserve more room whenever files are attached.
-    <div className={files.length > 0 ? "pb-52" : "pb-28"}>
+    <div className={files.length > 0 || (isSubmission && teamNames !== "") ? "pb-52" : "pb-28"}>
       {veto.dialog}
       {card(post, 0)}
       {user?.role === "teacher" && post.type === "examen" && post.class_id != null && (
@@ -205,6 +234,22 @@ export default function Thread() {
             {isEntrega && tierLabel && (
               <p className="text-xs text-muted-foreground">{tierLabel}</p>
             )}
+          </div>
+        )}
+        {isSubmission && teamCheck.data && (
+          <div className="mb-1 flex flex-col gap-0.5 text-xs">
+            {okTeam.length > 0 && (
+              <p className="text-muted-foreground">
+                {es.mentions.team}{" "}
+                {okTeam.map((u) => `@${u}`).join(" · ")}
+              </p>
+            )}
+            {teamCheck.data.results.map((r) => {
+              const w = teamWarning(r);
+              return w ? (
+                <p key={r.username} className="text-destructive">{w}</p>
+              ) : null;
+            })}
           </div>
         )}
         <FileChips
