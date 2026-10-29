@@ -114,3 +114,20 @@ def test_team_check_denies_access_outside_viewer_classes(client, db, klass):
     r = client.get(f"/api/posts/{tarea.id}/team-check", params={"u": "anyone"},
                    headers=_h(db, viewer))
     assert r.status_code == 404
+
+
+def test_search_promotes_classmates_past_alphabetic_sort(client, db, klass):
+    """Classmates must appear first even if their usernames sort after many
+    non-classmates. Without SQL-level ordering (classmates first), a query
+    with limit(50) could cut off classmates that sort alphabetically late."""
+    me = _user(db, klass, "me")
+    # Classmate with username that sorts late
+    classmate = _user(db, klass, "bzz")
+    # Create enough non-classmates with "b" prefix to potentially push classmate
+    # past the 50-row limit if sorting is done after fetch.
+    for i in range(60):
+        _user(db, None, f"ba{i:02d}")
+    # Search for "b" — should get classmate first, then non-classmates
+    results = _search(client, db, me, "b")
+    assert results[0] == "bzz", f"Classmate 'bzz' should be first, got: {results[:3]}"
+    assert len(results) == 8  # limit

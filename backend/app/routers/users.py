@@ -35,18 +35,32 @@ def search_users(q: str = Query(..., min_length=1, max_length=40),
     if not term:
         return {"users": []}
     like = _like_prefix(term)
-    rows = (db.query(User)
-            .filter(User.username.isnot(None), User.id != user.id,
-                    or_(User.username.like(like, escape="\\"),
-                        func.lower(User.name).like(like, escape="\\")))
-            .order_by(User.username)
-            .limit(50).all())
+
+    # Compute classmate ids before querying, so SQL can order with classmates first.
     mine = viewer_class_ids(db, user)
-    close = {uid for (uid,) in db.query(Enrollment.user_id).filter(
-        Enrollment.class_id.in_(mine), Enrollment.status == "active")} if mine else set()
-    close |= {tid for (tid,) in db.query(Class.teacher_id).filter(Class.id.in_(mine))} if mine else set()
-    rows.sort(key=lambda u: (u.id not in close, u.username))
-    return {"users": [AuthorOut.model_validate(u) for u in rows[:SEARCH_LIMIT]]}
+    if not mine:
+        close = set()
+    else:
+        close = {uid for (uid,) in db.query(Enrollment.user_id).filter(
+            Enrollment.class_id.in_(mine), Enrollment.status == "active")}
+        close |= {tid for (tid,) in db.query(Class.teacher_id).filter(Class.id.in_(mine))}
+
+    # Order in SQL: classmates first, then by username. Limit only SEARCH_LIMIT.
+    if close:
+        rows = (db.query(User)
+                .filter(User.username.isnot(None), User.id != user.id,
+                        or_(User.username.like(like, escape="\\"),
+                            func.lower(User.name).like(like, escape="\\")))
+                .order_by(User.id.in_(close).desc(), User.username)
+                .limit(SEARCH_LIMIT).all())
+    else:
+        rows = (db.query(User)
+                .filter(User.username.isnot(None), User.id != user.id,
+                        or_(User.username.like(like, escape="\\"),
+                            func.lower(User.name).like(like, escape="\\")))
+                .order_by(User.username)
+                .limit(SEARCH_LIMIT).all())
+    return {"users": [AuthorOut.model_validate(u) for u in rows]}
 
 
 @router.patch("/me", response_model=UserOut)
