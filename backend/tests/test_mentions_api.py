@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from app.auth.sessions import create_session
-from app.models import Enrollment, Post, PostMention, User
+from app.models import Class, Enrollment, Post, PostMention, User
 
 DUE = datetime(2030, 8, 9, 23, 59, tzinfo=timezone.utc)
 
@@ -87,3 +87,30 @@ def test_team_check_needs_a_tarea_or_examen(client, db, klass):
     db.commit()
     r = client.get(f"/api/posts/{p.id}/team-check", params={"u": "x_y"}, headers=_h(db, ana))
     assert r.status_code == 422
+
+
+def test_team_check_denies_access_outside_viewer_classes(client, db, klass):
+    """A tarea in a class the viewer is not enrolled in — 404 to avoid
+    leaking enrollment and team information across class boundaries."""
+    # Create a second class with a tarea
+    other_teacher = _user(db, None, "otro_prof")
+    other_teacher.role = "teacher"
+    db.commit()
+    other_klass = Class(name="Otra", code="OTRA1", teacher_id=other_teacher.id,
+                        start_date=klass.start_date, end_date=klass.end_date)
+    db.add(other_klass)
+    db.flush()
+
+    # Create a student who is NOT in the second class
+    viewer = _user(db, klass, "viewer")
+
+    # Create a tarea in the other class
+    tarea = Post(author_id=other_teacher.id, class_id=other_klass.id,
+                 type="tarea", content="T", due_date=DUE)
+    db.add(tarea)
+    db.commit()
+
+    # Viewer should get 404, not team info
+    r = client.get(f"/api/posts/{tarea.id}/team-check", params={"u": "anyone"},
+                   headers=_h(db, viewer))
+    assert r.status_code == 404

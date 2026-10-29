@@ -634,6 +634,8 @@ def team_check(item_id: int, u: List[str] = Query(default=[]),
     item = db.get(Post, item_id)
     if item is None or item.status != "active":
         raise HTTPException(status_code=404, detail="Publicación no encontrada")
+    if item.class_id not in viewer_class_ids(db, user):
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
     if item.type not in ("tarea", "examen"):
         raise HTTPException(status_code=422, detail="Sólo una tarea o un examen tiene equipo")
     names: List[str] = []
