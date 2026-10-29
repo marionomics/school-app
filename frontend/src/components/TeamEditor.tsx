@@ -70,11 +70,12 @@ export default function TeamEditor({
               <Button
                 variant="destructive"
                 size="sm"
+                disabled={flip.isPending}
                 onClick={() => flip.mutate({ userId: m.user.id, removed: true })}
               >
                 {es.mentions.confirm}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setConfirming(null)}>
+              <Button variant="ghost" size="sm" disabled={flip.isPending} onClick={() => setConfirming(null)}>
                 {es.mentions.cancel}
               </Button>
             </div>

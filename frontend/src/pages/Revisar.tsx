@@ -21,7 +21,7 @@ import type {
   ParticipacionRow,
   QueueStudent,
 } from "@/lib/types";
-import { invalidateGrades } from "@/lib/grades";
+import { invalidateGrades, invalidateTeamChange } from "@/lib/grades";
 import { patchFeedPost, teacherAura } from "@/lib/postCache";
 import { useAcceptSuggested } from "@/lib/useAcceptSuggested";
 
@@ -95,6 +95,7 @@ function EntregasTab({
   classId: number;
   onSaved: () => void;
 }) {
+  const qc = useQueryClient();
   const [open, setOpen] = useState<{
     tareaId: number;
     row: EntregaRow;
@@ -186,7 +187,7 @@ function EntregasTab({
           initialFeedback=""
           team={{ postId: open.row.entrega_post_id, members: open.row.team }}
           onTeamChanged={() => {
-            onSaved();
+            invalidateTeamChange(qc);
             setOpen(null);
           }}
           onSaved={onSaved}

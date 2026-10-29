@@ -20,7 +20,7 @@ import type { Post, TeamCheckResult, ThreadResponse } from "@/lib/types";
 import { parseUsernames } from "@/lib/mentions";
 import { useDebounced } from "@/lib/useDebounced";
 import { teamResultToast, teamWarning } from "@/lib/teamWarnings";
-import { invalidateGrades } from "@/lib/grades";
+import { invalidateGrades, invalidateTeamChange } from "@/lib/grades";
 import { dropFromFeed, patchFeedPost, unpinFromFeed } from "@/lib/postCache";
 import { ungradedEntregaIds } from "@/lib/review";
 import { useAcceptSuggested } from "@/lib/useAcceptSuggested";
@@ -337,9 +337,7 @@ export default function Thread() {
               .map((m) => ({ user: m.user, removed: m.removed })),
           }}
           onTeamChanged={() => {
-            void qc.invalidateQueries({ queryKey: ["thread", id] });
-            void qc.invalidateQueries({ queryKey: ["examen-roster", post.id] });
-            invalidateGrades(qc);
+            invalidateTeamChange(qc);
             // `grading` is a snapshot of the reply; close so the teacher
             // reopens it with the refetched team.
             setGrading(null);

@@ -32,6 +32,8 @@ export default function ExamenRosterPanel({ examenId }: { examenId: number }) {
       score: number;
     }) => saveReview({ item_post_id: examenId, student_id: studentId, score }),
     onSuccess: () => {
+      // Teammates share the score: show the server's, not a stale draft.
+      setDraft({});
       void qc.invalidateQueries({ queryKey: ["examen-roster", examenId] });
     },
     onError: () => toast.show(es.revisar.saveError),
