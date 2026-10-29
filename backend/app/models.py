@@ -122,7 +122,7 @@ class Post(Base):
     # selectin: the feed serializes mentions on every card; one batched query
     # per page instead of one per post.
     mentions: Mapped[List["PostMention"]] = relationship(
-        lazy="selectin", order_by="PostMention.id")
+        lazy="selectin", order_by="PostMention.id", passive_deletes=True)
 
 
 class PostMention(Base):

@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from app.models import Attachment, Enrollment, Post, PostMention, Review, User, utcnow
 from app.services.grades import (_counting_entrega, counting_review, examen_submission,
-                                 tareas_rubro)
+                                 examenes_rubro, tareas_rubro)
 from app.services.submissions import live_team_member_ids, team_of
 
 DUE = datetime(2026, 8, 9, 23, 59, tzinfo=timezone.utc)
@@ -160,3 +160,30 @@ def test_a_solo_author_is_not_on_a_team(db, teacher, klass):
     t = _item(db, teacher, klass)
     _sub(db, ana, t, DUE)
     assert team_of(db, ana.id, t) is None
+
+
+def test_examenes_rubro_counts_a_solo_reply_with_files_pinned_by_the_review(db, teacher, klass):
+    ana = _user(db, klass, "ana")
+    x = _item(db, teacher, klass, "examen")
+    x.graded_at = DUE
+    sub = _sub(db, ana, x, DUE, is_entrega=False, files=["p.pdf"])
+    db.add(Review(item_post_id=x.id, student_id=ana.id, entrega_post_id=sub.id,
+                  reviewer_id=teacher.id, score=Decimal("8")))
+    db.commit()
+    r = examenes_rubro(db, ana.id, klass, now=AFTER)
+    assert r.evaluated is True
+    assert r.points == Decimal("8") / Decimal("10") * klass.examenes_weight
+
+
+def test_examenes_rubro_gives_a_team_member_the_authors_score(db, teacher, klass):
+    ana, pedro, luis = _team(db, klass)
+    x = _item(db, teacher, klass, "examen")
+    x.graded_at = DUE
+    sub = _sub(db, ana, x, DUE, team=[pedro], is_entrega=False, files=["p.pdf"])
+    db.add(Review(item_post_id=x.id, student_id=ana.id, entrega_post_id=sub.id,
+                  reviewer_id=teacher.id, score=Decimal("9")))
+    db.commit()
+    expected = Decimal("9") / Decimal("10") * klass.examenes_weight
+    assert examenes_rubro(db, ana.id, klass, now=AFTER).points == expected
+    assert examenes_rubro(db, pedro.id, klass, now=AFTER).points == expected
+    assert examenes_rubro(db, luis.id, klass, now=AFTER).points == Decimal("0")

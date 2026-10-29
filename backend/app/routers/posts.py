@@ -15,7 +15,7 @@ from app.services import points
 from app.services.aura import set_teacher_aura
 from app.services.media import attachment_out
 from app.services.mentions import record_mentions, evaluate_team
-from app.services.submissions import team_of
+from app.services.submissions import live_team_member_ids, own_submission, team_of
 from app.services.attribution import resolve_default_class
 from app.services.visibility import assignment_visible, viewer_class_ids
 from app.services.cursor import decode_feed_cursor, encode_feed_cursor
@@ -643,7 +643,11 @@ def team_check(item_id: int, u: List[str] = Query(default=[]),
         n = raw.strip().lstrip("@").lower()
         if n and n not in names:
             names.append(n)
-    return {"results": [
+    own = own_submission(db, user.id, item)
+    current = (live_team_member_ids(db, own) if own is not None else [])
+    current_team = [u.username for u in
+                    (db.get(User, uid) for uid in current) if u is not None]
+    return {"current_team": current_team, "results": [
         {"username": v.username,
          "status": "ok" if v.reason is None else v.reason,
          "team_author": v.team_author.username if v.team_author else None}
@@ -716,9 +720,11 @@ def restore_to_team(post_id: int, user_id: int, user: User = Depends(get_current
     if m.removed_at is not None:
         other = team_of(db, user_id, item)
         if other is not None:
-            raise HTTPException(
-                status_code=409,
-                detail=f"@{m.user.username} ya está en el equipo de @{other.author.username}")
+            if other.author_id == user_id:
+                detail = f"@{m.user.username} ya tiene su propio equipo"
+            else:
+                detail = f"@{m.user.username} ya está en el equipo de @{other.author.username}"
+            raise HTTPException(status_code=409, detail=detail)
         m.removed_at = None
         m.removed_by = None
         db.commit()

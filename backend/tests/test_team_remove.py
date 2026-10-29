@@ -65,3 +65,17 @@ def test_only_the_teacher_and_only_team_mentions(client, db, teacher, teacher_he
     assert client.post(f"/api/posts/{e.id}/team/{pedro.id}/remove", headers=h).status_code == 403
     assert client.post(f"/api/posts/{e.id}/team/{luis.id}/remove",
                        headers=teacher_headers).status_code == 404
+
+
+def test_restore_refused_when_the_member_has_their_own_team(client, db, teacher, teacher_headers, klass):
+    ana, pedro, luis, t, e = _setup(db, teacher, klass)
+    client.post(f"/api/posts/{e.id}/team/{pedro.id}/remove", headers=teacher_headers)
+    mine = Post(author_id=pedro.id, class_id=klass.id, parent_id=t.id, content="@luis",
+                is_entrega=True, created_at=DUE)
+    db.add(mine)
+    db.flush()
+    db.add(PostMention(post_id=mine.id, user_id=luis.id, kind="team"))
+    db.commit()
+    r = client.post(f"/api/posts/{e.id}/team/{pedro.id}/restore", headers=teacher_headers)
+    assert r.status_code == 409
+    assert r.json()["detail"] == "@pedro ya tiene su propio equipo"

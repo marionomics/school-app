@@ -1,9 +1,9 @@
 """Teacher surfaces agree with the engine on team submissions (spec §2–§3)."""
 from datetime import date, datetime, timedelta, timezone
 
-from app.models import Enrollment, Post, PostMention, Review, User, utcnow
+from app.models import Attachment, Enrollment, Post, PostMention, Review, User, utcnow
 from app.services.feed_query import teacher_pending
-from app.services.grades import _counting_entrega
+from app.services.grades import _counting_entrega, examen_submission
 
 # Fixed past dates for posts, real "now" for pending: reviews saved through the
 # API get updated_at = utcnow(), and teacher_pending only counts what happened
@@ -181,3 +181,19 @@ def test_a_ghost_author_with_no_active_members_is_still_rejected(
                                          "entrega_post_id": e.id, "score": 70},
                    headers=teacher_headers)
     assert r.status_code == 422
+
+
+def test_pending_counts_one_per_examen_team_and_agrees_with_the_engine(db, teacher, klass):
+    _running(db, klass)
+    ana, pedro, luis = (_user(db, klass, n) for n in ("ana", "pedro", "luis"))
+    x = Post(author_id=teacher.id, class_id=klass.id, type="examen", content="P",
+             examen_mode="digital", created_at=DUE - timedelta(days=3))
+    db.add(x)
+    db.commit()
+    sub = _sub(db, ana, x, team=[pedro, luis], is_entrega=False)     # reply with files
+    db.add(Attachment(post_id=sub.id, file_key="k/p.pdf", file_name="p.pdf",
+                      file_size=10, mime_type="application/pdf"))
+    db.commit()
+    assert teacher_pending(db, teacher.id, NOW)[x.id][1] == 1
+    ids = {examen_submission(db, u.id, x).id for u in (ana, pedro, luis)}
+    assert ids == {sub.id}

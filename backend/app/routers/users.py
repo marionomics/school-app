@@ -12,7 +12,6 @@ from app import storage
 from app.services import media
 from app.models import Class, Enrollment, User, utcnow
 from app.schemas import AuthorOut, UserOut, UserUpdate
-from app.services.visibility import viewer_class_ids
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -37,7 +36,11 @@ def search_users(q: str = Query(..., min_length=1, max_length=40),
     like = _like_prefix(term)
 
     # Compute classmate ids before querying, so SQL can order with classmates first.
-    mine = viewer_class_ids(db, user)
+    # Only classes the viewer is ACTIVE in (or teaches): ghost and polizón
+    # classes are not a team to pick from.
+    mine = [cid for (cid,) in db.query(Enrollment.class_id).filter(
+        Enrollment.user_id == user.id, Enrollment.status == "active")]
+    mine += [cid for (cid,) in db.query(Class.id).filter(Class.teacher_id == user.id)]
     if not mine:
         close = set()
     else:

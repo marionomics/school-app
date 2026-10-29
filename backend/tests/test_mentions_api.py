@@ -131,3 +131,46 @@ def test_search_promotes_classmates_past_alphabetic_sort(client, db, klass):
     results = _search(client, db, me, "b")
     assert results[0] == "bzz", f"Classmate 'bzz' should be first, got: {results[:3]}"
     assert len(results) == 8  # limit
+
+
+def test_search_classmates_are_active_enrollments_in_active_classes(client, db, klass):
+    me = _user(db, klass, "me")
+    _user(db, klass, "bzz_active")
+    _user(db, klass, "baa_ghost", status="ghost")      # same class, but a ghost
+    other = Class(name="Otra", code="OTRA2", teacher_id=klass.teacher_id,
+                  start_date=klass.start_date, end_date=klass.end_date)
+    db.add(other)
+    db.flush()
+    pol = User(google_id="g-pol", email="pol@example.com", name="Pol", username="bab_pol")
+    db.add(pol)
+    db.flush()
+    db.add(Enrollment(user_id=pol.id, class_id=other.id, status="active"))
+    db.add(Enrollment(user_id=me.id, class_id=other.id, status="polizon"))
+    db.commit()
+    for i in range(10):
+        _user(db, None, f"b{i}x")
+    # Only the active classmate in the class where I'm active is promoted.
+    res = _search(client, db, me, "b")
+    assert res[0] == "bzz_active"
+    assert "baa_ghost" not in res[:1] and "bab_pol" not in res[:1]
+
+
+def test_team_check_reports_the_current_team(client, db, teacher, klass):
+    ana, pedro = _user(db, klass, "ana"), _user(db, klass, "pedro")
+    t = Post(author_id=teacher.id, class_id=klass.id, type="tarea", content="T", due_date=DUE)
+    db.add(t)
+    db.flush()
+    h = _h(db, ana)
+    assert client.get(f"/api/posts/{t.id}/team-check", headers=h).json()["current_team"] == []
+    e = Post(author_id=ana.id, class_id=klass.id, parent_id=t.id, content="@pedro",
+             is_entrega=True)
+    db.add(e)
+    db.flush()
+    db.add(PostMention(post_id=e.id, user_id=pedro.id, kind="team"))
+    db.commit()
+    r = client.get(f"/api/posts/{t.id}/team-check", headers=h)
+    assert r.status_code == 200, r.text
+    assert r.json()["current_team"] == ["pedro"]
+    # A member's own view: they have no submission of their own.
+    assert client.get(f"/api/posts/{t.id}/team-check",
+                      headers=_h(db, pedro)).json()["current_team"] == []
