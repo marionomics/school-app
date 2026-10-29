@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import UserLink from "@/components/UserLink";
+import MentionText from "@/components/MentionText";
+import { liveTeam } from "@/lib/mentions";
 import { Button } from "@/components/ui/button";
 import {
   RiCheckLine,
@@ -40,6 +42,7 @@ export default function PostCard({
   onOpenAttachment?: (id: number) => void;
   onVeto?: (post: Post) => void;
 }) {
+  const navigate = useNavigate();
   // Only a DELETED post loses its body. A veto takes the points, not the
   // student's words — mirrors serialize_post on the backend, which stopped
   // blanking vetoed content. Treating vetoed as removed here would show the
@@ -71,7 +74,7 @@ export default function PostCard({
         clamp && !expanded ? " line-clamp-6" : ""
       }`}
     >
-      {post.content}
+      <MentionText content={post.content} mentions={post.mentions} />
     </p>
   );
   return (
@@ -150,9 +153,17 @@ export default function PostCard({
           </span>
         )}
         {linkToThread && !removed ? (
-          <Link to={`/post/${post.id}`} className="mt-1 block">
+          <div
+            role="link"
+            tabIndex={0}
+            className="mt-1 block cursor-pointer"
+            onClick={() => navigate(`/post/${post.id}`)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") navigate(`/post/${post.id}`);
+            }}
+          >
             {body}
-          </Link>
+          </div>
         ) : (
           <div className="mt-1">{body}</div>
         )}
@@ -163,6 +174,17 @@ export default function PostCard({
           >
             {es.feed.seeMore}
           </button>
+        )}
+        {!removed && liveTeam(post).length > 0 && (
+          <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+            <span>{es.mentions.team}</span>
+            {[post.author, ...liveTeam(post)].map((u, i) => (
+              <span key={u.id} className="flex items-center gap-1">
+                {i > 0 && <span aria-hidden>·</span>}
+                <UserLink user={u} />
+              </span>
+            ))}
+          </p>
         )}
         {!removed && post.attachments.length > 0 && (
           <PostPhotos

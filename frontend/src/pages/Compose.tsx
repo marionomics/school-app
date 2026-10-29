@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
@@ -9,6 +9,7 @@ import { FileChips, FilePicker } from "@/components/FilePicker";
 import { canSubmit } from "@/lib/attachments";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import MentionSuggestions from "@/components/MentionSuggestions";
 import { es } from "@/strings/es";
 import type { MyClasses, Post } from "@/lib/types";
 import { invalidateGrades } from "@/lib/grades";
@@ -25,6 +26,8 @@ export default function Compose() {
   const [examenMode, setExamenMode] = useState<"paper" | "digital">("paper");
   const [dueDate, setDueDate] = useState<string>("");
   const [content, setContent] = useState("");
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
+  const [caret, setCaret] = useState(0);
   const [classId, setClassId] = useState<number | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [preparing, setPreparing] = useState(false);
@@ -183,6 +186,7 @@ export default function Compose() {
       )}
 
       <textarea
+        ref={fieldRef}
         autoFocus
         className="min-h-40 w-full resize-none rounded-lg border p-3"
         placeholder={
@@ -195,7 +199,21 @@ export default function Compose() {
                 : es.compose.placeholder
         }
         value={content}
-        onChange={(e) => setContent(e.target.value)}
+        onChange={(e) => {
+          setContent(e.target.value);
+          setCaret(e.target.selectionStart ?? e.target.value.length);
+        }}
+        onSelect={(e) => setCaret(e.currentTarget.selectionStart ?? 0)}
+      />
+      <MentionSuggestions
+        value={content}
+        caret={caret}
+        anchor={fieldRef}
+        onPick={({ value, caret: c }) => {
+          setContent(value);
+          setCaret(c);
+          requestAnimationFrame(() => fieldRef.current?.setSelectionRange(c, c));
+        }}
       />
 
       <FilePicker

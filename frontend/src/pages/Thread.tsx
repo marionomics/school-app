@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
@@ -10,6 +10,7 @@ import { FileChips, FilePicker } from "@/components/FilePicker";
 import ReviewSheet from "@/components/ReviewSheet";
 import ExamenGradedToggle from "@/components/ExamenGradedToggle";
 import UserLink from "@/components/UserLink";
+import MentionSuggestions from "@/components/MentionSuggestions";
 import { FeedSkeleton } from "@/components/Skeletons";
 import { useToast } from "@/components/Toaster";
 import { useVetoFlow } from "@/lib/useVetoFlow";
@@ -31,6 +32,8 @@ export default function Thread() {
   const like = useLikeMutation();
   const veto = useVetoFlow();
   const [reply, setReply] = useState("");
+  const fieldRef = useRef<HTMLInputElement>(null);
+  const [caret, setCaret] = useState(0);
   const [files, setFiles] = useState<File[]>([]);
   const [preparing, setPreparing] = useState(false);
   const [replyTo, setReplyTo] = useState<Post | null>(null);
@@ -212,10 +215,25 @@ export default function Thread() {
         <div className="flex items-center gap-2">
           <FilePicker files={files} onChange={setFiles} onPreparing={setPreparing} compact />
           <input
+            ref={fieldRef}
             className="min-w-0 flex-1 rounded-full border px-4 py-2"
             placeholder={es.post.replyPlaceholder}
             value={reply}
-            onChange={(e) => setReply(e.target.value)}
+            onChange={(e) => {
+              setReply(e.target.value);
+              setCaret(e.target.selectionStart ?? e.target.value.length);
+            }}
+            onSelect={(e) => setCaret(e.currentTarget.selectionStart ?? 0)}
+          />
+          <MentionSuggestions
+            value={reply}
+            caret={caret}
+            anchor={fieldRef}
+            onPick={({ value, caret: c }) => {
+              setReply(value);
+              setCaret(c);
+              requestAnimationFrame(() => fieldRef.current?.setSelectionRange(c, c));
+            }}
           />
           <button
             disabled={!canSubmit(reply, files) || send.isPending || preparing}
