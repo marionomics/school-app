@@ -14,7 +14,7 @@ from app.schemas import AuthorOut, MentionOut, PostOut, ReviewOut
 from app.services import points
 from app.services.aura import set_teacher_aura
 from app.services.media import attachment_out
-from app.services.mentions import record_mentions
+from app.services.mentions import record_mentions, evaluate_team
 from app.services.attribution import resolve_default_class
 from app.services.visibility import assignment_visible, viewer_class_ids
 from app.services.cursor import decode_feed_cursor, encode_feed_cursor
@@ -623,6 +623,29 @@ def unveto(post_id: int, user: User = Depends(get_current_user),
     points.restore_post(db, post=post)
     db.commit()
     return {"status": post.status, "veto_reason": None}
+
+
+@router.get("/{item_id}/team-check")
+def team_check(item_id: int, u: List[str] = Query(default=[]),
+               user: User = Depends(get_current_user),
+               db: Session = Depends(get_db)):
+    """What publish would decide for these @mentions, read-only — so the
+    composer can warn before the entrega is sent (it never blocks)."""
+    item = db.get(Post, item_id)
+    if item is None or item.status != "active":
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+    if item.type not in ("tarea", "examen"):
+        raise HTTPException(status_code=422, detail="Sólo una tarea o un examen tiene equipo")
+    names: List[str] = []
+    for raw in u:
+        n = raw.strip().lstrip("@").lower()
+        if n and n not in names:
+            names.append(n)
+    return {"results": [
+        {"username": v.username,
+         "status": "ok" if v.reason is None else v.reason,
+         "team_author": v.team_author.username if v.team_author else None}
+        for v in evaluate_team(db, user, item, names[:10])]}
 
 
 def _teacher_participacion(db: Session, post_id: int, user: User) -> Post:

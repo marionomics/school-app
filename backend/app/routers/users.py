@@ -1,7 +1,8 @@
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -10,9 +11,42 @@ from app.database import get_db
 from app import storage
 from app.services import media
 from app.models import Class, Enrollment, User, utcnow
-from app.schemas import UserOut, UserUpdate
+from app.schemas import AuthorOut, UserOut, UserUpdate
+from app.services.visibility import viewer_class_ids
 
 router = APIRouter(prefix="/api/users", tags=["users"])
+
+
+SEARCH_LIMIT = 8
+
+
+def _like_prefix(term: str) -> str:
+    # `_` and `%` are SQL wildcards; usernames contain `_`.
+    return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+
+
+@router.get("/search")
+def search_users(q: str = Query(..., min_length=1, max_length=40),
+                 user: User = Depends(get_current_user),
+                 db: Session = Depends(get_db)):
+    """@mention autocomplete: anyone with a username (the feed is global),
+    the viewer's classmates and teachers first."""
+    term = q.strip().lstrip("@").lower()
+    if not term:
+        return {"users": []}
+    like = _like_prefix(term)
+    rows = (db.query(User)
+            .filter(User.username.isnot(None), User.id != user.id,
+                    or_(User.username.like(like, escape="\\"),
+                        func.lower(User.name).like(like, escape="\\")))
+            .order_by(User.username)
+            .limit(50).all())
+    mine = viewer_class_ids(db, user)
+    close = {uid for (uid,) in db.query(Enrollment.user_id).filter(
+        Enrollment.class_id.in_(mine), Enrollment.status == "active")} if mine else set()
+    close |= {tid for (tid,) in db.query(Class.teacher_id).filter(Class.id.in_(mine))} if mine else set()
+    rows.sort(key=lambda u: (u.id not in close, u.username))
+    return {"users": [AuthorOut.model_validate(u) for u in rows[:SEARCH_LIMIT]]}
 
 
 @router.patch("/me", response_model=UserOut)
