@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-28
+- **Calificar exámenes desde el hilo.** En el hilo de un examen, "Calificación" aparece en la respuesta que `/revisar` cuenta como la del alumno — su entrega o, si no marcó ninguna, su respuesta más reciente con archivos —, con la escala 1–10. Ya no hace falta que el alumno marque su examen como entrega. La regla vive en un solo lugar (`examen_submission`), así que el hilo y el roster nunca discrepan.
+- **"Marcar como calificado" en el hilo del examen,** con el mismo aviso de cuántos alumnos sin calificación contarán como 0. La calificación sólo la ve el profe hasta que lo marca.
+- Pregunta cerrada (Mario): un examen con todas las calificaciones puestas sale de lo pendiente aunque no esté marcado "calificado" — marcarlo es para soltar las calificaciones, no un paso de aprobación.
+
 ## 2026-10-23
 - **Aceptar sugeridas en un toque.** En el hilo de una tarea y en `/revisar` → Entregas, el profe tiene "Aceptar sugeridas (N)": califica de una vez cada entrega a la vista con su calificación automática (100/90/50/20 según el retraso). La calificación del alumno no cambia — una entrega sin calificar ya contaba así —, sólo pasa de "sugerida" a "dada" y sale de lo pendiente del profe. Nunca pisa una calificación que el profe ya puso, y sólo toca las entregas que estaban en pantalla.
 

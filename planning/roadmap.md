@@ -8,12 +8,13 @@ Origen de los bloques 1–5: nota de Mario del 2026-09-28 ("Bug report y modific
 
 ## ▶ Empieza aquí (sesión nueva)
 
-Estado al 2026-10-28: **Bloques 0–4b cerrados y en producción**, más "Aceptar sugeridas" (calificar en un toque todas las entregas con su calificación automática). Pendiente sólo justificar faltas paso 2.
+Estado al 2026-10-28: **Bloques 0–4b cerrados y en producción**, más "Aceptar sugeridas" (calificar en un toque todas las entregas con su calificación automática) y calificar exámenes desde el hilo. Pendiente sólo justificar faltas paso 2.
 
 **Siguiente, en este orden (propuesta, Mario decide):**
-1. **Calificar exámenes desde el hilo** (sección propia abajo) — chico, sin spec largo, Mario lo pidió el 2026-10-23. Trae una pregunta abierta: ¿un examen con todas las calificaciones pero sin "calificado" sigue en lo pendiente del profe?
-2. **Racha** (sección propia abajo) — la idea grande de Mario para que los alumnos vuelvan y avancen. Toca el motor de calificación, así que va con brainstorming → spec → plan, y absorbe el "premio por comentar" de `future.md`.
-3. **Bloque 5 — notificaciones.**
+1. ~~Calificar exámenes desde el hilo~~ ✅ 2026-10-28.
+2. **Menciones y entregas en equipo** (sección propia abajo) — antes que la racha porque este semestre ya hay trabajo en equipo y hoy cada integrante tiene que entregar por separado. Toca el motor: brainstorming → spec → plan.
+3. **Racha** (sección propia abajo) — la idea grande de Mario para que los alumnos vuelvan y avancen. Toca el motor de calificación, así que va con brainstorming → spec → plan, y absorbe el "premio por comentar" de `future.md`.
+4. **Bloque 5 — notificaciones.**
 
 **Medir el Bloque 4:** entre el **2026-11-06 y el 2026-11-13** (dos o tres semanas después del despliegue del 2026-10-23), correr `cd backend && python -m scripts.feed_metrics` contra producción y comparar con las semanas previas. Eso decide si se ajustan los pesos de `backend/app/services/feed_rank.py` o se abre la pregunta 7 de `future.md`. El profe vigila si las participaciones sin validar se le amontonan arriba (capa 1 del feed).
 
@@ -77,6 +78,19 @@ Problema (Mario): la interacción sube posts y algunos se quedan arriba sin ser 
   - **Un comentario en el feed principal.** Debajo de un post, mostrar al menos una respuesta — la que sea más relevante (criterio a definir en el spec: más aura, más reciente, de alguien a quien sigues…).
   - **Una respuesta te lo regresa.** Si alguien responde a tu post o a tu comentario, ese hilo vuelve a subir **para ti**, aunque ya lo hubieras tocado. Es la excepción a "lo que ya tocaste baja". Se cruza con el Bloque 5: es la misma señal que dispara la notificación.
 
+## Menciones y entregas en equipo (Mario, 2026-10-28)
+Poder arrobarse (`@compañero`). Por engagement, pero sobre todo por las tareas y exámenes en equipo: si un alumno arroba a sus compañeros en su entrega, la entrega es de todos y la calificación les llega a todos. Mario nunca admite equipos de más de 3, así que son a lo mucho 2 arrobados.
+
+Son dos cosas:
+- **Menciones sociales.** Al escribir `@` se sugieren compañeros; la mención se ve como `UserLink` y avisa al mencionado (se cruza con el Bloque 5). `future.md` ya las tenía junto a la wiki.
+- **Equipo en la entrega.** Mueve puntos: brainstorming → spec → plan. Lo que el spec tiene que decidir (propuestas de Claude, Mario decide):
+  - **Mención ≠ equipo.** Agradecerle a alguien en una entrega no debería volverlo coautor. Propuesta: en una entrega (o una respuesta con archivos a un examen), el compositor muestra explícitamente "equipo", máximo 2, sólo compañeros `active` de la misma clase.
+  - **Calcular, no copiar.** La entrega del equipo cuenta como entrega de cada integrante (extender `_counting_entrega`/`_examen_submission` a "suya o que lo nombra"); no se copian calificaciones, así que corregir una calificación les llega a todos.
+  - **Conflictos.** Un integrante que además entregó por su cuenta, o que aparece en dos equipos: ¿cuál cuenta? Probablemente la más reciente suya o que lo nombra, como la regla de entrega reemplazada.
+  - **Retraso.** La hora de la entrega del equipo aplica a todos.
+  - **Abuso.** Agregar a alguien que no trabajó: ¿el arrobado lo ve y puede salirse, o lo resuelve el profe?
+  - **Pendientes y `/revisar`.** Una entrega en equipo es *una* cosa por calificar, no tres.
+
 ## Racha (Mario, 2026-10-28)
 La idea para que los alumnos estén en la plataforma y de verdad avancen: **la racha**. Si mantienen su racha, según cuántos días lleven, sube la probabilidad de que el aura de sus publicaciones valga **2× o 3×**. Mientras más larga la racha, más probable el multiplicador.
 
@@ -92,11 +106,11 @@ Mueve puntos, así que toca el motor: brainstorming → spec → plan, con tests
 - **Quién juega.** Ghost 👻 y polizón 🥷 no ganan puntos, así que tampoco multiplicadores; el aura del profe no da puntos — ¿la multiplica?
 - **Anti-trampa.** Publicar basura para no perder la racha. El veto ya cancela; ¿basta?
 
-## Calificar exámenes desde el hilo (Mario, 2026-10-23)
+## Calificar exámenes desde el hilo ✅ (2026-10-28)
 Calificar una tarea ahí mismo, desde el feed y el hilo, funciona y gusta; los exámenes deberían igual. Hoy el botón "Calificar" del hilo sólo aparece en respuestas marcadas como entrega (`Thread.tsx`), y casi nadie marca su examen como entrega — por eso el roster de `/revisar` ya cuenta como entrega la respuesta más reciente con archivos (bug 8 → R12, `_examen_submission`).
-- [ ] En el hilo de un examen, "Calificar" aparece en la respuesta que el roster considera la del alumno (su entrega, o si no, su respuesta más reciente con archivos), con la escala 1–10. Misma regla en los dos lugares — reusar `_examen_submission`, no duplicarla.
-- [ ] Marcar el examen como "calificado" desde el hilo, sin ir a `/revisar`.
-- [ ] Pregunta abierta para el spec: un examen con todas las calificaciones puestas pero sin "calificado", ¿sigue en lo pendiente del profe (Bloque 4b) hasta que lo marque? Hoy sale.
+- [x] En el hilo de un examen, "Calificar" aparece en la respuesta que el roster considera la del alumno (su entrega, o si no, su respuesta más reciente con archivos), con la escala 1–10. Misma regla en los dos lugares — `examen_submission` en `services/grades.py`. ✅ 2026-10-28
+- [x] Marcar el examen como "calificado" desde el hilo, sin ir a `/revisar`. ✅ 2026-10-28
+- [x] Pregunta abierta: un examen con todas las calificaciones puestas pero sin "calificado" **sale** de lo pendiente (Mario, 2026-10-28) — "calificado" suelta las calificaciones, no es un paso de aprobación. Ya funcionaba así.
 
 ## Bloque 5 — Actividad (notificaciones)
 Como "Actividad" en Threads o "Notificaciones" en X.

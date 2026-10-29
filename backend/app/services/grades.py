@@ -69,6 +69,28 @@ def _counting_entrega(db: Session, user_id: int, tarea_id: int) -> Optional[Post
     )
 
 
+def examen_submission(db: Session, student_id: int, examen: Post) -> Optional[Post]:
+    """What the student handed in for this examen, whatever its modality.
+
+    Their marked entrega if there is one; otherwise their latest reply that
+    carries files. Nobody tells a student to flip the entrega toggle on an
+    examen, and the roster must not hide their work for it (bug 8). A reply
+    with only text is a question, not an answer, so it is left out.
+    """
+    entrega = _counting_entrega(db, student_id, examen.id)
+    if entrega is not None:
+        return entrega
+    return (
+        db.query(Post)
+        .filter(Post.author_id == student_id,
+                Post.parent_id == examen.id,
+                Post.status == "active",
+                Post.attachments.any())
+        .order_by(Post.created_at.desc())
+        .first()
+    )
+
+
 def counting_review(db: Session, item_post_id: int, student_id: int,
                     entrega: Optional[Post]) -> Optional[Review]:
     """The review for this (item, student), unless it is stale.

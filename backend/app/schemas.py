@@ -230,6 +230,9 @@ class PostOut(BaseModel):
     taps: Optional[int]
     due_date: Optional[datetime] = None
     is_entrega: bool = False
+    # Set only for the examen's teacher: the reply the roster counts as this
+    # student's work (their entrega, else their latest reply with files).
+    is_submission: bool = False
     examen_mode: Optional[str] = None
     graded_at: Optional[datetime] = None
     my_review: Optional["ReviewOut"] = None

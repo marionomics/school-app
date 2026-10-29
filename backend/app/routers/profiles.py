@@ -21,7 +21,7 @@ EXCERPT = 120
 def _is_submission(db: Session, post: Post) -> bool:
     """Homework a student handed in: a marked entrega, or a reply with files
     straight under a tarea or examen — the same "reply with files is the
-    submission" rule as review_queue._examen_submission. A text-only reply
+    submission" rule as grades.examen_submission. A text-only reply
     there is a question, not an answer. The Respuestas tab hides these and
     blanks the excerpt of a reply to one, so a profile can't be used to
     browse and copy someone's work."""

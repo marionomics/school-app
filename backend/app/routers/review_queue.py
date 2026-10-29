@@ -10,7 +10,8 @@ from app.models import Class, Enrollment, Post, PointsLedger, Review, User
 from app.schemas import BulkReviewIn
 from app.services.aura import set_teacher_aura
 from app.services.media import attachment_out
-from app.services.grades import _counting_entrega, counting_review, lateness_score
+from app.services.grades import (_counting_entrega, counting_review, examen_submission,
+                                 lateness_score)
 
 router = APIRouter(prefix="/api/review", tags=["review"])
 
@@ -96,28 +97,6 @@ def examenes_list(class_id: int, user: User = Depends(get_current_user),
                        "created_at": p.created_at} for p in rows]}
 
 
-def _examen_submission(db: Session, student_id: int, examen: Post) -> Optional[Post]:
-    """What the student handed in for this examen, whatever its modality.
-
-    Their marked entrega if there is one; otherwise their latest reply that
-    carries files. Nobody tells a student to flip the entrega toggle on an
-    examen, and the roster must not hide their work for it (bug 8). A reply
-    with only text is a question, not an answer, so it is left out.
-    """
-    entrega = _counting_entrega(db, student_id, examen.id)
-    if entrega is not None:
-        return entrega
-    return (
-        db.query(Post)
-        .filter(Post.author_id == student_id,
-                Post.parent_id == examen.id,
-                Post.status == "active",
-                Post.attachments.any())
-        .order_by(Post.created_at.desc())
-        .first()
-    )
-
-
 def _submission_json(p: Optional[Post]) -> Optional[dict]:
     if p is None:
         return None
@@ -136,7 +115,7 @@ def examen_roster(examen_id: int, user: User = Depends(get_current_user),
     rows = []
     for student in _active_students(db, examen.class_id):
         entrega = _counting_entrega(db, student.id, examen.id)
-        submission = _examen_submission(db, student.id, examen)
+        submission = examen_submission(db, student.id, examen)
         review = (
             db.query(Review)
             .filter(Review.item_post_id == examen.id, Review.student_id == student.id)

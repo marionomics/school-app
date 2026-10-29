@@ -19,7 +19,7 @@ from app.services.visibility import assignment_visible, viewer_class_ids
 from app.services.cursor import decode_feed_cursor, encode_feed_cursor
 from app.services.feed_query import aware, has_new, ranked_page, teacher_pending
 from app.services.feed_rank import ReplyOption, pick_featured
-from app.services.grades import _counting_entrega
+from app.services.grades import _counting_entrega, examen_submission
 from app.services.dates import next_sunday_due
 from app import storage
 
@@ -56,6 +56,7 @@ def get_root(db: Session, post: Post) -> Post:
 def serialize_post(post: Post, liked_ids: Set[int], *, viewer: Optional[User] = None,
                    review_by_post: Optional[dict] = None,
                    superseded: Optional[Set[int]] = None,
+                   submissions: Optional[Set[int]] = None,
                    teacher_aura_ids: Optional[Set[int]] = None) -> PostOut:
     # Only a DELETED post loses its text. A veto removes the points, not the
     # student's words — blanking them would leave an unexplained empty card in
@@ -76,6 +77,7 @@ def serialize_post(post: Post, liked_ids: Set[int], *, viewer: Optional[User] = 
         taps=post.taps,
         due_date=post.due_date,
         is_entrega=post.is_entrega and post.id not in (superseded or set()),
+        is_submission=post.id in (submissions or set()),
         examen_mode=post.examen_mode,
         graded_at=post.graded_at,
         my_review=ReviewOut.model_validate(review) if review is not None else None,
@@ -270,6 +272,31 @@ def _superseded_entregas(db: Session, posts: list) -> Set[int]:
     return out
 
 
+def _examen_submissions(db: Session, examen: Post, user: User,
+                        replies: List[Post]) -> dict:
+    """student id → the reply that holds their examen work, for the teacher
+    who grades it; empty for anyone else. Same rule as the /revisar roster, so
+    "Calificar" in the thread sits on the reply the roster shows. Students get
+    nothing: the score is not released until the examen is calificado."""
+    if examen.type != "examen" or user.role != "teacher":
+        return {}
+    klass = db.get(Class, examen.class_id) if examen.class_id else None
+    if klass is None or klass.teacher_id != user.id:
+        return {}
+    authors = {r.author_id for r in replies if r.parent_id == examen.id}
+    if not authors:
+        return {}
+    active = [uid for (uid,) in db.query(Enrollment.user_id).filter(
+        Enrollment.class_id == klass.id, Enrollment.status == "active",
+        Enrollment.user_id.in_(authors))]
+    out = {}
+    for uid in active:
+        sub = examen_submission(db, uid, examen)
+        if sub is not None:
+            out[uid] = sub.id
+    return out
+
+
 @router.get("/{post_id}")
 def get_thread(post_id: int, user: User = Depends(get_current_user),
                db: Session = Depends(get_db)):
@@ -306,9 +333,21 @@ def get_thread(post_id: int, user: User = Depends(get_current_user),
     if entrega_ids:
         for rv in db.query(Review).filter(Review.entrega_post_id.in_(entrega_ids)).all():
             review_by_post[rv.entrega_post_id] = rv
+    submissions = _examen_submissions(db, post, user, replies)
+    if submissions:
+        # The roster saves an examen score with no entrega_post_id, so it is
+        # found by (examen, student) and pinned to the reply that holds the work.
+        by_student = {rv.student_id: rv for rv in db.query(Review).filter(
+            Review.item_post_id == post.id,
+            Review.student_id.in_(submissions.keys()))}
+        for sid, sub_id in submissions.items():
+            if sid in by_student:
+                review_by_post[sub_id] = by_student[sid]
     return {"post": serialize_post(post, liked, viewer=user, superseded=superseded, teacher_aura_ids=aura),
             "replies": [serialize_post(r, liked, viewer=user, review_by_post=review_by_post,
-                                       superseded=superseded, teacher_aura_ids=aura) for r in replies]}
+                                       superseded=superseded,
+                                       submissions=set(submissions.values()),
+                                       teacher_aura_ids=aura) for r in replies]}
 
 
 @router.post("", response_model=PostOut, status_code=201)

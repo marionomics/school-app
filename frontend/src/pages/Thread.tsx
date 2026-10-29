@@ -8,6 +8,7 @@ import { latenessTier } from "@/lib/lateness";
 import PostCard from "@/components/PostCard";
 import { FileChips, FilePicker } from "@/components/FilePicker";
 import ReviewSheet from "@/components/ReviewSheet";
+import ExamenGradedToggle from "@/components/ExamenGradedToggle";
 import UserLink from "@/components/UserLink";
 import { FeedSkeleton } from "@/components/Skeletons";
 import { useToast } from "@/components/Toaster";
@@ -105,6 +106,11 @@ export default function Thread() {
     user?.role === "teacher" && post.type === "tarea" && post.due_date
       ? ungradedEntregaIds(replies)
       : [];
+  // An examen's work is whatever the roster counts as the student's — their
+  // entrega or, failing that, their latest reply with files (the server marks
+  // it). A tarea's is only the entrega.
+  const isGradable = (p: Post) =>
+    post.type === "examen" ? p.is_submission === true : p.is_entrega;
   const childrenOf = (rid: number) => replies.filter((r) => r.parent_id === rid);
 
   const card = (p: Post, indent: number) => (
@@ -129,7 +135,7 @@ export default function Thread() {
           ↩ {es.post.replySubmit}
         </button>
       )}
-      {user?.role === "teacher" && p.is_entrega && (
+      {user?.role === "teacher" && isGradable(p) && (
         <button
           className="mb-2 ml-4 text-xs text-muted-foreground"
           onClick={() => setGrading(p)}
@@ -147,6 +153,9 @@ export default function Thread() {
     <div className={files.length > 0 ? "pb-52" : "pb-28"}>
       {veto.dialog}
       {card(post, 0)}
+      {user?.role === "teacher" && post.type === "examen" && post.class_id != null && (
+        <ExamenGradedToggle examenId={post.id} />
+      )}
       {ungraded.length > 0 && (
         <div className="px-4 pb-3">
           <Button
@@ -244,9 +253,12 @@ export default function Thread() {
             username: grading.author.username,
             name: grading.author.name,
           }}
-          entregaPostId={grading.id}
+          // Like the roster, an examen score is tied to the student, not to a
+          // reply — pinning it to one would make it stale (worth 0) the moment
+          // they upload again.
+          entregaPostId={post.type === "examen" ? null : grading.id}
           autoScore={
-            post.due_date
+            post.type === "tarea" && post.due_date
               ? latenessTier(
                   new Date(grading.created_at),
                   new Date(post.due_date),
@@ -257,6 +269,7 @@ export default function Thread() {
           initialFeedback={grading.my_review?.feedback ?? ""}
           onSaved={() => {
             void qc.invalidateQueries({ queryKey: ["thread", id] });
+            void qc.invalidateQueries({ queryKey: ["examen-roster", post.id] });
             invalidateGrades(qc);
           }}
           onClose={() => setGrading(null)}

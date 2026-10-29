@@ -76,6 +76,8 @@ export interface Post {
   parent_id: number | null;
   due_date: string | null;
   is_entrega: boolean;
+  /** Teacher-only: the reply the examen roster counts as the student's work. */
+  is_submission?: boolean;
   examen_mode: "paper" | "digital" | null;
   graded_at: string | null;
   my_review: Review | null;
