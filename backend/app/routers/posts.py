@@ -9,12 +9,13 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth.deps import get_current_user
 from app.config import settings
 from app.database import get_db
-from app.models import Attachment, Class, Enrollment, Like, Post, Review, User, utcnow
+from app.models import Attachment, Class, Enrollment, Like, Post, PostMention, Review, User, utcnow
 from app.schemas import AuthorOut, MentionOut, PostOut, ReviewOut
 from app.services import points
 from app.services.aura import set_teacher_aura
 from app.services.media import attachment_out
 from app.services.mentions import record_mentions, evaluate_team
+from app.services.submissions import team_of
 from app.services.attribution import resolve_default_class
 from app.services.visibility import assignment_visible, viewer_class_ids
 from app.services.cursor import decode_feed_cursor, encode_feed_cursor
@@ -676,6 +677,53 @@ def unmark_reviewed(post_id: int, user: User = Depends(get_current_user),
     set_teacher_aura(db, post, user, on=False)
     db.commit()
     return {"reviewed": False}
+
+
+def _team_mention(db: Session, post_id: int, user_id: int, user: User):
+    post = db.get(Post, post_id)
+    if post is None or post.parent_id is None:
+        raise HTTPException(status_code=404, detail="Publicación no encontrada")
+    item = _teacher_item(db, post.parent_id, user)
+    m = (db.query(PostMention)
+         .filter(PostMention.post_id == post.id, PostMention.user_id == user_id,
+                 PostMention.kind == "team").first())
+    if m is None:
+        raise HTTPException(status_code=404, detail="Esa persona no está en el equipo")
+    return post, item, m
+
+
+def _team_response(db: Session, post: Post, user: User) -> PostOut:
+    db.refresh(post)
+    return serialize_post(post, liked_ids=set(), viewer=user)
+
+
+@router.post("/{post_id}/team/{user_id}/remove", response_model=PostOut)
+def remove_from_team(post_id: int, user_id: int, user: User = Depends(get_current_user),
+                     db: Session = Depends(get_db)):
+    """A member who didn't work stops receiving this grade — a flag, never a
+    delete and never a different number (one grade per entrega)."""
+    post, _item, m = _team_mention(db, post_id, user_id, user)
+    if m.removed_at is None:
+        m.removed_at = utcnow()
+        m.removed_by = user.id
+        db.commit()
+    return _team_response(db, post, user)
+
+
+@router.post("/{post_id}/team/{user_id}/restore", response_model=PostOut)
+def restore_to_team(post_id: int, user_id: int, user: User = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    post, item, m = _team_mention(db, post_id, user_id, user)
+    if m.removed_at is not None:
+        other = team_of(db, user_id, item)
+        if other is not None:
+            raise HTTPException(
+                status_code=409,
+                detail=f"@{m.user.username} ya está en el equipo de @{other.author.username}")
+        m.removed_at = None
+        m.removed_by = None
+        db.commit()
+    return _team_response(db, post, user)
 
 
 @attachments_router.get("/{attachment_id}/url")
