@@ -48,6 +48,24 @@ export interface Author {
   role: "student" | "teacher";
 }
 
+export interface Mention {
+  user: Author;
+  kind: "social" | "team";
+  /** The teacher took this member off the team. */
+  removed: boolean;
+}
+
+export interface TeamMember {
+  user: QueueStudent;
+  removed: boolean;
+}
+
+export interface TeamCheckResult {
+  username: string;
+  status: "ok" | "unknown" | "self" | "author_inactive" | "not_in_class" | "on_team" | "max_team";
+  team_author: string | null;
+}
+
 export interface Attachment {
   id: number;
   file_name: string;
@@ -78,6 +96,7 @@ export interface Post {
   is_entrega: boolean;
   /** Teacher-only: the reply the examen roster counts as the student's work. */
   is_submission?: boolean;
+  mentions?: Mention[];
   examen_mode: "paper" | "digital" | null;
   graded_at: string | null;
   my_review: Review | null;
@@ -112,6 +131,7 @@ export interface EntregaRow {
   auto_score: number | null;
   reviewed: boolean;
   score: number | null;
+  team: TeamMember[];
 }
 
 export interface EntregaGroup {
@@ -137,6 +157,7 @@ export interface ExamenRoster {
     /** Their marked entrega, else their latest reply with files (bug 8). */
     submission: ExamenSubmission | null;
     score: number | null;
+    team_of: QueueStudent | null;
   }[];
 }
 
