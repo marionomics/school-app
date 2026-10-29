@@ -1,7 +1,5 @@
 """Teacher surfaces agree with the engine on team submissions (spec §2–§3)."""
-from datetime import datetime, timedelta, timezone
-
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 from app.models import Enrollment, Post, PostMention, Review, User, utcnow
 from app.services.feed_query import teacher_pending
@@ -156,3 +154,30 @@ def test_accept_suggested_grades_a_team_entrega_once(client, db, teacher, teache
                     headers=teacher_headers)
     assert r.json() == {"graded": 1}
     assert db.query(Review).count() == 1
+
+
+def test_a_ghost_authors_team_entrega_is_graded_from_its_row(
+        client, db, teacher, teacher_headers, klass):
+    _running(db, klass)
+    ana, pedro = _user(db, klass, "ana"), _user(db, klass, "pedro")
+    t = _tarea(db, teacher, klass)
+    e = _sub(db, ana, t, team=[pedro])
+    db.query(Enrollment).filter(Enrollment.user_id == ana.id).update({"status": "ghost"})
+    db.commit()
+    r = client.put("/api/reviews", json={"item_post_id": t.id, "student_id": ana.id,
+                                         "entrega_post_id": e.id, "score": 70},
+                   headers=teacher_headers)
+    assert r.status_code == 200, r.text
+    assert [rv.student_id for rv in db.query(Review).all()] == [ana.id]
+    assert t.id not in teacher_pending(db, teacher.id, NOW)
+
+
+def test_a_ghost_author_with_no_active_members_is_still_rejected(
+        client, db, teacher, teacher_headers, klass):
+    ana = _user(db, klass, "ana", status="ghost")
+    t = _tarea(db, teacher, klass)
+    e = _sub(db, ana, t)
+    r = client.put("/api/reviews", json={"item_post_id": t.id, "student_id": ana.id,
+                                         "entrega_post_id": e.id, "score": 70},
+                   headers=teacher_headers)
+    assert r.status_code == 422

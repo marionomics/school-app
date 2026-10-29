@@ -35,22 +35,12 @@ def upsert_review(body: ReviewIn, user: User = Depends(get_current_user),
     item = _teacher_item(db, body.item_post_id, user)
     _check_scale(item.type, body.score)
 
-    enrolled = (
-        db.query(Enrollment)
-        .filter(Enrollment.user_id == body.student_id,
-                Enrollment.class_id == item.class_id,
-                Enrollment.status == "active")
-        .first()
-    )
-    if enrolled is None:
-        raise HTTPException(status_code=422,
-                            detail="Ese alumno no está inscrito en la clase")
-
     # A team member's grade is the author's review of the team submission
     # (spec 2026-10-28): grading any member's row writes that one review.
     counting = (_counting_entrega(db, body.student_id, item.id) if item.type == "tarea"
                 else examen_submission(db, body.student_id, item))
     owner = body.student_id
+    who = {body.student_id}
     auto = None
     if body.entrega_post_id is not None:
         entrega = db.get(Post, body.entrega_post_id)
@@ -62,10 +52,21 @@ def upsert_review(body: ReviewIn, user: User = Depends(get_current_user),
             raise HTTPException(status_code=422,
                                 detail="Esa entrega no es de ese alumno")
         owner = entrega.author_id
+        # A ghost author's team entrega is still gradeable from its own row
+        # while it counts for an active live member.
+        if entrega.author_id == body.student_id:
+            who.update(live_team_member_ids(db, entrega))
         if item.due_date is not None:
             auto = lateness_score(entrega.created_at, item.due_date)
     elif counting is not None:
         owner = counting.author_id
+
+    active = db.query(Enrollment).filter(
+        Enrollment.user_id.in_(who), Enrollment.class_id == item.class_id,
+        Enrollment.status == "active").first()
+    if active is None:
+        raise HTTPException(status_code=422,
+                            detail="Ese alumno no está inscrito en la clase")
 
     review = (
         db.query(Review)
