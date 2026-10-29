@@ -60,6 +60,12 @@ export interface TeamMember {
   removed: boolean;
 }
 
+export interface TeamCheckResponse {
+  results: TeamCheckResult[];
+  /** Live team of the viewer's own current submission on this item. */
+  current_team: string[];
+}
+
 export interface TeamCheckResult {
   username: string;
   status: "ok" | "unknown" | "self" | "author_inactive" | "not_in_class" | "on_team" | "max_team";

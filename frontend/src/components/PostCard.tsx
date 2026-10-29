@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import UserLink from "@/components/UserLink";
 import MentionText from "@/components/MentionText";
 import { liveTeam } from "@/lib/mentions";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import {
   RiCheckLine,
@@ -43,6 +44,7 @@ export default function PostCard({
   onVeto?: (post: Post) => void;
 }) {
   const navigate = useNavigate();
+  const { user: viewer } = useAuth();
   // Only a DELETED post loses its body. A veto takes the points, not the
   // student's words — mirrors serialize_post on the backend, which stopped
   // blanking vetoed content. Treating vetoed as removed here would show the
@@ -175,17 +177,30 @@ export default function PostCard({
             {es.feed.seeMore}
           </button>
         )}
-        {!removed && liveTeam(post).length > 0 && (
-          <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-            <span>{es.mentions.team}</span>
-            {[post.author, ...liveTeam(post)].map((u, i) => (
-              <span key={u.id} className="flex items-center gap-1">
-                {i > 0 && <span aria-hidden>·</span>}
-                <UserLink user={u} />
-              </span>
-            ))}
-          </p>
-        )}
+        {/* Only while the post still counts (a deleted or vetoed one backs no
+            team). PostCard can't know the parent is an examen, so this gates
+            on status alone; team mentions exist only on submissions anyway. */}
+        {post.status === "active" && liveTeam(post).length > 0 &&
+          (viewer != null && liveTeam(post).some((u) => u.id === viewer.id) ? (
+            <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+              {es.mentions.deliveredBy.split("{author}").flatMap((part, i) =>
+                i === 0 ? [<span key="a">{part}</span>] : [
+                  <UserLink key="u" user={post.author} />,
+                  <span key="b">{part}</span>,
+                ],
+              )}
+            </p>
+          ) : (
+            <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+              <span>{es.mentions.team}</span>
+              {[post.author, ...liveTeam(post)].map((u, i) => (
+                <span key={u.id} className="flex items-center gap-1">
+                  {i > 0 && <span aria-hidden>·</span>}
+                  <UserLink user={u} />
+                </span>
+              ))}
+            </p>
+          ))}
         {!removed && post.attachments.length > 0 && (
           <PostPhotos
             attachments={post.attachments}

@@ -41,6 +41,7 @@ export default function TeamEditor({
           <div className="flex items-center justify-between gap-3 text-sm">
             <span className={m.removed ? "text-muted-foreground line-through" : ""}>
               <UserLink user={m.user} plain />
+              {m.removed && <> {es.mentions.removed}</>}
             </span>
             {m.removed ? (
               <Button

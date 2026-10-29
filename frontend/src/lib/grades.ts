@@ -12,7 +12,7 @@ export function invalidateGrades(qc: QueryClient): void {
 /** A team change moves a shared grade on every surface that shows the
  *  entrega: the thread, the examen roster, the /revisar queue and the totals. */
 export function invalidateTeamChange(qc: QueryClient): void {
-  for (const queryKey of [["thread"], ["examen-roster"], ["review-entregas"]])
+  for (const queryKey of [["thread"], ["examen-roster"], ["review-entregas"], ["feed"]])
     void qc.invalidateQueries({ queryKey });
   invalidateGrades(qc);
 }

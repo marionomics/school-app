@@ -16,7 +16,7 @@ import { useToast } from "@/components/Toaster";
 import { useVetoFlow } from "@/lib/useVetoFlow";
 import { canSubmit } from "@/lib/attachments";
 import { es } from "@/strings/es";
-import type { Post, TeamCheckResult, ThreadResponse } from "@/lib/types";
+import type { Post, TeamCheckResponse, ThreadResponse } from "@/lib/types";
 import { parseUsernames } from "@/lib/mentions";
 import { useDebounced } from "@/lib/useDebounced";
 import { teamResultToast, teamWarning } from "@/lib/teamWarnings";
@@ -55,19 +55,28 @@ export default function Thread() {
   const isSubmission =
     replyTo === null &&
     (isEntrega || (q.data?.post.type === "examen" && files.length > 0));
+  const isStudent = user != null && user.role !== "teacher";
   const teamNames = useDebounced(
-    isSubmission ? parseUsernames(reply).join(",") : "",
+    isSubmission && isStudent ? parseUsernames(reply).join(",") : "",
     300,
   );
   const teamCheck = useQuery({
     queryKey: ["team-check", id, teamNames],
     queryFn: () =>
-      api<{ results: TeamCheckResult[] }>(
+      api<TeamCheckResponse>(
         `/api/posts/${id}/team-check?` +
-          teamNames.split(",").map((u) => `u=${encodeURIComponent(u)}`).join("&"),
+          teamNames
+            .split(",")
+            .filter(Boolean)
+            .map((u) => `u=${encodeURIComponent(u)}`)
+            .join("&"),
       ),
-    enabled: teamNames !== "",
+    // Even with no @s: a newer submission silently drops the current team.
+    enabled: isSubmission && isStudent,
   });
+  const dropped = (teamCheck.data?.current_team ?? []).filter(
+    (u) => !teamNames.split(",").includes(u.toLowerCase()),
+  );
   const okTeam = (teamCheck.data?.results ?? [])
     .filter((r) => r.status === "ok")
     .map((r) => r.username);
@@ -182,7 +191,7 @@ export default function Thread() {
     // The reply bar is fixed to the bottom and grows with the attached-file
     // chips (entrega toggle + a wrapped chip row can pass 200 px), so the
     // list needs to reserve more room whenever files are attached.
-    <div className={files.length > 0 || (isSubmission && teamNames !== "") ? "pb-52" : "pb-28"}>
+    <div className={files.length > 0 || (isSubmission && (teamNames !== "" || dropped.length > 0)) ? "pb-52" : "pb-28"}>
       {veto.dialog}
       {card(post, 0)}
       {user?.role === "teacher" && post.type === "examen" && post.class_id != null && (
@@ -236,8 +245,16 @@ export default function Thread() {
             )}
           </div>
         )}
-        {isSubmission && teamCheck.data && (
+        {isSubmission && isStudent && teamCheck.data && (
           <div className="mb-1 flex flex-col gap-0.5 text-xs">
+            {dropped.length > 0 && (
+              <p className="text-destructive">
+                {es.mentions.replacesTeam.replace(
+                  "{users}",
+                  dropped.map((u) => `@${u}`).join(" · "),
+                )}
+              </p>
+            )}
             {okTeam.length > 0 && (
               <p className="text-muted-foreground">
                 {es.mentions.team}{" "}

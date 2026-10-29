@@ -31,9 +31,14 @@ export default function ExamenRosterPanel({ examenId }: { examenId: number }) {
       studentId: number;
       score: number;
     }) => saveReview({ item_post_id: examenId, student_id: studentId, score }),
-    onSuccess: () => {
-      // Teammates share the score: show the server's, not a stale draft.
-      setDraft({});
+    onSuccess: (_d, { studentId }) => {
+      // Teammates share the score: show the server's, not a stale draft —
+      // but only for the row just saved; other rows may be mid-typing.
+      setDraft((d) => {
+        const rest = { ...d };
+        delete rest[studentId];
+        return rest;
+      });
       void qc.invalidateQueries({ queryKey: ["examen-roster", examenId] });
     },
     onError: () => toast.show(es.revisar.saveError),
@@ -93,7 +98,7 @@ export default function ExamenRosterPanel({ examenId }: { examenId: number }) {
                   {r.submission.attachments.length > 0 && (
                     <PostPhotos
                       attachments={r.submission.attachments}
-                      author={{ ...r.student, avatar_url: null, role: "student" } satisfies Author}
+                      author={{ ...(r.team_of ?? r.student), avatar_url: null, role: "student" } satisfies Author}
                       onOpenFile={(id) => void openAttachment(id, toast.show)}
                     />
                   )}
@@ -116,9 +121,10 @@ export default function ExamenRosterPanel({ examenId }: { examenId: number }) {
                 draft[r.student.id] ??
                 (r.score != null ? String(r.score) : "")
               }
-              onChange={(e) =>
-                setDraft({ ...draft, [r.student.id]: e.target.value })
-              }
+              onChange={(e) => {
+                const value = e.target.value;
+                setDraft((d) => ({ ...d, [r.student.id]: value }));
+              }}
               onBlur={(e) => commit(r.student.id, e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") (e.target as HTMLInputElement).blur();

@@ -83,6 +83,9 @@ export const es = {
   },
   mentions: {
     team: "Equipo:",
+    deliveredBy: "Entregada por {author} · en equipo",
+    replacesTeam:
+      "Esta entrega reemplaza la de tu equipo: vuelve a arrobar a {users} o dejarán de recibir la calificación",
     maxTeam: "@{user} no cuenta: el equipo es de máximo 3",
     notInClass: "@{user} no está en esta clase",
     onTeam: "@{user} ya entregó con el equipo de @{author}",
@@ -94,7 +97,7 @@ export const es = {
     removeFromTeam: "Quitar del equipo",
     restoreToTeam: "Devolver al equipo",
     removeConfirm: "@{user} deja de recibir esta calificación; vuelve a contar su entrega anterior, si tiene.",
-    removed: "fuera del equipo",
+    removed: "(fuera del equipo)",
     confirm: "Quitar",
     cancel: "Cancelar",
     teamError: "No se pudo cambiar el equipo",
