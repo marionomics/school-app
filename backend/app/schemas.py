@@ -220,6 +220,12 @@ class RosterStudent(BaseModel):
     faltas: int
 
 
+class MentionOut(BaseModel):
+    user: AuthorOut
+    kind: str            # social|team
+    removed: bool = False
+
+
 class PostOut(BaseModel):
     id: int
     author: AuthorOut
@@ -233,6 +239,7 @@ class PostOut(BaseModel):
     # Set only for the examen's teacher: the reply the roster counts as this
     # student's work (their entrega, else their latest reply with files).
     is_submission: bool = False
+    mentions: List[MentionOut] = []
     examen_mode: Optional[str] = None
     graded_at: Optional[datetime] = None
     my_review: Optional["ReviewOut"] = None

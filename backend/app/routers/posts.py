@@ -10,10 +10,11 @@ from app.auth.deps import get_current_user
 from app.config import settings
 from app.database import get_db
 from app.models import Attachment, Class, Enrollment, Like, Post, Review, User, utcnow
-from app.schemas import AuthorOut, PostOut, ReviewOut
+from app.schemas import AuthorOut, MentionOut, PostOut, ReviewOut
 from app.services import points
 from app.services.aura import set_teacher_aura
 from app.services.media import attachment_out
+from app.services.mentions import record_mentions
 from app.services.attribution import resolve_default_class
 from app.services.visibility import assignment_visible, viewer_class_ids
 from app.services.cursor import decode_feed_cursor, encode_feed_cursor
@@ -64,8 +65,12 @@ def serialize_post(post: Post, liked_ids: Set[int], *, viewer: Optional[User] = 
     removed = post.status == "deleted"
     # Scores, feedback and veto reasons belong only to the student who wrote the
     # post. Classmates read the same thread, so this is withheld server-side.
+    # A team member reads the team entrega's score like the author does.
+    member = viewer is not None and any(
+        m.user_id == viewer.id and m.kind == "team" and m.removed_at is None
+        for m in post.mentions)
     private = viewer is not None and (
-        viewer.id == post.author_id or viewer.role == "teacher")
+        viewer.id == post.author_id or viewer.role == "teacher" or member)
     review = (review_by_post or {}).get(post.id) if private else None
     return PostOut(
         id=post.id,
@@ -78,6 +83,10 @@ def serialize_post(post: Post, liked_ids: Set[int], *, viewer: Optional[User] = 
         due_date=post.due_date,
         is_entrega=post.is_entrega and post.id not in (superseded or set()),
         is_submission=post.id in (submissions or set()),
+        mentions=[] if removed else [
+            MentionOut(user=AuthorOut.model_validate(m.user), kind=m.kind,
+                       removed=m.removed_at is not None)
+            for m in post.mentions],
         examen_mode=post.examen_mode,
         graded_at=post.graded_at,
         my_review=ReviewOut.model_validate(review) if review is not None else None,
@@ -461,6 +470,12 @@ def create_post(
     )
     db.add(post)
     db.flush()
+
+    # A submission: an entrega, or a reply with files straight under an
+    # examen (the examen_submission rule). Only then can mentions form a team.
+    submission_item = parent if parent is not None and (
+        entrega or (parent.type == "examen" and file_payloads)) else None
+    record_mentions(db, post, user, submission_item)
 
     for i, (name, data, ctype) in enumerate(file_payloads):
         ext = name.rsplit(".", 1)[1].lower()
