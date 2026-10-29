@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import List, Optional, Set
+from typing import Dict, List, Optional, Set
 
 from pydantic import BaseModel
 
@@ -21,7 +21,7 @@ from app.services.visibility import assignment_visible, viewer_class_ids
 from app.services.cursor import decode_feed_cursor, encode_feed_cursor
 from app.services.feed_query import aware, has_new, ranked_page, teacher_pending
 from app.services.feed_rank import ReplyOption, pick_featured
-from app.services.grades import _counting_entrega, examen_submission
+from app.services.grades import _counting_entrega, counting_review, examen_submission
 from app.services.dates import next_sunday_due
 from app import storage
 
@@ -283,27 +283,29 @@ def _superseded_entregas(db: Session, posts: list) -> Set[int]:
 
 
 def _examen_submissions(db: Session, examen: Post, user: User,
-                        replies: List[Post]) -> dict:
-    """student id → the reply that holds their examen work, for the teacher
-    who grades it; empty for anyone else. Same rule as the /revisar roster, so
-    "Calificar" in the thread sits on the reply the roster shows. Students get
+                        replies: List[Post]) -> Dict[int, Post]:
+    """student id → the post that holds their examen work, for the teacher who
+    grades it; empty for anyone else. Same rule as the /revisar roster, so
+    "Calificar" in the thread sits on the post the roster shows. Students get
     nothing: the score is not released until the examen is calificado."""
     if examen.type != "examen" or user.role != "teacher":
         return {}
     klass = db.get(Class, examen.class_id) if examen.class_id else None
     if klass is None or klass.teacher_id != user.id:
         return {}
-    authors = {r.author_id for r in replies if r.parent_id == examen.id}
-    if not authors:
+    top = [r for r in replies if r.parent_id == examen.id]
+    candidates = {r.author_id for r in top} | {
+        m.user_id for r in top for m in r.mentions if m.kind == "team"}
+    if not candidates:
         return {}
     active = [uid for (uid,) in db.query(Enrollment.user_id).filter(
         Enrollment.class_id == klass.id, Enrollment.status == "active",
-        Enrollment.user_id.in_(authors))]
-    out = {}
+        Enrollment.user_id.in_(candidates))]
+    out: Dict[int, Post] = {}
     for uid in active:
         sub = examen_submission(db, uid, examen)
         if sub is not None:
-            out[uid] = sub.id
+            out[uid] = sub
     return out
 
 
@@ -344,19 +346,16 @@ def get_thread(post_id: int, user: User = Depends(get_current_user),
         for rv in db.query(Review).filter(Review.entrega_post_id.in_(entrega_ids)).all():
             review_by_post[rv.entrega_post_id] = rv
     submissions = _examen_submissions(db, post, user, replies)
-    if submissions:
-        # The roster saves an examen score with no entrega_post_id, so it is
-        # found by (examen, student) and pinned to the reply that holds the work.
-        by_student = {rv.student_id: rv for rv in db.query(Review).filter(
-            Review.item_post_id == post.id,
-            Review.student_id.in_(submissions.keys()))}
-        for sid, sub_id in submissions.items():
-            if sid in by_student:
-                review_by_post[sub_id] = by_student[sid]
+    sub_posts = {s.id: s for s in submissions.values()}
+    for sub in sub_posts.values():
+        # The review lives on the submission's author, team or not.
+        rv = counting_review(db, post.id, sub.author_id, sub)
+        if rv is not None:
+            review_by_post[sub.id] = rv
     return {"post": serialize_post(post, liked, viewer=user, superseded=superseded, teacher_aura_ids=aura),
             "replies": [serialize_post(r, liked, viewer=user, review_by_post=review_by_post,
                                        superseded=superseded,
-                                       submissions=set(submissions.values()),
+                                       submissions=set(sub_posts),
                                        teacher_aura_ids=aura) for r in replies]}
 
 

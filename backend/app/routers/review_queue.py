@@ -29,6 +29,11 @@ def _student_json(u: User) -> dict:
     return {"id": u.id, "username": u.username, "name": u.name}
 
 
+def _team_json(post: Post) -> list:
+    return [{"user": _student_json(m.user), "removed": m.removed_at is not None}
+            for m in post.mentions if m.kind == "team"]
+
+
 def _active_students(db: Session, class_id: int) -> list:
     rows = (
         db.query(User)
@@ -52,19 +57,25 @@ def entregas_queue(class_id: int, status: str = Query("unopened"),
     )
     groups = []
     for tarea in tareas:
-        entregas = []
+        # One row per submission: a team entrega counts for up to three
+        # students but is graded once, as its author's review.
+        by_sub = {}
         for student in _active_students(db, klass.id):
             entrega = _counting_entrega(db, student.id, tarea.id)
-            if entrega is None:
-                continue
-            review = counting_review(db, tarea.id, student.id, entrega)
+            if entrega is not None:
+                by_sub.setdefault(entrega.id, entrega)
+        entregas = []
+        for entrega in sorted(by_sub.values(),
+                              key=lambda p: (p.author.username or "", p.id)):
+            review = counting_review(db, tarea.id, entrega.author_id, entrega)
             reviewed = review is not None
             if status == "unopened" and reviewed:
                 continue
             auto = (lateness_score(entrega.created_at, tarea.due_date)
                     if tarea.due_date is not None else None)
             entregas.append({
-                "student": _student_json(student),
+                "student": _student_json(entrega.author),
+                "team": _team_json(entrega),
                 "entrega_post_id": entrega.id,
                 "created_at": entrega.created_at,
                 "auto_score": float(auto) if auto is not None else None,
@@ -116,15 +127,14 @@ def examen_roster(examen_id: int, user: User = Depends(get_current_user),
     for student in _active_students(db, examen.class_id):
         entrega = _counting_entrega(db, student.id, examen.id)
         submission = examen_submission(db, student.id, examen)
-        review = (
-            db.query(Review)
-            .filter(Review.item_post_id == examen.id, Review.student_id == student.id)
-            .first()
-        )
+        review = counting_review(db, examen.id, student.id, submission)
+        team_of = (_student_json(submission.author)
+                   if submission is not None and submission.author_id != student.id else None)
         rows.append({
             "student": _student_json(student),
             "entrega_post_id": entrega.id if entrega else None,
             "submission": _submission_json(submission),
+            "team_of": team_of,
             "score": float(review.score) if review and review.score is not None else None,
         })
     return {"examen": {"id": examen.id, "content": examen.content,

@@ -11,7 +11,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.models import Class, Enrollment, Like, Post, Review
+from app.models import Class, Enrollment, Like, Post, PostMention, Review
 from app.services.feed_rank import WINDOW_DAYS, Candidate, ReplyFact, rank
 from app.services.visibility import ASSIGNMENT_TYPES, assignment_visible
 
@@ -184,36 +184,58 @@ def teacher_pending(db: Session, teacher_id: int,
     reviews = {(r.item_post_id, r.student_id): r
                for r in db.query(Review).filter(Review.item_post_id.in_(item_ids))}
 
+    reply_ids = [r.id for r in replies]
+    team_by_post: Dict[int, List[int]] = defaultdict(list)
+    if reply_ids:
+        for pid, uid in (db.query(PostMention.post_id, PostMention.user_id)
+                         .filter(PostMention.post_id.in_(reply_ids),
+                                 PostMention.kind == "team",
+                                 or_(PostMention.removed_at.is_(None),
+                                     PostMention.removed_at > as_of))):
+            team_by_post[pid].append(uid)
+
     by_item = defaultdict(list)
     for r in replies:
         by_item[r.parent_id].append(r)
 
     for item in items:
-        latest_entrega: Dict[int, tuple] = {}
-        latest_upload: Dict[int, tuple] = {}
+        # Each author's own current submission — every author, active or not:
+        # a ghost author's team entrega still counts for active members.
+        own_entrega: Dict[int, tuple] = {}
+        own_upload: Dict[int, tuple] = {}
         for r in by_item[item.id]:
-            if (item.class_id, r.author_id) not in active:
-                continue
             at = aware(r.created_at)
-            if r.is_entrega and (r.author_id not in latest_entrega
-                                 or at > latest_entrega[r.author_id][1]):
-                latest_entrega[r.author_id] = (r.id, at)
-            if r.has_files and (r.author_id not in latest_upload
-                                or at > latest_upload[r.author_id][1]):
-                latest_upload[r.author_id] = (r.id, at)
-        # An examen's submission is the entrega, else the latest reply with
-        # files (the roster rule); a tarea's is only the entrega.
-        subs = dict(latest_entrega)
+            if r.is_entrega and (r.author_id not in own_entrega
+                                 or (at, r.id) > own_entrega[r.author_id][::-1]):
+                own_entrega[r.author_id] = (r.id, at)
+            if r.has_files and (r.author_id not in own_upload
+                                or (at, r.id) > own_upload[r.author_id][::-1]):
+                own_upload[r.author_id] = (r.id, at)
+        own = dict(own_entrega)
         if item.type == "examen":
-            for uid, v in latest_upload.items():
-                subs.setdefault(uid, v)
+            for uid, v in own_upload.items():
+                own.setdefault(uid, v)
+        # Who each submission counts for: its author, plus live team members
+        # (a team submission is live while it is its author's own current one —
+        # services/submissions.py). Newest wins per student.
+        counts: Dict[int, tuple] = {uid: (sid, at, uid) for uid, (sid, at) in own.items()}
+        for author, (sid, at) in own.items():
+            for member in team_by_post.get(sid, []):
+                cur = counts.get(member)
+                if cur is None or (at, sid) > (cur[1], cur[0]):
+                    counts[member] = (sid, at, author)
+        # One pending item per submission that counts for an active student.
+        subs: Dict[int, tuple] = {}
+        for uid, (sid, at, author) in counts.items():
+            if (item.class_id, uid) in active:
+                subs[sid] = (at, author)
         ungraded = []
-        for uid, (sub_id, at) in subs.items():
-            rv = reviews.get((item.id, uid))
+        for sid, (at, author) in subs.items():
+            rv = reviews.get((item.id, author))
             done = (rv is not None
                     and aware(rv.updated_at or rv.created_at) <= as_of
                     # counting_review: a review of a replaced entrega is stale.
-                    and (rv.entrega_post_id is None or rv.entrega_post_id == sub_id)
+                    and (rv.entrega_post_id is None or rv.entrega_post_id == sid)
                     and (item.type == "tarea" or rv.score is not None))
             if not done:
                 ungraded.append(at)

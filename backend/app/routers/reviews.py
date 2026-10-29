@@ -9,7 +9,9 @@ from app.database import get_db
 from app.models import Class, Enrollment, Post, Review, User, utcnow
 from app.routers.posts import _teacher_item
 from app.schemas import AcceptSuggestedIn, ReviewIn, ReviewOut
-from app.services.grades import _counting_entrega, counting_review, lateness_score
+from app.services.grades import (_counting_entrega, counting_review, examen_submission,
+                                 lateness_score)
+from app.services.submissions import live_team_member_ids
 
 router = APIRouter(prefix="/api/reviews", tags=["reviews"])
 
@@ -44,22 +46,34 @@ def upsert_review(body: ReviewIn, user: User = Depends(get_current_user),
         raise HTTPException(status_code=422,
                             detail="Ese alumno no está inscrito en la clase")
 
+    # A team member's grade is the author's review of the team submission
+    # (spec 2026-10-28): grading any member's row writes that one review.
+    counting = (_counting_entrega(db, body.student_id, item.id) if item.type == "tarea"
+                else examen_submission(db, body.student_id, item))
+    owner = body.student_id
     auto = None
-    if body.entrega_post_id is not None and item.due_date is not None:
+    if body.entrega_post_id is not None:
         entrega = db.get(Post, body.entrega_post_id)
         if entrega is None or entrega.parent_id != item.id:
             raise HTTPException(status_code=422,
                                 detail="Esa entrega no pertenece a esta tarea")
-        auto = lateness_score(entrega.created_at, item.due_date)
+        if entrega.author_id != body.student_id and (
+                counting is None or counting.id != entrega.id):
+            raise HTTPException(status_code=422,
+                                detail="Esa entrega no es de ese alumno")
+        owner = entrega.author_id
+        if item.due_date is not None:
+            auto = lateness_score(entrega.created_at, item.due_date)
+    elif counting is not None:
+        owner = counting.author_id
 
     review = (
         db.query(Review)
-        .filter(Review.item_post_id == item.id,
-                Review.student_id == body.student_id)
+        .filter(Review.item_post_id == item.id, Review.student_id == owner)
         .first()
     )
     if review is None:
-        review = Review(item_post_id=item.id, student_id=body.student_id)
+        review = Review(item_post_id=item.id, student_id=owner)
         db.add(review)
     review.entrega_post_id = body.entrega_post_id
     review.score = body.score
@@ -97,7 +111,8 @@ def accept_suggested(body: AcceptSuggestedIn, user: User = Depends(get_current_u
         Enrollment.class_id == item.class_id, Enrollment.status == "active")}
     graded = 0
     for e in entregas:
-        if e.author_id not in active:
+        counts_for = [e.author_id, *live_team_member_ids(db, e)]
+        if not any(uid in active for uid in counts_for):
             continue
         counting = _counting_entrega(db, e.author_id, item.id)
         if counting is None or counting.id != e.id:
