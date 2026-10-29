@@ -59,6 +59,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <button onClick={handleLogout} className="mt-auto rounded-md px-3 py-2 text-left text-destructive hover:bg-accent">
               {es.nav.logout}
             </button>
+            {/* Which build is live — for testing in prod and for bug reports. */}
+            <p className="px-3 text-xs text-muted-foreground tabular-nums">
+              {es.nav.version
+                .replace("{version}", __APP_VERSION__)
+                .replace("{commit}", __APP_COMMIT__)}
+            </p>
           </nav>
           <div className="flex-1 bg-black/40" onClick={() => setMenuOpen(false)} />
         </div>

@@ -1,6 +1,9 @@
 # Changelog
 
-## 2026-10-29 (menciones y entregas en equipo)
+## 2026-10-29 — v0.2.21
+- **La versión se ve en el menú,** abajo de "Cerrar sesión": `Versión 0.2.21 · <commit>`. El número sube con cada entrada de este changelog (v1 fue la 0.1; v2 es la 0.2 y el último número cuenta las entregas desde el 2026-07-19); el commit dice exactamente qué está desplegado.
+
+## 2026-10-29 — v0.2.20 (menciones y entregas en equipo)
 - **`@` con autocompletado** en el compositor y en las respuestas: al escribir `@` aparece una lista (tus compañeros primero, después cualquiera con username) y al tocar un nombre se inserta. En la publicación, cada `@` es un enlace al perfil.
 - **Una entrega que arroba hasta 2 compañeros de la clase es de todo el equipo:** una sola calificación (la de la entrega) cuenta para los tres, y para el profe es una sola cosa por calificar. También en exámenes: la respuesta con archivos que arroba a los compañeros.
 - **Gana el primer equipo.** Si alguien ya entregó con otro equipo, un nuevo `@` no lo suma. Antes de enviar, el compositor avisa quién no cuenta y por qué (máximo 3, no está en la clase, ya entregó con otro equipo) — sólo avisa, nunca bloquea.

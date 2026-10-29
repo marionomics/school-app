@@ -16,6 +16,9 @@ COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
 COPY frontend/ ./
+# Railway provides the deployed commit as a build arg; the menu shows it next
+# to the version (vite.config.ts). .git is not in the build context.
+ARG RAILWAY_GIT_COMMIT_SHA
 RUN npm run build
 
 

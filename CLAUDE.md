@@ -67,3 +67,4 @@ docs/       specs and plans
 - **Testing:** the grade engine is pure functions and the most-tested code in the repo. CI runs against PostgreSQL.
 - Skeleton loading + optimistic updates (with visible rollback) are the norm, not polish.
 - Each roadmap phase deploys to Railway before the next begins.
+- **Versioning:** `0.2.N` — v1 was 0.1, this rebuild is 0.2, and N counts v2 releases. Every new `planning/changelog.md` entry bumps N by one and carries it in its heading (`## YYYY-MM-DD — v0.2.N (…)`); the single source is `frontend/package.json` `version` (keep `package-lock.json`'s root in step). The menu shows it with the deployed commit.

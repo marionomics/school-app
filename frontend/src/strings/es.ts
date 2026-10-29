@@ -30,6 +30,7 @@ export const es = {
     settings: "Configuración",
     create: "Crear",
     logout: "Cerrar sesión",
+    version: "Versión {version} · {commit}",
   },
   classes: {
     title: "Mis clases",
