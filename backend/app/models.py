@@ -119,6 +119,29 @@ class Post(Base):
     author: Mapped[User] = relationship(foreign_keys=[author_id])
     klass: Mapped[Optional[Class]] = relationship()
     attachments: Mapped[List["Attachment"]] = relationship(back_populates="post")
+    # selectin: the feed serializes mentions on every card; one batched query
+    # per page instead of one per post.
+    mentions: Mapped[List["PostMention"]] = relationship(
+        lazy="selectin", order_by="PostMention.id")
+
+
+class PostMention(Base):
+    """An @username in a post. `kind` is decided once, at publish: 'team' only
+    for a submission naming an eligible classmate (spec 2026-10-28), else
+    'social'. Never deleted — the teacher removing a team member sets
+    removed_at, like the ledger's revocation flag."""
+    __tablename__ = "post_mentions"
+    __table_args__ = (UniqueConstraint("post_id", "user_id", name="uq_mention_post_user"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("posts.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(10))   # social|team
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    removed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    removed_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
+
+    user: Mapped[User] = relationship(foreign_keys=[user_id], lazy="joined")
 
 
 class Like(Base):
