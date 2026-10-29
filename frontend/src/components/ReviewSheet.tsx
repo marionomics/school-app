@@ -13,7 +13,8 @@ import { useToast } from "@/components/Toaster";
 import UserLink from "@/components/UserLink";
 import { formatPoints } from "@/lib/points";
 import { es } from "@/strings/es";
-import type { QueueStudent } from "@/lib/types";
+import TeamEditor from "@/components/TeamEditor";
+import type { QueueStudent, TeamMember } from "@/lib/types";
 
 /** The one place a score is entered, wherever grading was started from —
  *  the Revisar queue or an entrega in the feed thread. */
@@ -24,6 +25,8 @@ export default function ReviewSheet({
   autoScore,
   initialScore,
   initialFeedback,
+  team,
+  onTeamChanged,
   onSaved,
   onClose,
 }: {
@@ -33,6 +36,8 @@ export default function ReviewSheet({
   autoScore: number | null;
   initialScore: number | null;
   initialFeedback: string;
+  team?: { postId: number; members: TeamMember[] };
+  onTeamChanged?: () => void;
   onSaved: () => void;
   onClose: () => void;
 }) {
@@ -73,6 +78,13 @@ export default function ReviewSheet({
         <p className="text-sm font-semibold">
           <UserLink user={student} plain />
         </p>
+        {team && (
+          <TeamEditor
+            postId={team.postId}
+            members={team.members}
+            onChanged={() => onTeamChanged?.()}
+          />
+        )}
         {autoScore != null && (
           <p className="text-xs text-muted-foreground">
             {es.revisar.autoScore.replace("{n}", String(autoScore))}

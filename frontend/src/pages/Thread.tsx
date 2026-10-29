@@ -330,6 +330,20 @@ export default function Thread() {
           }
           initialScore={grading.my_review?.score ?? null}
           initialFeedback={grading.my_review?.feedback ?? ""}
+          team={{
+            postId: grading.id,
+            members: (grading.mentions ?? [])
+              .filter((m) => m.kind === "team")
+              .map((m) => ({ user: m.user, removed: m.removed })),
+          }}
+          onTeamChanged={() => {
+            void qc.invalidateQueries({ queryKey: ["thread", id] });
+            void qc.invalidateQueries({ queryKey: ["examen-roster", post.id] });
+            invalidateGrades(qc);
+            // `grading` is a snapshot of the reply; close so the teacher
+            // reopens it with the refetched team.
+            setGrading(null);
+          }}
           onSaved={() => {
             void qc.invalidateQueries({ queryKey: ["thread", id] });
             void qc.invalidateQueries({ queryKey: ["examen-roster", post.id] });

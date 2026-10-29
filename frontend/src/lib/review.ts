@@ -33,6 +33,13 @@ export function saveReview(input: ReviewInput) {
   });
 }
 
+export function setTeamMember(postId: number, userId: number, removed: boolean) {
+  return api<Post>(
+    `/api/posts/${postId}/team/${userId}/${removed ? "remove" : "restore"}`,
+    { method: "POST" },
+  );
+}
+
 export function markGraded(postId: number, graded: boolean) {
   return api<{ graded_at: string | null }>(`/api/posts/${postId}/graded`, {
     method: graded ? "POST" : "DELETE",

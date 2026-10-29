@@ -148,6 +148,12 @@ function EntregasTab({
                 {/* The name is a sibling of the row button, not inside it:
                     a link in a button is invalid HTML. */}
                 <UserLink user={row.student} className="py-3 pr-3 text-sm" />
+                {row.team.filter((m) => !m.removed).map((m) => (
+                  <span key={m.user.id} className="flex items-center py-3 pr-2 text-sm">
+                    <span aria-hidden className="pr-1 text-muted-foreground">·</span>
+                    <UserLink user={m.user} />
+                  </span>
+                ))}
                 <button
                   aria-label={es.revisar.openReview.replace(
                     "{user}",
@@ -178,6 +184,11 @@ function EntregasTab({
           autoScore={open.row.auto_score}
           initialScore={open.row.score}
           initialFeedback=""
+          team={{ postId: open.row.entrega_post_id, members: open.row.team }}
+          onTeamChanged={() => {
+            onSaved();
+            setOpen(null);
+          }}
           onSaved={onSaved}
           onClose={() => setOpen(null)}
         />

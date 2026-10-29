@@ -31,6 +31,9 @@ export default function ExamenRosterPanel({ examenId }: { examenId: number }) {
       studentId: number;
       score: number;
     }) => saveReview({ item_post_id: examenId, student_id: studentId, score }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["examen-roster", examenId] });
+    },
     onError: () => toast.show(es.revisar.saveError),
   });
 
@@ -73,6 +76,11 @@ export default function ExamenRosterPanel({ examenId }: { examenId: number }) {
               <span className="text-sm">
                 <UserLink user={r.student} plain />
               </span>
+              {r.team_of && (
+                <span className="text-xs text-muted-foreground">
+                  {es.mentions.inTeamWith} <UserLink user={r.team_of} plain />
+                </span>
+              )}
               {r.submission && (
                 <>
                   {r.submission.content && (
