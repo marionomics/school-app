@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-29 (menciones y entregas en equipo)
+- **`@` con autocompletado en el compositor y las respuestas.** Al escribir `@` aparece una lista de compañeros (activos de tu clase primero, después todos con username); tappear inserta `@username `. Una mención se ve como `UserLink` y enlaza al perfil.
+- **Una entrega que arroba hasta 2 compañeros es de todo el equipo.** Un alumno que `@`s a dos compañeros en su tarea o examen crea un equipo — una sola entrega, una calificación compartida, una cosa por calificar para el profe.
+- **Gana el primer equipo.** Una vez que alguien está en un equipo para una tarea, otra entrega que lo arroba no lo suma (primer equipo gana). El compositor avisa ("@pedro ya entregó con @ana", "@luis no cuenta: el equipo es de máximo 3", etc.) y no bloquea publicar.
+- **La entrega propia siempre cuenta si es más nueva.** Entre la entrega de alguien y una de equipo que lo `@`s, la más reciente cuenta para él. Si una entrega nueva lo deja fuera (porque el autor no lo `@`s), el miembro ve "Entregada por @ana · en equipo" en el hilo y puede resubmitir solo.
+- **El profe ve el equipo en tres lugares.** En `/revisar` → Entregas, cada fila muestra "Entrega de @ana · @pedro · @luis". En el hilo, "Calificar" y el roster del examen muestran el equipo. Puede quitar o devolver a un miembro (un botón "Quitar" reversible con confirmación).
+- **Si el autor sube una entrega nueva sin los compañeros, el equipo se disuelve.** El compositor avisa ("si publicas sin el @ el equipo se disuelve") — es la forma de que alguien deje un equipo (el miembro no elige, el autor reenvía sin él).
+- **Social mentions para actividad.** Menciones en otros posts (respuestas, participaciones) alcanzan cualquiera con username; aviso diferido para el Bloque 5.
+
 ## 2026-10-28
 - **Calificar exámenes desde el hilo.** En el hilo de un examen, "Calificación" aparece en la respuesta que `/revisar` cuenta como la del alumno — su entrega o, si no marcó ninguna, su respuesta más reciente con archivos —, con la escala 1–10. Ya no hace falta que el alumno marque su examen como entrega. La regla vive en un solo lugar (`examen_submission`), así que el hilo y el roster nunca discrepan.
 - **"Marcar como calificado" en el hilo del examen,** con el mismo aviso de cuántos alumnos sin calificación contarán como 0. La calificación sólo la ve el profe hasta que lo marca.

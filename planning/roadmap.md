@@ -8,15 +8,17 @@ Origen de los bloques 1–5: nota de Mario del 2026-09-28 ("Bug report y modific
 
 ## ▶ Empieza aquí (sesión nueva)
 
-Estado al 2026-10-28: **Bloques 0–4b cerrados y en producción**, más "Aceptar sugeridas" (calificar en un toque todas las entregas con su calificación automática) y calificar exámenes desde el hilo. Pendiente sólo justificar faltas paso 2.
+Estado al 2026-10-29: **Bloques 0–4b cerrados y en producción**, más "Aceptar sugeridas" (calificar en un toque todas las entregas con su calificación automática), calificar exámenes desde el hilo, y menciones y entregas en equipo. Pendiente sólo justificar faltas paso 2.
 
 **Siguiente, en este orden (propuesta, Mario decide):**
 1. ~~Calificar exámenes desde el hilo~~ ✅ 2026-10-28.
-2. **Menciones y entregas en equipo** (sección propia abajo) — antes que la racha porque este semestre ya hay trabajo en equipo y hoy cada integrante tiene que entregar por separado. Toca el motor: brainstorming → spec → plan.
+2. ~~Menciones y entregas en equipo~~ ✅ 2026-10-29 (sección propia abajo).
 3. **Racha** (sección propia abajo) — la idea grande de Mario para que los alumnos vuelvan y avancen. Toca el motor de calificación, así que va con brainstorming → spec → plan, y absorbe el "premio por comentar" de `future.md`.
 4. **Bloque 5 — notificaciones.**
 
 **Medir el Bloque 4:** entre el **2026-11-06 y el 2026-11-13** (dos o tres semanas después del despliegue del 2026-10-23), correr `cd backend && python -m scripts.feed_metrics` contra producción y comparar con las semanas previas. Eso decide si se ajustan los pesos de `backend/app/services/feed_rank.py` o se abre la pregunta 7 de `future.md`. El profe vigila si las participaciones sin validar se le amontonan arriba (capa 1 del feed).
+
+Medir también: el tiempo de la hoja de calificaciones de una clase en producción — el motor ahora hace más consultas por alumno (equipos); si se siente lenta, cargar las menciones sólo donde se muestran.
 
 **Deploy:** Railway despliega `main` en cada push cuando pasa CI. Si deja de hacerlo (pasó del 2026-10-21 al 23 por un incidente de Railway; se arregló reconectando GitHub en Settings → Source), `railway up --ci` desde un `main` limpio despliega directo — el CLI ya está ligado al proyecto `poetic-caring`, servicio `school-app`. Para saber si una ruta nueva ya está viva: sin sesión responde 401 si existe y 404 si no.
 
@@ -78,18 +80,18 @@ Problema (Mario): la interacción sube posts y algunos se quedan arriba sin ser 
   - **Un comentario en el feed principal.** Debajo de un post, mostrar al menos una respuesta — la que sea más relevante (criterio a definir en el spec: más aura, más reciente, de alguien a quien sigues…).
   - **Una respuesta te lo regresa.** Si alguien responde a tu post o a tu comentario, ese hilo vuelve a subir **para ti**, aunque ya lo hubieras tocado. Es la excepción a "lo que ya tocaste baja". Se cruza con el Bloque 5: es la misma señal que dispara la notificación.
 
-## Menciones y entregas en equipo (Mario, 2026-10-28)
-Poder arrobarse (`@compañero`). Por engagement, pero sobre todo por las tareas y exámenes en equipo: si un alumno arroba a sus compañeros en su entrega, la entrega es de todos y la calificación les llega a todos. Mario nunca admite equipos de más de 3, así que son a lo mucho 2 arrobados.
+## ✅ Menciones y entregas en equipo (2026-10-29) — [spec](docs/superpowers/specs/2026-10-28-menciones-equipos-design.md)
+Poder arrobarse (`@compañero`). Por engagement, pero sobre todo por las tareas y exámenes en equipo: si un alumno arroba a sus compañeros en su entrega, la entrega es de todos y la calificación les llega a todos.
 
-Son dos cosas:
-- **Menciones sociales.** Al escribir `@` se sugieren compañeros; la mención se ve como `UserLink` y avisa al mencionado (se cruza con el Bloque 5). `future.md` ya las tenía junto a la wiki.
-- **Equipo en la entrega.** Mueve puntos: brainstorming → spec → plan. Lo que el spec tiene que decidir (propuestas de Claude, Mario decide):
-  - **Mención ≠ equipo.** Agradecerle a alguien en una entrega no debería volverlo coautor. Propuesta: en una entrega (o una respuesta con archivos a un examen), el compositor muestra explícitamente "equipo", máximo 2, sólo compañeros `active` de la misma clase.
-  - **Calcular, no copiar.** La entrega del equipo cuenta como entrega de cada integrante (extender `_counting_entrega`/`_examen_submission` a "suya o que lo nombra"); no se copian calificaciones, así que corregir una calificación les llega a todos.
-  - **Conflictos.** Un integrante que además entregó por su cuenta, o que aparece en dos equipos: ¿cuál cuenta? Probablemente la más reciente suya o que lo nombra, como la regla de entrega reemplazada.
-  - **Retraso.** La hora de la entrega del equipo aplica a todos.
-  - **Abuso.** Agregar a alguien que no trabajó: ¿el arrobado lo ve y puede salirse, o lo resuelve el profe?
-  - **Pendientes y `/revisar`.** Una entrega en equipo es *una* cosa por calificar, no tres.
+**Decidido:**
+- El `@` en una entrega es el equipo (máximo 2 compañeros activos de la clase).
+- Gana el primer equipo: una vez que alguien entra en un equipo para una tarea, otra entrega que lo arroba no lo suma.
+- La entrega propia más nueva de un alumno siempre cuenta para él (entre la suya y una de equipo que lo arroba, la más reciente).
+- Una calificación por entrega (vive en la del autor; los miembros la leen, nunca se copia). Si la nota cambia, les llega a todos.
+- El profe puede quitar/devolver a alguien del equipo (un toggle reversible en el hilo y la hoja de calificar).
+- Si el autor sube una entrega nueva sin volver a arrobar, el equipo se disuelve (el compositor avisa antes).
+- Las menciones sociales (`@` fuera de una entrega) alcanzan cualquier usuario con username; el @ se ve como `UserLink` (se cruza con el Bloque 5 para notificaciones).
+- Autocompletado de @ en el compositor y las respuestas (compañeros primero).
 
 ## Racha (Mario, 2026-10-28)
 La idea para que los alumnos estén en la plataforma y de verdad avancen: **la racha**. Si mantienen su racha, según cuántos días lleven, sube la probabilidad de que el aura de sus publicaciones valga **2× o 3×**. Mientras más larga la racha, más probable el multiplicador.
