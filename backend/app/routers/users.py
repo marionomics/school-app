@@ -25,15 +25,13 @@ def _like_prefix(term: str) -> str:
 
 
 @router.get("/search")
-def search_users(q: str = Query(..., min_length=1, max_length=40),
+def search_users(q: str = Query("", max_length=40),
                  user: User = Depends(get_current_user),
                  db: Session = Depends(get_db)):
     """@mention autocomplete: anyone with a username (the feed is global),
-    the viewer's classmates and teachers first."""
+    the viewer's classmates and teachers first. A bare `@` (empty q) lists
+    only those classmates — it is where most mentions start."""
     term = q.strip().lstrip("@").lower()
-    if not term:
-        return {"users": []}
-    like = _like_prefix(term)
 
     # Compute classmate ids before querying, so SQL can order with classmates first.
     # Only classes the viewer is ACTIVE in (or teaches): ghost and polizón
@@ -48,21 +46,19 @@ def search_users(q: str = Query(..., min_length=1, max_length=40),
             Enrollment.class_id.in_(mine), Enrollment.status == "active")}
         close |= {tid for (tid,) in db.query(Class.teacher_id).filter(Class.id.in_(mine))}
 
-    # Order in SQL: classmates first, then by username. Limit only SEARCH_LIMIT.
-    if close:
-        rows = (db.query(User)
-                .filter(User.username.isnot(None), User.id != user.id,
-                        or_(User.username.like(like, escape="\\"),
-                            func.lower(User.name).like(like, escape="\\")))
-                .order_by(User.id.in_(close).desc(), User.username)
-                .limit(SEARCH_LIMIT).all())
+    q_users = db.query(User).filter(User.username.isnot(None), User.id != user.id)
+    if term:
+        like = _like_prefix(term)
+        q_users = q_users.filter(or_(User.username.like(like, escape="\\"),
+                                     func.lower(User.name).like(like, escape="\\")))
+    elif close:
+        q_users = q_users.filter(User.id.in_(close))
     else:
-        rows = (db.query(User)
-                .filter(User.username.isnot(None), User.id != user.id,
-                        or_(User.username.like(like, escape="\\"),
-                            func.lower(User.name).like(like, escape="\\")))
-                .order_by(User.username)
-                .limit(SEARCH_LIMIT).all())
+        return {"users": []}
+    # Order in SQL: classmates first, then by username, so the limit can't cut
+    # a classmate who sorts late.
+    order = [User.id.in_(close).desc(), User.username] if close else [User.username]
+    rows = q_users.order_by(*order).limit(SEARCH_LIMIT).all()
     return {"users": [AuthorOut.model_validate(u) for u in rows]}
 
 

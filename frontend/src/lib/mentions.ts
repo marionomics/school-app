@@ -36,7 +36,7 @@ export function splitMentions(content: string, mentions: Mention[] = []): Segmen
   return out;
 }
 
-/** The @word being typed at the caret, if any. */
+/** The @word being typed at the caret, if any — "" right after a bare @. */
 export function activeMention(
   value: string,
   caret: number,
@@ -46,7 +46,8 @@ export function activeMention(
   if (i < 0 || value[i] !== "@") return null;
   if (i > 0 && /[A-Za-z0-9_@]/.test(value[i - 1])) return null;
   const query = value.slice(i + 1, caret);
-  if (query.length < 1 || query.length > 20) return null;
+  // A bare "@" counts: it opens the list with classmates first.
+  if (query.length > 20) return null;
   return { start: i, query };
 }
 

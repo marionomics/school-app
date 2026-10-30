@@ -174,3 +174,12 @@ def test_team_check_reports_the_current_team(client, db, teacher, klass):
     # A member's own view: they have no submission of their own.
     assert client.get(f"/api/posts/{t.id}/team-check",
                       headers=_h(db, pedro)).json()["current_team"] == []
+
+
+def test_a_bare_at_lists_only_classmates(client, db, klass):
+    me = _user(db, klass, "ana")
+    _user(db, None, "andres")             # not a classmate
+    _user(db, klass, "zoe")
+    _user(db, klass, "beto")
+    assert _search(client, db, me, "@") == ["beto", "zoe"]
+    assert _search(client, db, me, "") == ["beto", "zoe"]

@@ -31,7 +31,8 @@ export default function MentionSuggestions({
     queryKey: ["user-search", query],
     queryFn: () =>
       api<{ users: Author[] }>(`/api/users/search?q=${encodeURIComponent(query)}`),
-    enabled: query.length > 0,
+    // A bare "@" (empty query) asks for classmates.
+    enabled: active !== null,
     staleTime: 30_000,
   });
   const users = active && query === active.query ? (q.data?.users ?? []) : [];

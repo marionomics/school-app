@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-29 — v0.2.22
+- **Un `@` solo ya abre la lista de sugerencias** con tus compañeros de clase; al escribir letras se filtra entre todos (compañeros primero). Antes había que escribir al menos una letra y parecía que no funcionaba.
+
 ## 2026-10-29 — v0.2.21
 - **La versión se ve en el menú,** abajo de "Cerrar sesión": `Versión 0.2.21 · <commit>`. El número sube con cada entrada de este changelog (v1 fue la 0.1; v2 es la 0.2 y el último número cuenta las entregas desde el 2026-07-19); el commit dice exactamente qué está desplegado.
 

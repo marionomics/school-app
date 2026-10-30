@@ -40,9 +40,10 @@ describe("activeMention", () => {
   it("finds the @word under the caret", () => {
     expect(activeMention("hola @an", 8)).toEqual({ start: 5, query: "an" });
   });
-  it("needs at least one letter, and not inside an email", () => {
-    expect(activeMention("hola @", 6)).toBeNull();
+  it("opens on a bare @, but not inside an email", () => {
+    expect(activeMention("hola @", 6)).toEqual({ start: 5, query: "" });
     expect(activeMention("pedro@gm", 8)).toBeNull();
+    expect(activeMention("pedro@", 6)).toBeNull();
   });
 });
 
