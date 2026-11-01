@@ -15,6 +15,7 @@ import Pesos from "@/pages/configurar/Pesos";
 import Foro from "@/pages/configurar/Foro";
 import Extras from "@/pages/configurar/Extras";
 import Asistencia from "@/pages/configurar/Asistencia";
+import Racha from "@/pages/configurar/Racha";
 import Salvando from "@/pages/configurar/Salvando";
 import Clase from "@/pages/configurar/Clase";
 import ClassPanel from "@/pages/ClassPanel";
@@ -149,6 +150,16 @@ export default function App() {
                 <RequireAuth>
                   <Shell>
                     <Asistencia />
+                  </Shell>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/configurar/racha"
+              element={
+                <RequireAuth>
+                  <Shell>
+                    <Racha />
                   </Shell>
                 </RequireAuth>
               }

@@ -7,11 +7,13 @@ import {
   RiCheckboxCircleLine,
   RiFlashlightLine,
   RiEditLine,
+  RiFireLine,
 } from "@remixicon/react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useClassSettings } from "@/hooks/useClassSettings";
 import SettingsRow from "@/components/SettingsRow";
+import { levelsSummary } from "@/lib/streak";
 import { es } from "@/strings/es";
 import type { Incentive } from "@/lib/types";
 
@@ -95,6 +97,21 @@ export default function ConfigurarIndex() {
             : "—"
         }
         to="/configurar/asistencia"
+      />
+      <SettingsRow
+        icon={<RiFireLine className="size-4" />}
+        name={es.configurar.groupRacha}
+        summary={
+          settings == null
+            ? "—"
+            : settings.streak_levels.every((l) => l.x2 === 0 && l.x3 === 0)
+              ? es.configurar.summaryRachaOff
+              : es.configurar.summaryRacha.replace(
+                  "{levels}",
+                  levelsSummary(settings.streak_levels),
+                )
+        }
+        to="/configurar/racha"
       />
       <SettingsRow
         icon={<RiFlashlightLine className="size-4" />}

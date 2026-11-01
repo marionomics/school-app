@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/Toaster";
 import { es } from "@/strings/es";
 import type { ClassOut, ClassSettings, MyClasses } from "@/lib/types";
@@ -28,7 +28,7 @@ export function useClassSettings() {
   });
 
   const save = useMutation({
-    mutationFn: (body: Record<string, number>) =>
+    mutationFn: (body: Record<string, unknown>) =>
       api<ClassSettings>(`/api/classes/${klass!.id}/settings`, {
         method: "PATCH",
         body: JSON.stringify(body),
@@ -39,7 +39,13 @@ export function useClassSettings() {
       invalidateGrades(qc);
       toast.show(es.configurar.saved);
     },
-    onError: () => toast.show(es.configurar.saveError),
+    onError: (e) =>
+      // A 422 carries the server's own Spanish reason; anything else is generic.
+      toast.show(
+        e instanceof ApiError && e.status === 422
+          ? e.message
+          : es.configurar.saveError,
+      ),
   });
 
   return {
