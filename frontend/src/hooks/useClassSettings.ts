@@ -40,9 +40,10 @@ export function useClassSettings() {
       toast.show(es.configurar.saved);
     },
     onError: (e) =>
-      // A 422 carries the server's own Spanish reason; anything else is generic.
+      // A 422 carries the server's own Spanish reason; anything else (or an
+      // empty reason) is generic.
       toast.show(
-        e instanceof ApiError && e.status === 422
+        e instanceof ApiError && e.status === 422 && e.message !== ""
           ? e.message
           : es.configurar.saveError,
       ),

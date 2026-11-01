@@ -13,6 +13,17 @@ export class ApiError extends Error {
   }
 }
 
+/** FastAPI's `detail` is a string for our own errors and a list for Pydantic
+ *  422s; for the list, the first message without Pydantic's "Value error, ". */
+export function detailMessage(detail: unknown): string | null {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const msg = (detail[0] as { msg?: unknown } | undefined)?.msg;
+    if (typeof msg === "string") return msg.replace(/^Value error, /, "");
+  }
+  return null;
+}
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const isForm = init.body instanceof FormData;
   const headers: Record<string, string> = {
@@ -26,7 +37,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     let message = res.statusText;
     try {
       const body = await res.json();
-      if (typeof body.detail === "string") message = body.detail;
+      message = detailMessage(body.detail) ?? message;
     } catch {
       /* keep statusText */
     }

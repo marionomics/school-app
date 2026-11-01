@@ -274,6 +274,7 @@ export const es = {
     racha3x: "Probabilidad de triple (%)",
     rachaAdd: "Agregar nivel",
     rachaRemove: "Quitar nivel",
+    rachaInvalid: "Revisa los niveles: días en orden creciente y doble + triple ≤ 100%",
     rachaHelp: "Cada publicación de 20 caracteres o más (o con foto) cuenta para la racha. Al publicar se sortea una vez si su aura cuenta doble o triple.",
   },
   panel: {
@@ -342,6 +343,8 @@ export const es = {
     triple: "Triple {p}",
     current: "Tu nivel",
     toNext: "Te faltan {n} días para el siguiente nivel",
+    toNextOne: "Te falta 1 día para el siguiente nivel",
+    off: "En esta clase la racha no da multiplicadores",
     maxLevel: "Estás en el nivel más alto",
     toastDouble: "¡Tu publicación salió doble!",
     toastTriple: "¡Tu publicación salió triple!",
@@ -351,6 +354,7 @@ export const es = {
   profile: {
     auraReceived: "{n} de aura",
     streak: "Racha: {n} días",
+    streakOne: "Racha: 1 día",
     editProfile: "Editar perfil",
     tabPosts: "Publicaciones",
     tabReplies: "Respuestas",

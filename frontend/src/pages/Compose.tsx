@@ -66,9 +66,12 @@ export default function Compose() {
     onSuccess: (post, taps) => {
       void refreshFeed(qc);
       invalidateGrades(qc);
-      if (taps) toast.show(es.compose.published.replace("{n}", String(taps)));
-      const m = multiplierToast(post.multiplier);
-      if (m) toast.show(m);
+      // The toaster holds one message: join them rather than overwrite.
+      const parts = [
+        taps ? es.compose.published.replace("{n}", String(taps)) : null,
+        multiplierToast(post.multiplier),
+      ].filter((x): x is string => x != null);
+      if (parts.length) toast.show(parts.join(" · "));
       void qc.invalidateQueries({ queryKey: ["streak"] });
       navigate("/", { replace: true });
     },

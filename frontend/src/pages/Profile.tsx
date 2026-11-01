@@ -135,7 +135,9 @@ function ProfileView({ username }: { username: string }) {
         {p.streak_days > 0 && (
           <p className="inline-flex items-center gap-1 text-sm text-muted-foreground">
             <RiFireFill className="size-4" />
-            {es.profile.streak.replace("{n}", String(p.streak_days))}
+            {p.streak_days === 1
+              ? es.profile.streakOne
+              : es.profile.streak.replace("{n}", String(p.streak_days))}
           </p>
         )}
         {p.is_me && (

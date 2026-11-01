@@ -130,7 +130,7 @@ export default function Racha() {
       </Button>
 
       {!valid && (
-        <p className="text-xs text-destructive">{es.configurar.saveError}</p>
+        <p className="text-xs text-destructive">{es.configurar.rachaInvalid}</p>
       )}
       <Button
         disabled={!valid || draft == null || save.isPending}

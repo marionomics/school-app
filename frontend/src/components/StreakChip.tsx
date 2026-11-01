@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RiFireFill, RiFireLine } from "@remixicon/react";
+import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { daysToNext, pct } from "@/lib/streak";
 import { es } from "@/strings/es";
@@ -17,6 +18,7 @@ export default function StreakChip() {
   const days = s?.days ?? 0;
   const pending = s != null && !s.today_done;
   const next = s ? daysToNext(s) : null;
+  const off = s != null && s.levels.every((l) => l.x2 === 0 && l.x3 === 0);
 
   return (
     <>
@@ -45,7 +47,8 @@ export default function StreakChip() {
               {es.streak.title} · {es.streak.days.replace("{n}", String(days))}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">{es.streak.sheetIntro}</p>
-            {s && (
+            {s && off && <p className="mt-4 text-sm font-medium">{es.streak.off}</p>}
+            {s && !off && (
               <>
                 <ul className="mt-4 space-y-2">
                   {s.levels.map((l) => (
@@ -70,13 +73,17 @@ export default function StreakChip() {
                   ))}
                 </ul>
                 <p className="mt-4 text-sm font-medium">
-                  {next == null ? es.streak.maxLevel : es.streak.toNext.replace("{n}", String(next))}
+                  {next == null
+                    ? es.streak.maxLevel
+                    : next === 1
+                      ? es.streak.toNextOne
+                      : es.streak.toNext.replace("{n}", String(next))}
                 </p>
               </>
             )}
-            <button onClick={() => setOpen(false)} className="mt-5 w-full rounded-md border py-2">
+            <Button variant="outline" className="mt-5 w-full" onClick={() => setOpen(false)}>
               {es.streak.close}
-            </button>
+            </Button>
           </div>
         </div>
       )}

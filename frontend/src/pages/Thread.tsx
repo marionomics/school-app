@@ -97,7 +97,7 @@ export default function Thread() {
       setReplyTo(null);
       setIsEntrega(false);
       const m = multiplierToast(sent.multiplier);
-      if (m) toast.show(m);
+      let message = m;
       void qc.invalidateQueries({ queryKey: ["streak"] });
       void qc.invalidateQueries({ queryKey: ["thread", id] });
       // The thread's root gains a reply; patch it rather than reorder the feed.
@@ -107,8 +107,10 @@ export default function Thread() {
       if (sent.is_entrega) unpinFromFeed(qc, Number(id));
       if (isSubmission && teamNames !== "") {
         const msg = teamResultToast(okTeam, sent);
-        if (msg) toast.show(msg);
+        if (msg) message = message ? `${message} · ${msg}` : msg;
       }
+      // The toaster holds one message: join them rather than overwrite.
+      if (message) toast.show(message);
     },
     onError: (e) => toast.show(e instanceof ApiError ? e.message : es.post.replyError),
   });
