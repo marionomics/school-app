@@ -11,7 +11,8 @@ from typing import Optional
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.models import (AttendanceRecord, Class, ClassSession, PointsConfig,
+from app.models import (DEFAULT_STREAK_LEVELS, AttendanceRecord, Class, ClassSession,
+                        PointsConfig,
                         PointsLedger, Post, Review)
 from app.services.submissions import counting_entrega, counting_submission
 
@@ -54,6 +55,7 @@ def get_config(db: Session, class_id: int) -> PointsConfig:
         like_exponent=Decimal("0.5"),
         like_cap=None,
         daily_post_limit=5,
+        streak_levels=[dict(l) for l in DEFAULT_STREAK_LEVELS],
     )
 
 

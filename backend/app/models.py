@@ -2,10 +2,19 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, JSON, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, JSON, Numeric, SmallInteger, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+
+# Racha odds per streak level (spec 2026-10-31). Per-class, editable in
+# Configurar; this is the default for new classes and the migration.
+DEFAULT_STREAK_LEVELS = [
+    {"from_days": 3, "x2": 0.15, "x3": 0.0},
+    {"from_days": 7, "x2": 0.2, "x3": 0.05},
+    {"from_days": 14, "x2": 0.25, "x3": 0.1},
+]
 
 
 def utcnow() -> datetime:
@@ -123,6 +132,8 @@ class Post(Base):
     # per page instead of one per post.
     mentions: Mapped[List["PostMention"]] = relationship(
         lazy="selectin", order_by="PostMention.id", passive_deletes=True)
+    roll: Mapped[Optional["PostRoll"]] = relationship(
+        lazy="selectin", uselist=False, passive_deletes=True)
 
 
 class PostMention(Base):
@@ -168,6 +179,21 @@ class Attachment(Base):
     post: Mapped[Post] = relationship(back_populates="attachments")
 
 
+class PostRoll(Base):
+    """The racha roll for one post, drawn once at publish (spec 2026-10-31).
+    Append-only: never recomputed — a grade must not change when re-read."""
+    __tablename__ = "post_rolls"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    post_id: Mapped[int] = mapped_column(
+        ForeignKey("posts.id", ondelete="CASCADE"), unique=True, index=True)
+    multiplier: Mapped[int] = mapped_column(SmallInteger)   # 1|2|3
+    streak_days: Mapped[int] = mapped_column(Integer)
+    x2: Mapped[Decimal] = mapped_column(Numeric(4, 3))
+    x3: Mapped[Decimal] = mapped_column(Numeric(4, 3))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class PointsConfig(Base):
     __tablename__ = "points_config"
 
@@ -178,6 +204,8 @@ class PointsConfig(Base):
     like_exponent: Mapped[Decimal] = mapped_column(Numeric(4, 3), default=Decimal("0.5"))
     like_cap: Mapped[Optional[Decimal]] = mapped_column(Numeric(8, 2))
     daily_post_limit: Mapped[int] = mapped_column(Integer, default=5)
+    streak_levels: Mapped[list] = mapped_column(
+        JSON, nullable=False, default=lambda: [dict(l) for l in DEFAULT_STREAK_LEVELS])
 
 
 class Incentive(Base):
