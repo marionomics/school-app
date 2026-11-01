@@ -16,6 +16,7 @@ import { useToast } from "@/components/Toaster";
 import { useVetoFlow } from "@/lib/useVetoFlow";
 import { canSubmit } from "@/lib/attachments";
 import { es } from "@/strings/es";
+import { multiplierToast } from "@/lib/streak";
 import type { Post, TeamCheckResponse, ThreadResponse } from "@/lib/types";
 import { parseUsernames } from "@/lib/mentions";
 import { useDebounced } from "@/lib/useDebounced";
@@ -95,6 +96,9 @@ export default function Thread() {
       setFiles([]);
       setReplyTo(null);
       setIsEntrega(false);
+      const m = multiplierToast(sent.multiplier);
+      if (m) toast.show(m);
+      void qc.invalidateQueries({ queryKey: ["streak"] });
       void qc.invalidateQueries({ queryKey: ["thread", id] });
       // The thread's root gains a reply; patch it rather than reorder the feed.
       patchFeedPost(qc, Number(id), (p) => ({ ...p, reply_count: p.reply_count + 1 }));

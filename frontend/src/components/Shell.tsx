@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { refreshFeed } from "@/lib/feed";
 import { useAuth } from "@/lib/auth";
 import GradeChip from "@/components/GradeChip";
+import StreakChip from "@/components/StreakChip";
 import {
   RiAddLine,
   RiHome5Line,
@@ -32,7 +33,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <RiMenuLine className="size-5" />
         </button>
         <span className="font-bold">{es.appName}</span>
-        {user?.role === "teacher" ? <span className="w-6" /> : <GradeChip />}
+        {user?.role === "teacher" ? <span className="w-6" /> : (
+          <div className="flex items-center gap-2">
+            <StreakChip />
+            <GradeChip />
+          </div>
+        )}
       </header>
 
       {menuOpen && (

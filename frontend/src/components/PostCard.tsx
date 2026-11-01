@@ -9,6 +9,7 @@ import {
   RiCheckLine,
   RiChat3Line,
   RiDeleteBinLine,
+  RiFireFill,
   RiFileTextLine,
   RiSparkling2Fill,
   RiSparkling2Line,
@@ -108,6 +109,12 @@ export default function PostCard({
             <RiChat3Line className="size-3" /> {es.feed.participacionBadge}
             {post.taps && post.taps > 1 ? ` ×${post.taps}` : ""}
             {post.class_name ? ` · ${post.class_name}` : ""}
+          </span>
+        )}
+        {post.multiplier && !removed && (
+          <span className="mt-1 ml-1 inline-flex items-center gap-1 rounded-full bg-orange-500/15 px-2 py-0.5 text-xs font-semibold text-orange-600">
+            <RiFireFill className="size-3" />
+            {es.streak.badge.replace("{n}", String(post.multiplier))}
           </span>
         )}
         {post.type === "tarea" && !removed && (

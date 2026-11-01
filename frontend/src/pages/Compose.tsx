@@ -14,6 +14,7 @@ import { es } from "@/strings/es";
 import type { MyClasses, Post } from "@/lib/types";
 import { invalidateGrades } from "@/lib/grades";
 import { refreshFeed } from "@/lib/feed";
+import { multiplierToast } from "@/lib/streak";
 
 const MIN_PARTICIPACION_CHARS = 10;
 
@@ -62,10 +63,13 @@ export default function Compose() {
       for (const f of files) fd.append("files", f);
       return api<Post>("/api/posts", { method: "POST", body: fd });
     },
-    onSuccess: (_post, taps) => {
+    onSuccess: (post, taps) => {
       void refreshFeed(qc);
       invalidateGrades(qc);
       if (taps) toast.show(es.compose.published.replace("{n}", String(taps)));
+      const m = multiplierToast(post.multiplier);
+      if (m) toast.show(m);
+      void qc.invalidateQueries({ queryKey: ["streak"] });
       navigate("/", { replace: true });
     },
     onError: (e) => {

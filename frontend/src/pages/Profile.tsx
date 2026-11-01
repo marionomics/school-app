@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { RiSparkling2Line } from "@remixicon/react";
+import { RiFireFill, RiSparkling2Line } from "@remixicon/react";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useLikeMutation } from "@/lib/likes";
@@ -132,6 +132,12 @@ function ProfileView({ username }: { username: string }) {
           <RiSparkling2Line className="size-4" />
           {es.profile.auraReceived.replace("{n}", String(p.aura_received))}
         </p>
+        {p.streak_days > 0 && (
+          <p className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+            <RiFireFill className="size-4" />
+            {es.profile.streak.replace("{n}", String(p.streak_days))}
+          </p>
+        )}
         {p.is_me && (
           <Button variant="outline" onClick={() => setEditing(true)}>{es.profile.editProfile}</Button>
         )}
