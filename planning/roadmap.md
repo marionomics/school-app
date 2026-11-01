@@ -8,12 +8,12 @@ Origen de los bloques 1–5: nota de Mario del 2026-09-28 ("Bug report y modific
 
 ## ▶ Empieza aquí (sesión nueva)
 
-Estado al 2026-10-29: **Bloques 0–4b cerrados y en producción**, más "Aceptar sugeridas" (calificar en un toque todas las entregas con su calificación automática), calificar exámenes desde el hilo, y menciones y entregas en equipo. Pendiente sólo justificar faltas paso 2.
+Estado al 2026-11-01: **Bloques 0–4b cerrados y en producción, racha ✅ (v0.2.23)**, más "Aceptar sugeridas" (calificar en un toque todas las entregas con su calificación automática), calificar exámenes desde el hilo, y menciones y entregas en equipo. Pendiente sólo justificar faltas paso 2.
 
 **Siguiente, en este orden (propuesta, Mario decide):**
 1. ~~Calificar exámenes desde el hilo~~ ✅ 2026-10-28.
 2. ~~Menciones y entregas en equipo~~ ✅ 2026-10-29 (sección propia abajo).
-3. **Racha** (sección propia abajo) — la idea grande de Mario para que los alumnos vuelvan y avancen. Toca el motor de calificación, así que va con brainstorming → spec → plan, y absorbe el "premio por comentar" de `future.md`.
+3. ~~Racha~~ ✅ 2026-11-01.
 4. **Bloque 5 — notificaciones.**
 
 **Medir el Bloque 4:** entre el **2026-11-06 y el 2026-11-13** (dos o tres semanas después del despliegue del 2026-10-23), correr `cd backend && python -m scripts.feed_metrics` contra producción y comparar con las semanas previas. Eso decide si se ajustan los pesos de `backend/app/services/feed_rank.py` o se abre la pregunta 7 de `future.md`. El profe vigila si las participaciones sin validar se le amontonan arriba (capa 1 del feed).
@@ -93,12 +93,11 @@ Poder arrobarse (`@compañero`). Por engagement, pero sobre todo por las tareas 
 - Las menciones sociales (`@` fuera de una entrega) alcanzan cualquier usuario con username; el @ se ve como `UserLink` (se cruza con el Bloque 5 para notificaciones).
 - Autocompletado de @ en el compositor y las respuestas (compañeros primero).
 
-## Racha (Mario, 2026-10-28)
-La idea para que los alumnos estén en la plataforma y de verdad avancen: **la racha**. Si mantienen su racha, según cuántos días lleven, sube la probabilidad de que el aura de sus publicaciones valga **2× o 3×**. Mientras más larga la racha, más probable el multiplicador.
+## Racha (Mario, 2026-10-28) ✅ (2026-11-01)
 
-Absorbe el **premio por comentar** de `future.md` (2026-10-21: con cierta probabilidad, el aura de un comentario vale doble o triple) — es el mismo mecanismo, ahora atado a la constancia. Pariente de "Salvando el semestre".
+Spec: `docs/superpowers/specs/2026-10-31-racha-design.md`. Decidido: racha por alumno en días naturales; cualquier publicación de 20+ caracteres o con archivo; niveles 3/7/14 configurables por clase; el multiplicador pesa las auras de esa publicación; el sorteo se guarda al publicar.
 
-Mueve puntos, así que toca el motor: brainstorming → spec → plan, con tests del motor como siempre. Lo que el spec tiene que decidir:
+Preguntas originales (ya resueltas):
 - **Qué mantiene la racha.** ¿Publicar o comentar cualquier cosa, una participación, o sólo comentar (lo que se quiere empujar)? ¿Cuenta la entrega de una tarea? Un comentario vacío o de una palabra no debería bastar.
 - **Qué es "un día".** ¿Días naturales o días de clase? Los fines de semana y vacaciones no deberían romperla si la clase no se reúne — el horario de la clase (`schedule_json`) ya existe. Zona horaria del alumno vs del servidor.
 - **La curva de probabilidad.** Por ejemplo: 0 % los primeros días y subiendo hasta un tope (¿cuánto 2× y cuánto 3×?). Configurable por clase, como `like_exponent` — nunca valores fijos en el código.

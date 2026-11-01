@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-01 — v0.2.23 (racha)
+- **La racha:** cada día que publicas algo (20 caracteres o más, o con foto o archivo) suma un día; un día sin publicar la rompe, fines de semana incluidos. Se ve con el fueguito en la barra de arriba, con "hoy aún no" si todavía no publicas hoy, y en tu perfil.
+- **Mientras más larga la racha, más probable que el aura de tu publicación cuente doble o triple:** desde 3 días, 15 % de doble; desde 7, 20 % de doble y 5 % de triple; desde 14, 25 % y 10 %. El sorteo es una sola vez, al publicar, y se guarda.
+- **Una publicación doble o triple** lleva la insignia 2× o 3× para todos y te avisa al publicarla. Sus auras cuentan doble o triple en tu aura total; la curva sigue igual, así que ayuda más a quien tiene poca aura. Si la publicación se borra o se veta, la insignia y su aura se van.
+- **Configurar → Racha:** el profe ajusta los niveles y probabilidades de cada clase (o los pone en 0 para apagar los multiplicadores).
+- Los mensajes de error de Configurar ahora dicen qué estuvo mal, en vez de un aviso vacío.
+
 ## 2026-10-29 — v0.2.22
 - **Un `@` solo ya abre la lista de sugerencias** con tus compañeros de clase; al escribir letras se filtra entre todos (compañeros primero). Antes había que escribir al menos una letra y parecía que no funcionaba.
 
