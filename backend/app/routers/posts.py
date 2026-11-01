@@ -90,8 +90,10 @@ def serialize_post(post: Post, liked_ids: Set[int], *, viewer: Optional[User] = 
                        removed=m.removed_at is not None)
             for m in post.mentions],
         # The racha badge: 2× or 3×, visible to everyone (spec decision 7).
+        # Hidden once vetoed or deleted: the post's auras no longer count.
         multiplier=(post.roll.multiplier
-                    if not removed and post.roll is not None and post.roll.multiplier > 1
+                    if post.status == "active" and post.roll is not None
+                    and post.roll.multiplier > 1
                     else None),
         examen_mode=post.examen_mode,
         graded_at=post.graded_at,

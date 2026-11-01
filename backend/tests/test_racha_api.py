@@ -61,3 +61,27 @@ def test_malformed_levels_are_rejected(client, klass, teacher_headers):
         r = client.patch(f"/api/classes/{klass.id}/settings",
                          json={"streak_levels": levels}, headers=teacher_headers)
         assert r.status_code == 422, levels
+
+
+def test_a_student_with_no_active_class_still_gets_real_days(client, db, student, auth_headers):
+    for d in (0, 1, 2):
+        _past(db, student, d)
+    r = client.get("/api/streak/me", headers=auth_headers).json()
+    assert r["days"] == 3 and r["today_done"] is True
+    assert r["level"] is None and r["next_level_at"] is None
+    assert r["odds"] == {"x2": 0.0, "x3": 0.0}
+
+
+def test_veto_hides_the_badge_and_unveto_restores_it(client, db, student, enrolled, klass,
+                                                    auth_headers, teacher_headers):
+    from app.models import PostRoll
+    p = Post(author_id=student.id, class_id=klass.id, content="x" * 30)
+    db.add(p)
+    db.flush()
+    db.add(PostRoll(post_id=p.id, multiplier=3, streak_days=7, x2=0, x3=0))
+    db.commit()
+    assert client.get(f"/api/posts/{p.id}", headers=auth_headers).json()["post"]["multiplier"] == 3
+    assert client.post(f"/api/posts/{p.id}/veto", headers=teacher_headers).status_code == 200
+    assert client.get(f"/api/posts/{p.id}", headers=auth_headers).json()["post"]["multiplier"] is None
+    assert client.delete(f"/api/posts/{p.id}/veto", headers=teacher_headers).status_code == 200
+    assert client.get(f"/api/posts/{p.id}", headers=auth_headers).json()["post"]["multiplier"] == 3

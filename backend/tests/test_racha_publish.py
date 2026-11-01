@@ -73,3 +73,17 @@ def test_a_stored_roll_never_changes_when_history_changes(client, db, student, e
     db.query(Post).filter(Post.id != body["id"]).update({"status": "deleted"})
     db.commit()
     assert db.query(PostRoll).one().streak_days == 7
+
+
+def test_an_attachment_only_post_is_rolled(client, db, student, enrolled, draw, monkeypatch):
+    from app import storage
+    monkeypatch.setattr(storage, "is_r2_configured", lambda: True)
+    monkeypatch.setattr(storage, "upload_bytes", lambda data, key, content_type: None)
+    monkeypatch.setattr(storage, "generate_presigned_url",
+                        lambda key, expires=3600: f"https://r2.test/{key}")
+    r = client.post("/api/posts", data={"content": ""},
+                    files=[("files", ("nota.pdf", b"%PDF-1.4", "application/pdf"))],
+                    headers=_h(db, student))
+    assert r.status_code == 201, r.text
+    roll = db.query(PostRoll).filter(PostRoll.post_id == r.json()["id"]).one()
+    assert roll.streak_days == 1

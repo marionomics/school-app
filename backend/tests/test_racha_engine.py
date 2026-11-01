@@ -67,3 +67,24 @@ def test_an_unlike_drops_the_weighted_count_by_the_multiplier(db, student, klass
     row.revoked_at = utcnow()
     db.commit()
     assert ledger_breakdown(db, student.id, klass.id)["likes_weighted"] == 2
+
+
+def test_a_triple_in_class_a_leaves_class_b_unchanged(db, student, teacher, klass, enrolled):
+    from datetime import date
+    from app.models import Class
+    b = Class(name="Macro", code="MACRO2026TEST", teacher_id=teacher.id,
+              start_date=date(2026, 8, 17), end_date=date(2026, 12, 4))
+    db.add(b)
+    db.commit()
+    db.add(Enrollment(user_id=student.id, class_id=b.id))
+    db.commit()
+    fans = _fans(db, klass, 3)
+    pa = _post(db, student, klass, multiplier=3)
+    pb = _post(db, student, b)
+    for f in fans:
+        _like(db, f, pa)
+        _like(db, f, pb)
+    out_a = ledger_breakdown(db, student.id, klass.id)
+    out_b = ledger_breakdown(db, student.id, b.id)
+    assert out_a["likes_count"] == 3 and out_a["likes_weighted"] == 9
+    assert out_b["likes_count"] == 3 and out_b["likes_weighted"] == 3
