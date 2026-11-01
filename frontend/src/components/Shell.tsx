@@ -29,12 +29,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-20 flex items-center justify-between border-b bg-background px-4 py-3">
-        <button aria-label={es.nav.menu} onClick={() => setMenuOpen(true)}>
+        <button className="shrink-0" aria-label={es.nav.menu} onClick={() => setMenuOpen(true)}>
           <RiMenuLine className="size-5" />
         </button>
-        <span className="font-bold">{es.appName}</span>
+        <span className="min-w-0 truncate font-bold">{es.appName}</span>
         {user?.role === "teacher" ? <span className="w-6" /> : (
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <StreakChip />
             <GradeChip />
           </div>

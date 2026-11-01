@@ -19,13 +19,13 @@ export default function GradeChip() {
     queryFn: () => api<GradeSummary[]>("/api/students/me/grade"),
   });
 
-  const total = (q.data ?? []).reduce((acc, g) => acc + g.total, 0);
+  const total = Math.round((q.data ?? []).reduce((acc, g) => acc + g.total, 0) * 10) / 10;
 
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary"
+        className="shrink-0 whitespace-nowrap rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary"
         aria-label={es.grade.title}
       >
         {q.isPending ? "…" : `${total} ${es.grade.points}`}

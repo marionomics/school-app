@@ -23,7 +23,7 @@ export default function StreakChip() {
       <button
         onClick={() => setOpen(true)}
         aria-label={es.streak.title}
-        className={`flex flex-col items-center rounded-full px-2 py-0.5 leading-tight ${
+        className={`flex shrink-0 flex-col items-center whitespace-nowrap rounded-full px-1 py-0.5 leading-none ${
           pending || days === 0 ? "text-muted-foreground" : "text-orange-600"
         }`}
       >
@@ -31,7 +31,7 @@ export default function StreakChip() {
           {days === 0 ? <RiFireLine className="size-4" /> : <RiFireFill className="size-4" />}
           {q.isPending ? "…" : es.streak.days.replace("{n}", String(days))}
         </span>
-        {pending && <span className="text-[10px]">{es.streak.todayPending}</span>}
+        {pending && <span className="mt-0.5 text-[10px]">{es.streak.todayPending}</span>}
       </button>
 
       {open && (
