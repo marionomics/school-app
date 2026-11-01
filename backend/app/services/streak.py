@@ -4,16 +4,17 @@ Pure functions over dates and a level table, plus one query that collects the
 dates a student contributed. The streak is computed, never stored; a roll is
 stored once at publish (maybe_roll, Task 3).
 """
+import random
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models import Post, User
+from app.models import Enrollment, Post, PostRoll, User
+from app.services.grades import get_config
 
 MIN_CONTRIBUTION_CHARS = 20
 TZ = ZoneInfo(settings.timezone)
@@ -91,3 +92,30 @@ def roll(x2: Decimal, x3: Decimal, u: float) -> int:
     if u < x3 + x2:
         return 2
     return 1
+
+
+def _draw() -> float:
+    """The server's uniform draw in [0, 1). Tests monkeypatch this."""
+    return random.random()
+
+
+def maybe_roll(db: Session, post: Post, author: User, has_files: bool) -> Optional[PostRoll]:
+    """Roll a freshly flushed post once, if it qualifies (spec §1). The
+    streak includes this post: the first post of the day counts the day."""
+    if author.role == "teacher" or post.class_id is None:
+        return None
+    if not is_contribution(post.content, has_files):
+        return None
+    active = (db.query(Enrollment)
+              .filter(Enrollment.user_id == author.id,
+                      Enrollment.class_id == post.class_id,
+                      Enrollment.status == "active").first())
+    if active is None:
+        return None
+    db.flush()   # the attachments added for this post must be visible
+    days = streak_days(contribution_dates(db, author.id), local_today())
+    x2, x3 = odds(days, get_config(db, post.class_id).streak_levels)
+    r = PostRoll(post_id=post.id, multiplier=roll(x2, x3, _draw()),
+                 streak_days=days, x2=x2, x3=x3)
+    db.add(r)
+    return r

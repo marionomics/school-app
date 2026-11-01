@@ -240,6 +240,7 @@ class PostOut(BaseModel):
     # student's work (their entrega, else their latest reply with files).
     is_submission: bool = False
     mentions: List[MentionOut] = []
+    multiplier: Optional[int] = None
     examen_mode: Optional[str] = None
     graded_at: Optional[datetime] = None
     my_review: Optional["ReviewOut"] = None

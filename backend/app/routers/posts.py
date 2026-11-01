@@ -15,6 +15,7 @@ from app.services import points
 from app.services.aura import set_teacher_aura
 from app.services.media import attachment_out
 from app.services.mentions import record_mentions, evaluate_team
+from app.services.streak import maybe_roll
 from app.services.submissions import live_team_member_ids, own_submission, team_of
 from app.services.attribution import resolve_default_class
 from app.services.visibility import assignment_visible, viewer_class_ids
@@ -88,6 +89,10 @@ def serialize_post(post: Post, liked_ids: Set[int], *, viewer: Optional[User] = 
             MentionOut(user=AuthorOut.model_validate(m.user), kind=m.kind,
                        removed=m.removed_at is not None)
             for m in post.mentions],
+        # The racha badge: 2× or 3×, visible to everyone (spec decision 7).
+        multiplier=(post.roll.multiplier
+                    if not removed and post.roll is not None and post.roll.multiplier > 1
+                    else None),
         examen_mode=post.examen_mode,
         graded_at=post.graded_at,
         my_review=ReviewOut.model_validate(review) if review is not None else None,
@@ -483,6 +488,8 @@ def create_post(
         storage.upload_bytes(data, key, ctype)
         db.add(Attachment(post_id=post.id, file_key=key, file_name=name,
                           file_size=len(data), mime_type=ctype))
+
+    maybe_roll(db, post, user, has_files=bool(file_payloads))
 
     if parent is not None:
         root = get_root(db, parent)
