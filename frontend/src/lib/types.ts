@@ -111,6 +111,8 @@ export interface Post {
   featured_reply?: Post | null;
   /** Teacher's feed only: entregas or exámenes left to grade. */
   pending_count?: number | null;
+  /** Streak multiplier applied to this post: 2, 3, or null. */
+  multiplier?: 2 | 3 | null;
 }
 
 export interface Review {
@@ -197,6 +199,21 @@ export interface Incentive {
   deleted_at: string | null;
 }
 
+export interface StreakLevel {
+  from_days: number;
+  x2: number;
+  x3: number;
+}
+
+export interface StreakMe {
+  days: number;
+  today_done: boolean;
+  level: StreakLevel | null;
+  next_level_at: number | null;
+  odds: { x2: number; x3: number };
+  levels: StreakLevel[];
+}
+
 export interface ClassSettings {
   tareas_weight: number;
   examenes_weight: number;
@@ -204,6 +221,7 @@ export interface ClassSettings {
   like_value: number;
   like_exponent: number;
   attendance_required_pct: number;
+  streak_levels: StreakLevel[];
 }
 
 export interface SessionOut {
@@ -305,6 +323,7 @@ export interface ProfileHeader {
   role: "student" | "teacher";
   is_me: boolean;
   aura_received: number;
+  streak_days: number;
   has_own_avatar: boolean;
   /** Present only for the owner and a teacher who teaches them. */
   grades?: { class_id: number; class_name: string; summary: GradeSummary }[];
