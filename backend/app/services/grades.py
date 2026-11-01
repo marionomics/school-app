@@ -8,12 +8,12 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.models import (DEFAULT_STREAK_LEVELS, AttendanceRecord, Class, ClassSession,
-                        PointsConfig,
-                        PointsLedger, Post, Review)
+                        Like, PointsConfig,
+                        PointsLedger, Post, PostRoll, Review)
 from app.services.submissions import counting_entrega, counting_submission
 
 ON_TIME = Decimal("100")
@@ -185,14 +185,25 @@ def ledger_breakdown(db: Session, user_id: int, class_id: int) -> dict:
     cfg = get_config(db, class_id)
     participaciones = sum((r.points for r in rows if r.source_type == "participacion"),
                           Decimal("0"))
-    likes_count = sum(1 for r in rows if r.source_type == "forum_like")
+    like_ids = [r.source_id for r in rows if r.source_type == "forum_like"]
+    likes_count = len(like_ids)
+    # Racha: each aura weighs its post's multiplier (spec 2026-10-31). Still a
+    # count fed to the curve — never a sum of the rows' points.
+    weights = {}
+    if like_ids:
+        weights = dict(
+            db.query(Like.id, func.coalesce(PostRoll.multiplier, 1))
+            .outerjoin(PostRoll, PostRoll.post_id == Like.post_id)
+            .filter(Like.id.in_(like_ids)).all())
+    likes_weighted = sum(int(weights.get(i, 1)) for i in like_ids)
     other = sum((r.points for r in rows
                  if r.source_type not in ("participacion", "forum_like")),
                 Decimal("0"))
     return {
         "participaciones": participaciones,
-        "likes": like_points(likes_count, cfg.like_value, cfg.like_exponent),
+        "likes": like_points(likes_weighted, cfg.like_value, cfg.like_exponent),
         "likes_count": likes_count,
+        "likes_weighted": likes_weighted,
         "other": other,
     }
 
