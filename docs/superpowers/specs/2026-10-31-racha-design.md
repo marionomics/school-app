@@ -70,9 +70,9 @@ All strings placeholders in `strings/es.ts` (tú); icons from `@remixicon/react`
 
 - Day boundaries are computed in `settings.timezone` on the server, never on the phone.
 - A post edited later: posts can't be edited, so a roll can't be gamed by editing.
-- Deleting and reposting to fish for a better roll is possible but pointless to farm: the deleted post's auras are revoked with it, a roll only pays if classmates give the new post aura, and `daily_post_limit` caps attempts.
+- Deleting and reposting to fish for a better roll is possible but pointless to farm: the deleted post's auras are revoked with it, and a roll only pays if classmates give the new post aura.
 - Unlikes revoke the like row → the weighted count drops by that post's multiplier.
-- The daily post limit (`daily_post_limit`) still applies and caps the number of rolls per day.
+- `points_config.daily_post_limit` exists but is not enforced anywhere today; this block does not change that (noted in `future.md` if rolls get farmed).
 
 ## 6. Testing
 
