@@ -76,3 +76,34 @@ def test_contribution_dates_ignore_short_vetoed_deleted_and_teacher(db, student,
     db.commit()
     assert contribution_dates(db, student.id) == {date(2026, 10, 18), date(2026, 10, 16)}
     assert contribution_dates(db, teacher.id) == set()
+
+
+def test_contribution_dates_whitespace_consistency_with_is_contribution(db, student):
+    def post(author, content, at):
+        p = Post(author_id=author.id, content=content, created_at=at, status="active")
+        db.add(p)
+        return p
+    t = lambda d: datetime(2026, 10, d, 18, 0, tzinfo=timezone.utc)
+    # Newlines: "hola" (4 chars) + 20 newlines = 24 bytes, but only 4 non-whitespace chars
+    post(student, "hola" + "\n" * 20, t(18))
+    # Tabs: similar pattern
+    post(student, "hi" + "\t" * 20, t(17))
+    # Exactly 20 chars after strip
+    post(student, "   " + "x" * 20 + "   ", t(16))
+    db.commit()
+    # First two should not count (fail is_contribution), last should count
+    assert contribution_dates(db, student.id) == {date(2026, 10, 16)}
+
+
+def test_timezone_boundary_precise(db, student):
+    """05:59:59Z on 21st is still 20th in Mexico City; 06:00:00Z is 21st."""
+    def post(author, content, at):
+        p = Post(author_id=author.id, content=content, created_at=at, status="active")
+        db.add(p)
+        return p
+    # 05:59:59 UTC on the 21st → 23:59:59 CDT on the 20th
+    post(student, "x" * 20, datetime(2026, 10, 21, 5, 59, 59, tzinfo=timezone.utc))
+    # 06:00:00 UTC on the 21st → 00:00:00 CDT on the 21st
+    post(student, "x" * 20, datetime(2026, 10, 21, 6, 0, 0, tzinfo=timezone.utc))
+    db.commit()
+    assert contribution_dates(db, student.id) == {date(2026, 10, 20), date(2026, 10, 21)}

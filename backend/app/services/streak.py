@@ -39,16 +39,14 @@ def local_today(now: Optional[datetime] = None) -> date:
 def contribution_dates(db: Session, user_id: int) -> set:
     """Local dates on which this student made a counting contribution."""
     since = datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)
-    rows = (db.query(Post.created_at)
+    rows = (db.query(Post.created_at, Post.content, Post.attachments.any().label("has_files"))
             .join(User, User.id == Post.author_id)
             .filter(Post.author_id == user_id,
                     User.role != "teacher",
                     Post.status == "active",
-                    Post.created_at >= since,
-                    or_(func.length(func.trim(Post.content)) >= MIN_CONTRIBUTION_CHARS,
-                        Post.attachments.any()))
+                    Post.created_at >= since)
             .all())
-    return {local_date(at) for (at,) in rows}
+    return {local_date(at) for at, content, has_files in rows if is_contribution(content, has_files)}
 
 
 def today_done(dates: set, today: date) -> bool:
