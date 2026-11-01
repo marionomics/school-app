@@ -33,6 +33,7 @@ def _to_out(klass: Class, cfg: PointsConfig) -> ClassSettingsOut:
         like_value=cfg.like_value,
         like_exponent=cfg.like_exponent,
         attendance_required_pct=klass.attendance_required_pct,
+        streak_levels=cfg.streak_levels,
     )
 
 
@@ -66,6 +67,8 @@ def update_settings(
         cfg.like_exponent = body.like_exponent
     if body.attendance_required_pct is not None:
         klass.attendance_required_pct = body.attendance_required_pct
+    if body.streak_levels is not None:
+        cfg.streak_levels = [l.model_dump() for l in body.streak_levels]
     db.commit()
     db.refresh(klass)
     db.refresh(cfg)

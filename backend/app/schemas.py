@@ -4,7 +4,7 @@ from typing import List, Optional
 
 
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class UserOut(BaseModel):
@@ -165,6 +165,25 @@ class LedgerRowOut(BaseModel):
     created_at: datetime
 
 
+class StreakLevel(BaseModel):
+    from_days: int = Field(ge=1)
+    x2: float = Field(ge=0, le=1)
+    x3: float = Field(ge=0, le=1)
+
+
+def _check_levels(levels):
+    if levels is None:
+        return levels
+    if len(levels) > 8:
+        raise ValueError("Máximo 8 niveles")
+    days = [l.from_days for l in levels]
+    if any(b <= a for a, b in zip(days, days[1:])):
+        raise ValueError("Los niveles deben ir en orden creciente de días")
+    if any(l.x2 + l.x3 > 1 for l in levels):
+        raise ValueError("La probabilidad de doble más triple no puede pasar de 100%")
+    return levels
+
+
 class ClassSettingsUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -174,6 +193,12 @@ class ClassSettingsUpdate(BaseModel):
     like_value: Optional[Decimal] = Field(default=None, gt=0)
     like_exponent: Optional[Decimal] = Field(default=None, ge=Decimal("0.1"), le=Decimal("2.0"))
     attendance_required_pct: Optional[int] = Field(default=None, ge=0, le=100)
+    streak_levels: Optional[List[StreakLevel]] = None
+
+    @field_validator("streak_levels")
+    @classmethod
+    def _levels(cls, v):
+        return _check_levels(v)
 
 
 class ClassSettingsOut(BaseModel):
@@ -183,6 +208,7 @@ class ClassSettingsOut(BaseModel):
     like_value: Decimal
     like_exponent: Decimal
     attendance_required_pct: int
+    streak_levels: List[StreakLevel]
 
 
 class SessionOut(BaseModel):

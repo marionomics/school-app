@@ -14,6 +14,7 @@ from app.routers import incentives as incentives_router
 from app.routers import review_queue as review_queue_router
 from app.routers import reviews as reviews_router
 from app.routers import settings as settings_router
+from app.routers import streak as streak_router
 from app.routers import users as users_router
 from app.routers import profiles as profiles_router
 from app.schemas import UserOut
@@ -42,6 +43,7 @@ app.include_router(review_queue_router.router)
 app.include_router(incentives_router.router)
 app.include_router(settings_router.router)
 app.include_router(attendance_router.router)
+app.include_router(streak_router.router)
 
 
 @app.get("/api/health")

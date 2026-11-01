@@ -11,6 +11,7 @@ from app.routers.grades import _summary
 from app.routers.posts import _liked_ids, _teacher_aura_ids, get_root, serialize_post
 from app.services.cursor import decode_cursor, encode_cursor
 from app.services.media import avatar_for
+from app.services.streak import contribution_dates, local_today, streak_days
 from app.services.visibility import assignment_visible, root_visible, viewer_class_ids
 
 router = APIRouter(prefix="/api/users", tags=["profiles"])
@@ -70,6 +71,7 @@ def profile(username: str, viewer: User = Depends(get_current_user),
         "id": u.id, "username": u.username, "name": u.name, "bio": u.bio,
         "avatar_url": avatar_for(u), "role": u.role, "is_me": viewer.id == u.id,
         "aura_received": int(aura), "has_own_avatar": u.has_own_avatar,
+        "streak_days": streak_days(contribution_dates(db, u.id), local_today()),
     }
     grades = _visible_grades(db, viewer, u)
     if grades is not None:
